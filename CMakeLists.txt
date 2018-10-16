@@ -2,7 +2,7 @@
 cmake_minimum_required(VERSION 3.2)
 project(master-thesis)
 
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 # set(CMAKE_VERBOSE_MAKEFILE on)
 
 add_compile_options(
@@ -14,6 +14,8 @@ add_compile_options(
 SET(HEADER_FILES
         include/Generator.h
         include/SpatialTree.h
+        include/SpatialTree.inl
+        include/DebugHelper.h
         )
 
 
