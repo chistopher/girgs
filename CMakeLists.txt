@@ -1,6 +1,6 @@
 
 cmake_minimum_required(VERSION 3.2)
-project(master-thesis)
+project(girgs)
 
 set(CMAKE_CXX_STANDARD 17)
 # set(CMAKE_VERBOSE_MAKEFILE on)
@@ -31,8 +31,8 @@ set(EXECUTABLE_FILES
 
 
 include_directories(./include)
-add_library(girgs STATIC ${SOURCE_FILES} ${HEADER_FILES})
-# add_library(girgs SHARED ${SOURCE_FILES} ${HEADER_FILES})
+# add_library(girgs STATIC ${SOURCE_FILES} ${HEADER_FILES})
+add_library(girgs SHARED ${SOURCE_FILES} ${HEADER_FILES})
 foreach(file ${EXECUTABLE_FILES})
     get_filename_component(executable ${file} NAME_WE)
     add_executable(${executable} ${file})

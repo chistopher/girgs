@@ -5,8 +5,9 @@ layer:
     - points with low weight have highest weight layer (was inverse in paper)
 
 level:
-    - hierarchy in kd-tree
-    - cells of highest depth (=level) contain points of highest layer
+    - depth in kd-tree
+    - in paper they use volume and that gets smaller with higher level (so also inverse to paper; considering both things inverse cancels itself out)
+    - we want edges between points with high layer (low weight) to be compared as far down the hierarchy as possible (in cells of high depth = high level)
 
 
 
@@ -18,7 +19,7 @@ level:
 
 - cells have global index
     - ordering is by concatenating geometric ordering of all levels
-        - because for a cell on level i all descendents on level j>i must be consecutive
+        - because for a cell on level i all descendants on level j>i must be consecutive
         - examples ordering see below
     - index of first cell on level l is: ``((2^(d*l))-1)/((2^d)-1)``
     - children of cell i are: (2^d)*i+[1..2^d]
@@ -49,7 +50,7 @@ level:
 
 notes:
 - type 1 pairs include (A,A)
-- in the orignial paper type 1 and type 2 pairs include A,B and B,A
+- in the original paper type 1 and type 2 pairs include A,B and B,A
 - we use "visit" for cell-pairs and "sample" for point-pairs/layer-pairs
 
 
@@ -60,7 +61,7 @@ constraints:
         - all children pairs in the cell if A=B
         - all children pairs (a,b) with a in A and b in B if A and B touch
 2. all type 2 cell pairs must be visited.
-    - should follow from first contraint and the fact that type 2 must have touching parents (since we sample all child pairs of touching parents)
+    - should follow from first constraint and the fact that type 2 must have touching parents (since we sample all child pairs of touching parents)
 3. no cell pair should be visited twice (again induction)
     - pairs with same parent
         - let c0,c1....ck be the children of the current cell
@@ -69,18 +70,63 @@ constraints:
         - for pair A,B we only make pairs (a,b) for a in A and b in B
         - we never have the pairs A,B and B,A like in the paper (except for A,A)
     - identical pairs (A,A)
-        - we apply the edge-case to " remove all edges with u > v sampled in this iteration" if A=B
+        - we apply the edge-case to " remove all edges with u > v sampled in this iteration" if A=B and the layer are the same (i=j)
+            - ATTENTION: for a cell pair we must sample all layer pairs and not only i<=j pairs
 4. all cell pairs of the orig algo are visited once (omitting the double visit of the original algo)
     - follows from 1-3
-5. for a cell pair A,B (of type 1 or 2), the recursive algo must sample the same pairs of weight-layers as the orignial algo
+5. for a cell pair A,B (of type 1 or 2), the recursive algo must sample the same pairs of weight-layers as the original algo
+    - (in fact we must sample all layer-pairs that were sampled by cell pairs A,B and B,A combined)
     - type 1
-        - orignial algo sampled only on one target level (for a pair of weigh-layers)
+        - original algo sampled only on one target level (for a pair of weigh-layers)
         - in recursive impl. the target level is determined like before and we try all possible layer-pairs that could have this level as target level
     - type 2
-        - we sample all layer pairs that include this cell pair in their  partitioning datastructure descibed in the paper (hopefully)
+        - we sample all layer pairs that include this cell pair in their  partitioning data structure described in the paper (hopefully)
 6. all point-pairs should be sampled once
     - follows from constraints 4,5 and the fact that original algo samples all point-pairs
     - explanation for type 2 is in comment after "sample edges between V_i^A and V_j^B"
+
+
+Alternative proof for 4-6
+we sample all point-pairs once
+    let a,b be two points from layer i and j respectively
+
+    we now show that the pair a,b is sampled exactly once.
+
+    let k be the deepest (with highest index) level in which their cells touch
+    -> their cells touch in level k, thus they also touch in all levels <=k
+
+    observation 1: there are type 1 cell-pairs containing our points on all levels <=k
+    observation 2: there is only one type 2 cell-pair containing our points and it is on level k+1
+        (unless the points are in touching cells on the deepest level; for bounded number of layers we change i+j to min(maxLayer, i+j)) TODO verify that remark 1 still holds
+
+    1) (i+j<=k): k is deeper than (or equal to) i+j
+        1.1) we sample them in exactly one type 1 cell-pair:
+            since i+j<=k, observation 1 states that there is a type 1 cell-pair on level i+j
+            this cell-pair will sample our point-pair
+            the point-pair is not sampled by other type 1 cell-pairs, because type 1 cell-pairs on level l sample only layers where i+j=l
+            -> we sample the point-pair only on level i+j
+        1.2) we do not sample them in any type 2 cell-pair:
+            (observation 2) the only type 2 cell-pair containing our points is on level k+1
+            for this type 2 cell-pair we sample all layer-pairs i',j' >= k+1 > k => i+j
+            inequality yields: i',j'>i,j
+            -> the layers i,j are not sampled by that (or any other) type 2 cell-pair
+    2) (k<i+j): i+j is deeper than k
+        2.1) we do not sample them in any type 1 cell-pair:
+            a layer-pair can only be sampled by a type 1 cell-pair when the cell-pair is on level i+j
+            all type 1 cell-pairs from observation 1 are on levels <=k<i+j (since the cells containing a,b do not touch in level i+j)
+            -> they are not sampled in any type 1 cell-pair
+        2.2) we sample them in exactly one type 2 cell-pair:
+            (observation 2) the only type 2 cell-pair containing our points is on level k+1
+            for this type 2 cell-pair we sample all layer-pairs i',j' >= k+1 > k
+            since i,j > k, our two points are one of those pairs
+
+
+    Remark: can we change the level l where layer-pairs i,j are sampled by type 1 cell-pairs (currently l=i+j)?
+    - proof holds if l satisfies:
+        - unique for i,j    (needed for 1.1)
+        - l>i and l>j       (needed for for inequality in 1.2)
+    - max(i,j) is ok
+    Remark 2: can be verified empirically by changing the edge probability to 1.0 and expecting the complete graph
 
 
 
@@ -90,11 +136,11 @@ sample(cell A, cell B)
     let l be level of cells
 
     if(touching A,B or A=B)
-        // sample all type 1 occurances with this cell pair
-        sample edges for weightlayers i,j with (wi*wj/W) somehow determines l as target layer
+        // sample all type 1 occurrences with this cell pair
+        sample edges for weightlayers i,j with (wi*wj/W) somehow determines l as target level // is i+j = l right ??? -> see "we sample all point-pairs" proof
     else // not touching
-        // sample all type 2 occurances with this cell pair
-        // the type 2 occurance can come from any pair of lower layers i,j
+        // sample all type 2 occurrences with this cell pair
+        // the type 2 occurrences can come from any pair of lower levels i,j>=l
         // assert(parent must be touching) to be sure we are type II pair; otherwise we would not have done this recursive call
         for all weightlayer pairs i,j>=l
             sample edges between V_i^A and V_j^B
@@ -170,7 +216,7 @@ l       cells   indexRange
 entry:
     HyperbolicLinear::linearSampling
         - samples positions
-        - calles sample edges
+        - calls sample edges
 
     HyperbolicLinear::sampleEdges
         - constructs weight layers (vector<set<Point>>) to be held by HyperbolicLinear

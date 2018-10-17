@@ -4,9 +4,7 @@
 #include <array>
 #include <vector>
 #include <utility>
-#include <optional>
 #include <cassert>
-
 
 // datastucture is full D-dimensional spatial tree with L levels
 // TODO does each function need to be passed the level of the cell?
@@ -15,6 +13,7 @@ class SpatialTree
 {
 public:
 
+    // static helper functions
     // the total number of cells on all levels {0..(L-1)}
     // $\sum_{i=0}^{L-1} 2^{DL} = \frac{2^{DL}-1}{2^D-1}
     static constexpr unsigned int numCellsInLevel(unsigned int level) noexcept { return 1u<<(D*level); }
@@ -27,9 +26,31 @@ public:
     const static auto level = L;
     const static auto dimension = D;
 
+    constexpr SpatialTree(); // constexpr c'tor
 
-    constexpr SpatialTree(); // for now for testing
-    // SpatialTree(std::array<std::vector<std::array<D>>, L>& weigh_levels); // TODO change int to pointer to actual points
+    // for testing purpose
+    std::array<std::pair<double,double>, D> bounds(int cell, unsigned int level) const;
+    // used during runtime for countingsort of points
+    unsigned int cellForPoint(std::array<double, D>& point, unsigned int targetLevel) const;
+
+    // graph generation stuff
+    struct Node {
+        std::array<double, D> coord;
+        int weight;
+        int index; // for debug // TODO maybe remove?
+        std::vector<Node*> m_edges;
+    };
+    using Graph = std::vector<Node>;
+    // entry point for the algorithm
+    Graph generateGraph(std::vector<int>& weights);
+
+protected:
+
+    // recursive function that samples all edges between points in A and B
+    void visitCellPair(unsigned int cellA, unsigned int cellB, Graph& graph) const;
+
+
+    // helper functions from paper:
 
     // returns the number of points in a cell
     // PRECONDITION: cell must be of lower level than the target level
@@ -43,24 +64,27 @@ public:
     // PRECONDITION: cell must be of lower level than the target level
     //               i.e. cell index > first cell index in target level (see n)
     // find first descendent of cell in target level and use m_A to find the point
-    int kthPoint(unsigned int cell, int k, unsigned int targetLevel) const; // maybe also give level of cell?
+    Node* kthPoint(unsigned int cell, unsigned int fromLevel, unsigned int targetLevel, int k) const; // maybe also give level of cell?
 
-
-    // for testing purpose
-    // maybe need them later
-    std::array<std::pair<double,double>, D> bounds(int cell, unsigned int level) const;
-    unsigned int cellForPoint(std::array<double, D>& point, unsigned int targetLevel) const;
 
 private:
+    // compile time data:
+
     std::array<std::array<int, D>, numCells> m_coords; // TODO flatten coords array like in inverse mapping
     std::array<int, numCells> m_coords2Index;
+
+    // runtime data:
 
     // the number of points in each cell
     std::array<int, numCells> m_points_in_cell;
     // for each cell $i$ the number of points in all cells $j<i$ of the same level (prefix sums)
     std::array<int, numCells> m_prefix_sums;
     // m_A[l][m_prefix_sums[i]+k] contains the k-th point in the i-th cell of level l
-    std::array<std::vector<int>, L>* m_A;
+    std::array<std::vector<Node*>, L>* m_A; // ptr to enable constexpr
+    // breaks recursion after maxLevel so that a tree can be used for fewer layers than the tree has level
+    unsigned int m_maxLevel;
+    // minimum weigh in weight layer w_i
+    std::vector<std::vector<Node*>>* m_weight_layers; // ptr to enable constexpr
 };
 
 
