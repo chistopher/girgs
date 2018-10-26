@@ -2,12 +2,22 @@
 
 layer:
     - partitioning of points in weight-layers
-    - points with low weight have highest weight layer (was inverse in paper)
 
 level:
     - depth in kd-tree
-    - in paper they use volume and that gets smaller with higher level (so also inverse to paper; considering both things inverse cancels itself out)
-    - we want edges between points with high layer (low weight) to be compared as far down the hierarchy as possible (in cells of high depth = high level)
+
+
+# improvement ideas
+- use level local index for cells
+- in WeightLayer: use array_view concept to provide access to all nodes in ViA
+    - e.g. only one method that returns pointer to first element and size of collection
+    - removes need for multiple calls to k-th point
+- use omp to process recursive calls in parallel (somehow aggregate on edge vectors?)
+- stop building empty weight_layers
+- set levels to (L-2)/D+1 ? because we need no coord_helper if we stop recursion after (L-2)/D
+- make graph member to reduce stack size ? needs benchmarking
+- move index helper functions to common.h
+- pre-compute expressions used in for loop condition
 
 
 

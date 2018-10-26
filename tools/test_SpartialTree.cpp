@@ -2,7 +2,9 @@
 #include <iostream>
 #include <random>
 
+#include <DebugHelper.h>
 #include <SpatialTree.h>
+#include <SpatialTreeCoordinateHelper.h>
 
 
 using namespace std;
@@ -15,35 +17,37 @@ void test(bool cond){
 }
 
 
-template<class T>
-void testTreeStructure(T& tree) {
+template<unsigned int D>
+void testTreeStructure(SpatialTree<D>& tree) {
+
+    // test consistency of cell index up to level 12 / D
+    const auto max_level = 12 / D;
 
     // check the number of children on all layers and helper functions
-    auto cells = T::numCells;
+    auto cells = tree.firstCellOfLevel(max_level+1);
     auto sumCells = 1; // root in level 0
-    auto numChildren = array<int, T::numCells>();
-    numChildren.fill(0);
-    for(auto l=1u; l<T::level; ++l) {
-        test(sumCells == T::firstCellOfLevel(l));
-        test(sumCells == T::parent(T::firstCellOfLevel(l+1)));
-        test(sumCells == T::firstChild(T::firstCellOfLevel(l-1)));
-        test(sumCells + T::numCellsInLevel(l) == T::firstCellOfLevel(l+1));
-        sumCells += T::numCellsInLevel(l);
-        for(auto i = T::firstCellOfLevel(l); i<T::firstCellOfLevel(l+1); ++i) {
-            numChildren.at(T::parent(i)) += 1; // use array::at to get bounds check
+    auto numChildren = vector<int>(cells, 0);
+    for(auto l=1u; l<=max_level; ++l) {
+        test(sumCells == tree.firstCellOfLevel(l));
+        test(sumCells == tree.parent(tree.firstCellOfLevel(l+1)));
+        test(sumCells == tree.firstChild(tree.firstCellOfLevel(l-1)));
+        test(sumCells + tree.numCellsInLevel(l) == tree.firstCellOfLevel(l+1));
+        sumCells += tree.numCellsInLevel(l);
+        for(auto i = tree.firstCellOfLevel(l); i<tree.firstCellOfLevel(l+1); ++i) {
+            numChildren.at(tree.parent(i)) += 1; // use at to get bounds check
         }
     }
     test(cells == sumCells);
 
     // check that all but the last level have correct number of children
-    for(auto i=0; i<T::firstCellOfLevel(T::level-1); ++i)
-        test(numChildren[i] == T::numChildren);
-    for(auto i=T::firstCellOfLevel(T::level-1); i<cells; ++i)
+    for(auto i=0; i<tree.firstCellOfLevel(max_level); ++i)
+        test(numChildren[i] == tree.numChildren);
+    for(auto i=tree.firstCellOfLevel(max_level); i<cells; ++i)
         test(numChildren[i] == 0);
 }
 
-template<class T>
-void testCoordMapping(T& tree) {
+template<unsigned int D>
+void testCoordMapping(SpatialTreeCoordinateHelper<D>& helper) {
 
     // generate some points and check their cells on all levels
     mt19937 gen(1337);
@@ -51,46 +55,84 @@ void testCoordMapping(T& tree) {
     for(auto i=0; i<100; ++i) {
 
         // generate random point in [0..1)^D
-        array<double, T::dimension> point;
-        for(auto d=0; d<T::dimension; ++d)
+        array<double, D> point;
+        for(auto d=0u; d<D; ++d)
             point[d] = dist(gen);
 
         // compute containing cell in all levels and check if point is in their bounds
-        array<unsigned int, T::level> containingCells;
+        auto containingCells = vector<unsigned int>(helper.levels());
         containingCells[0] = 0;
-        for(auto l=1u; l<T::level; ++l){
-            containingCells[l] = tree.cellForPoint(point, l);
+        for(auto l=1u; l<helper.levels(); ++l){
+            containingCells[l] = helper.cellForPoint(point, l);
             auto cell = containingCells[l];
-            auto bounds = tree.bounds(cell, l);
-            for(auto d=1u; d<T::dimension; ++d){
+            auto bounds = helper.bounds(cell, l);
+            for(auto d=0u; d<D; ++d){
                 test(bounds[d].first <= point[d] && point[d] < bounds[d].second);
             }
         }
 
         // check that all containing cells have the same parents
-        for(auto l=1; l<T::level; ++l)
-            test(containingCells[l-1] == T::parent(containingCells[l]));
+        for(auto l=1; l<helper.levels(); ++l)
+            test(containingCells[l-1] == helper.parent(containingCells[l]));
     }
+}
+
+
+template<unsigned int D>
+void testIfComplete(std::vector<Node<D>> graph) {
+    for(auto& each : graph)
+        test(each.edges.size() == graph.size());
 }
 
 
 int main(int argc, char* argv[]) {
 
-    constexpr auto a1 = SpatialTree<1,7>();
-    constexpr auto a2 = SpatialTree<2,6>();
-    constexpr auto a3 = SpatialTree<3,5>();
-    constexpr auto a4 = SpatialTree<4,4>();
-
+    auto a1 = SpatialTree<1>();
+    auto a2 = SpatialTree<2>();
+    auto a3 = SpatialTree<3>();
+    auto a4 = SpatialTree<4>();
 
     testTreeStructure(a1);
     testTreeStructure(a2);
     testTreeStructure(a3);
     testTreeStructure(a4);
 
-    testCoordMapping(a1);
-    testCoordMapping(a2);
-    testCoordMapping(a3);
-    testCoordMapping(a4);
+    auto b1 = SpatialTreeCoordinateHelper<1>(12);
+    auto b2 = SpatialTreeCoordinateHelper<2>(6);
+    auto b3 = SpatialTreeCoordinateHelper<3>(4);
+    auto b4 = SpatialTreeCoordinateHelper<4>(3);
+
+    testCoordMapping(b1);
+    testCoordMapping(b2);
+    testCoordMapping(b3);
+    testCoordMapping(b4);
+
+    // TODO write better test for touching
+    auto a = a1.firstCellOfLevel(5);
+    auto b = a1.firstCellOfLevel(5) + a1.numCellsInLevel(5) - 1;
+    test(b1.touching(a,b,5));
+
+    auto weights = generatePowerLawWeights(100, 1.0, 99, -2.1, 14);
+
+    auto g1 = a1.generateGraph(weights);
+    auto g2 = a2.generateGraph(weights);
+    auto g3 = a3.generateGraph(weights);
+    auto g4 = a4.generateGraph(weights);
+
+    testIfComplete(g1);
+    testIfComplete(g2);
+    testIfComplete(g3);
+    testIfComplete(g4);
+
+    /*
+    sort(g2.begin(), g2.end(), [](auto& a, auto& b){
+       return a.weight > b.weight;
+    });
+
+    sort(g2.front().edges.begin(), g2.front().edges.end(), [](auto& a, auto& b){
+        return a->index < b->index;
+    });
+     */
 
     cout << "all tests passed." << endl;
     return 0;

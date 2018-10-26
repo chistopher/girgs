@@ -1,0 +1,72 @@
+
+
+
+template<unsigned int D>
+SpatialTreeCoordinateHelper<D>::SpatialTreeCoordinateHelper(unsigned int levels)
+    : m_levels(levels)
+    , m_coords(firstCellOfLevel(levels))
+    , m_coords2Index(firstCellOfLevel(levels))
+{
+
+    // calculate coords // TODO find implicit way to get from index to coords and back
+
+    m_coords[0].fill(0); // first cell has [0]^D
+    for(auto l=1u; l<levels; ++l) {
+        for(auto cell = firstCellOfLevel(l); cell < firstCellOfLevel(l+1); ++cell) {
+            m_coords[cell] = m_coords[parent(cell)];
+            auto bitmask = ((cell-1)&(numChildren-1)); // & is unnecessary but removes all but the last D bits
+            for(auto d=0; d<D; ++d) { // check orientation to parent in all dimensions with d-th bit in bitmask
+                m_coords[cell][d] *= 2; // every level doubles each dimension
+                m_coords[cell][d] += static_cast<bool>(bitmask&(1<<d)); // add 1 if we are "right" of parent in dimension d
+            }
+
+            // save inverse mapping
+            auto packedCoord = 0;
+            for(auto d=0; d<D; ++d)
+                packedCoord += m_coords[cell][d] * (1<<(l*d));
+            m_coords2Index[firstCellOfLevel(l) + packedCoord] = cell;
+        }
+    }
+}
+
+
+template<unsigned int D>
+std::array<std::pair<double, double>, D> SpatialTreeCoordinateHelper<D>::bounds(unsigned int cell, unsigned int level) const {
+    auto diameter = 1.0 / (1<<level);
+    auto result = std::array<std::pair<double, double>, D>();
+    for(auto d=0; d<D; ++d)
+        result[d]= { m_coords[cell][d]*diameter, (m_coords[cell][d]+1)*diameter };
+    return result;
+}
+
+
+template<unsigned int D>
+unsigned int SpatialTreeCoordinateHelper<D>::cellForPoint(std::array<double, D>& point, unsigned int targetLevel) const {
+
+    // calculate coords
+    auto diameter = 1.0 / (1<<targetLevel);
+    std::array<int, D> coords;
+    for(auto d=0; d<D; ++d) {
+        coords[d] = static_cast<int>(point[d] / diameter);
+        assert(coords[d] < (1<<targetLevel));
+    }
+
+    // get from coords to index
+    auto packedCoord = 0;
+    for(auto d=0; d<D; ++d)
+        packedCoord += coords[d] * (1<<(targetLevel*d));
+    return m_coords2Index[firstCellOfLevel(targetLevel) + packedCoord];
+}
+
+template<unsigned int D>
+bool SpatialTreeCoordinateHelper<D>::touching(unsigned int cellA, unsigned int cellB, unsigned int level) const {
+    auto& coordA = m_coords[cellA];
+    auto& coordB = m_coords[cellB];
+    auto touching = true;
+    for(auto d=0u; d<D; ++d){
+        auto dist = std::abs(coordA[d] - coordB[d]);
+        dist = std::min(dist, (1<<level) - dist);
+        touching &= dist<=1;
+    }
+    return touching;
+}

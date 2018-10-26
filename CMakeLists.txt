@@ -2,7 +2,7 @@
 cmake_minimum_required(VERSION 3.2)
 project(girgs)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 14)
 # set(CMAKE_VERBOSE_MAKEFILE on)
 
 add_compile_options(
@@ -16,7 +16,11 @@ SET(HEADER_FILES
         include/SpatialTree.h
         include/SpatialTree.inl
         include/DebugHelper.h
-        )
+        include/SpatialTreeCoordinateHelper.h
+        include/SpatialTreeCoordinateHelper.inl
+        include/WeightLayer.h
+        include/WeightLayer.inl
+        include/Common.h)
 
 
 set(SOURCE_FILES

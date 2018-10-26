@@ -1,159 +1,118 @@
 
 
-#include <memory>
 
-
-template<unsigned int D, unsigned int L>
-constexpr SpatialTree<D,L>::SpatialTree()
-    : m_coords()
-    , m_coords2Index()
-    , m_points_in_cell()
-    , m_prefix_sums()
-    , m_A(nullptr)
-    , m_maxLevel(0)
-    , m_weight_layers(nullptr)
-{
-
-    // calculate coords // TODO find implicit way to get from index to coords and back
-    for(auto d=0; d<D; ++d) m_coords[0][d] = 0; // first cell has [0]^D // no "m_coords[0].fill(0);" because that is not constexpr
-
-    for(auto l=1; l<L; ++l) {
-        for(auto cell = firstCellOfLevel(l); cell < firstCellOfLevel(l+1); ++cell) {
-            m_coords[cell] = m_coords[parent(cell)];
-            auto bitmask = ((cell-1)&(numChildren-1)); // & is unnecessary but removes all but the last D bits
-            for(auto d=0; d<D; ++d) { // check orientation to parent in all dimensions with d-th bit in bitmask
-                m_coords[cell][d] *= 2; // every level doubles each dimension
-                m_coords[cell][d] += static_cast<bool>(bitmask&(1<<d)); // add 1 if we are the "right" of parent in dimension d
-            }
-
-            // save inverse mapping
-            auto packedCoord = 0;
-            for(auto d=0; d<D; ++d)
-                packedCoord += m_coords[cell][d] * (1<<(l*d));
-            m_coords2Index[firstCellOfLevel(l) + packedCoord] = cell;
-        }
-    }
-}
-
-
-template<unsigned int D, unsigned int L>
-std::array<std::pair<double, double>, D> SpatialTree<D, L>::bounds(int cell, unsigned int level) const {
-    auto diameter = 1.0 / (1<<level);
-    auto result = std::array<std::pair<double, double>, D>();
-    for(auto d=0; d<D; ++d)
-        result[d]= { m_coords[cell][d]*diameter, (m_coords[cell][d]+1)*diameter };
-    return result;
-}
-
-
-template<unsigned int D, unsigned int L>
-unsigned int SpatialTree<D, L>::cellForPoint(std::array<double, D>& point, unsigned int targetLevel) const {
-
-    // calculate coords
-    auto diameter = 1.0 / (1<<targetLevel);
-    std::array<int, D> coords;
-    for(auto d=0; d<D; ++d) {
-        coords[d] = static_cast<int>(point[d] / diameter);
-        assert(coords[d] < (1<<targetLevel));
-    }
-
-    // get from coords to index
-    auto packedCoord = 0;
-    for(auto d=0; d<D; ++d)
-        packedCoord += coords[d] * (1<<(targetLevel*d));
-    return m_coords2Index[firstCellOfLevel(targetLevel) + packedCoord];
-}
-
-
-template<unsigned int D, unsigned int L>
-typename SpatialTree<D, L>::Graph SpatialTree<D, L>::generateGraph(std::vector<int>& weights) {
+template<unsigned int D>
+std::vector<Node<D>> SpatialTree<D>::generateGraph(std::vector<double>& weights) {
 
     auto graph = Graph(weights.size());
+
     // sample positions
-    // TODO
+    std::mt19937 gen; // TODO expose seed
+    std::uniform_real_distribution<> dist;
+    for(auto i=0; i<weights.size(); ++i) {
+        auto &node = graph[i];
+        node.weight = weights[i];
+        node.index = i;
+        for (auto d = 0u; d < D; ++d)
+            node.coord[d] = dist(gen);
+    }
 
-    // build weight layers
-    auto weightLayers = std::make_unique(decltype(m_weight_layers)());
-    m_weight_layers = weightLayers.get();
-    // TODO do stuff
-    m_maxLevel = weightLayers.size(); // TODO or -1?
+    // determine size of tree and weight layers
+    m_W = std::accumulate(weights.begin(), weights.end(), 0.0);
+    m_layers = static_cast<unsigned int>(std::log2(m_W));
+    m_levels = (m_layers - 1) / D + 1; // level are in range [0, (layer-1)/D]
+    m_helper = SpatialTreeCoordinateHelper<D>(m_levels);
 
-    // insert points in spatial data structure
-    auto A = std::make_unique(decltype(m_A)()); // in fact we only need an array of size m_maxLevel <= L
-    m_A = A.get();
-    // TODO fill m_points_in_cell, m_prefix_sums, m_A
-    // TODO counting sort for each level / layer
+    // sort weights into exponentially growing layers
+    {   // block to let weightLayerNodes go out of scope after it was moved away
+        auto weightLayerNodes = std::vector<std::vector<Node<D> *>>(m_layers);
+        for (auto i = 0; i < weights.size(); ++i)
+            weightLayerNodes[std::log2(weights[i])].push_back(&graph[i]);
+
+        // build spatial structure described in paper
+        for (auto layer = 0; layer < m_layers; ++layer)
+            m_weight_layers.emplace_back(layer, m_layers, m_helper, std::move(weightLayerNodes[layer]));
+    }
 
     // sample all edges
-    //visitCellPair(0,0, graph);
+    visitCellPair(0,0,0, graph);
 
     return graph;
 }
 
 
-template<unsigned int D, unsigned int L>
-void SpatialTree<D, L>::visitCellPair(unsigned int cellA, unsigned int cellB, SpatialTree::Graph &graph) const {
-    /*
-    let l be level of cells
+template<unsigned int D>
+void SpatialTree<D>::visitCellPair(unsigned int cellA, unsigned int cellB, unsigned int level, std::vector<Node<D>> &graph) const {
 
-    if(touching A,B or A=B)
+    auto touching = m_helper.touching(cellA, cellB, level);
+
+    if(cellA == cellB or touching) {
+
         // sample all type 1 occurrences with this cell pair
-        sample edges for weightlayers i,j with (wi*wj/W) somehow determines l as target level // is i+j = l right ??? -> see "we sample all point-pairs" proof
-    else // not touching
+        // TODO dont do bruteforce over all layer-pairs
+        for(auto i=0; i<m_layers; ++i)
+            for (auto j=0; j<m_layers; ++j)
+                if(std::max(((int)m_layers-(i+j+2))/(int)dimension, 0) == level)
+                    sampleBetweenViAVjB(cellA, cellB, level, i, j, graph);
+
+    } else { // not touching
+
         // sample all type 2 occurrences with this cell pair
-        // the type 2 occurrences can come from any pair of lower levels i,j>=l
-        // assert(parent must be touching) to be sure we are type II pair; otherwise we would not have done this recursive call
-        for all weightlayer pairs i,j>=l
-            sample edges between V_i^A and V_j^B
-            // for two points x in V_i^A and y in V_j^B this can happen only one time, because there is just one pair of cells (A', B') in the hierarchy with x in A' and y in B' where:
-            // 1. A' and B' are not touching
-            // 2: parent(A') touches parent(B')
-            // It is easy to see, that no children of these cells will sample those points again, because the recursion ends here
+        for(auto i=0; i<m_layers; ++i)
+            for (auto j=0; j<m_layers; ++j)
+                if(std::max(((int)m_layers-(i+j+2))/(int)dimension, 0) >= level){
+                    sampleBetweenViAVjB(cellA, cellB, level, i, j, graph);
+                } else {
+                    break; // if condition failed it will also fail for all subsequent j
+                }
+    }
 
-    if(A=B)
-        recursive call for all children pairs of cell A=B
+    // break if last level reached
+    if(level >= (m_layers-2)/dimension) // we skip level (L - 1)/d, because i,j are compared at most in depth (L-2)/d
+        return;
 
-    if(touching A,B and A!=B)
-        recursive call for all children pairs (a,b) where a in A and b in B
-        // these will be type 1 if a and b touch or type 2 if they dont
-    */
-    // TODO implement
+    if(cellA == cellB){
+        // recursive call for all children pairs of cell A=B
+        for(auto a = firstChild(cellA); a<firstChild(cellA)+numChildren; ++a)
+            for(auto b = a; b<firstChild(cellA)+numChildren; ++b)
+                visitCellPair(a,b, level+1, graph);
+    }
+
+
+    if(touching && cellA!=cellB) {
+        // recursive call for all children pairs (a,b) where a in A and b in B
+        // these will be type 1 if a and b touch or type 2 if they don't
+        for(auto a = firstChild(cellA); a<firstChild(cellA)+numChildren; ++a)
+            for(auto b = firstChild(cellB); b<firstChild(cellB)+numChildren; ++b)
+                visitCellPair(a, b, level+1, graph);
+    }
 }
 
 
-template<unsigned int D, unsigned int L>
-int SpatialTree<D,L>::pointsInCell(unsigned int cell, unsigned int fromLevel, unsigned int targetLevel) const {
-    assert(fromLevel <= targetLevel);
-    assert(firstCellOfLevel(fromLevel) <= cell && cell < firstCellOfLevel(fromLevel+1)); // cell is from fromLevel
+template<unsigned int D>
+void SpatialTree<D>::sampleBetweenViAVjB(
+        unsigned int cellA, unsigned int cellB, unsigned int level,
+        unsigned int i, unsigned int j, SpatialTree::Graph &graph) const
+{
+    auto sizeV_i_A = m_weight_layers[i].pointsInCell(cellA, level);
+    auto sizeV_j_B = m_weight_layers[j].pointsInCell(cellB, level);
+    for(int kA=0; kA<sizeV_i_A; ++kA){
+        for (int kB =0; kB<sizeV_j_B; ++kB) {
+            auto nodeInA = m_weight_layers[i].kthPoint(cellA, level, kA);
+            auto nodeInB = m_weight_layers[j].kthPoint(cellB, level, kB);
 
-    // we want the begin-th and end-th cell in level targetLevel to be the first and last descendant of cell in this level
-    // we could apply the firstChild function to find the first descendant but this is in O(1)
-    auto descendants = numCellsInLevel(targetLevel - fromLevel); // 2^(D*L)
-    auto localIndexCell = cell - firstCellOfLevel(fromLevel);
-    auto localIndexDescendant = localIndexCell * descendants; // each cell before the parent splits in 2^D cells in the next layer that are all before our descendent
-    auto begin = localIndexDescendant + firstCellOfLevel(targetLevel);
-    auto end = begin + descendants - 1;
+            // points are in correct cells
+            assert(cellA == m_helper.cellForPoint(nodeInA->coord, level));
+            assert(cellB == m_helper.cellForPoint(nodeInB->coord, level));
 
-    assert(begin < firstCellOfLevel(targetLevel+1));
-    assert(end < firstCellOfLevel(targetLevel+1));
+            // points are in correct weight layer
+            assert(i == static_cast<unsigned int>(std::log2(nodeInA->weight)));
+            assert(j == static_cast<unsigned int>(std::log2(nodeInB->weight)));
 
-    return m_prefix_sums[end] - m_prefix_sums[begin] + m_points_in_cell[end];
+            // TODO replace by real sampling
+            nodeInA->edges.push_back(nodeInB);
+            if(cellA != cellB) // to sample once even if ViA = ViB
+                nodeInB->edges.push_back(nodeInA);
+        }
+    }
 }
-
-
-template<unsigned int D, unsigned int L>
-typename SpatialTree<D, L>::Node* SpatialTree<D, L>::kthPoint(unsigned int cell, unsigned int fromLevel, unsigned int targetLevel, int k) const {
-    assert(fromLevel <= targetLevel);
-    assert(firstCellOfLevel(fromLevel) <= cell && cell < firstCellOfLevel(fromLevel+1)); // cell is from fromLevel
-
-    // same as in "pointsInCell"
-    auto descendants = numCellsInLevel(targetLevel - fromLevel);
-    auto localIndexCell = cell - firstCellOfLevel(fromLevel);
-    auto localIndexDescendant = localIndexCell * descendants;
-    auto begin = localIndexDescendant + firstCellOfLevel(targetLevel);
-
-    // TODO think about this!
-    return (*m_A)[targetLevel][m_prefix_sums[begin] + k];
-}
-
-
