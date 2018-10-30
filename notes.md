@@ -6,6 +6,16 @@ layer:
 level:
     - depth in kd-tree
 
+# TODOs
+- revisit notes
+- write exporter
+- write tests for threshold model
+    - check each pair of nodes and if the edge is there if it should be
+- write tests for not threshold model
+    - for each node v sum edge probs and look if ca. the same number of edges are present (expected value check)
+- write constructor for SpartialTree ?
+- refactor code for edge probs into functions
+
 
 # improvement ideas
 - use level local index for cells
@@ -18,7 +28,9 @@ level:
 - make graph member to reduce stack size ? needs benchmarking
 - move index helper functions to common.h
 - pre-compute expressions used in for loop condition
-
+- look at average size of the V_i^A (I guess they are too small)
+- profile time spend in type 1 / type 2
+- checkEdgeExplicit make alpha == inf check earlier
 
 
 # kd-tree
@@ -217,27 +229,3 @@ l       cells   indexRange
 2^2d    [2^d+1..2^d+2^2d]
 2^3d    [2^d+2^2d+1..2^d+2^2d+2^3d]
 ```
-
-
-
-
-# kromer
-
-entry:
-    HyperbolicLinear::linearSampling
-        - samples positions
-        - calls sample edges
-
-    HyperbolicLinear::sampleEdges
-        - constructs weight layers (vector<set<Point>>) to be held by HyperbolicLinear
-        - constructs GIRGS data structure (does not use its member GeometricDS)
-            - for layer 0 to L-1 construct a layer of cells with PointsFromCells constructor
-
-DEFPRECATED:
-TreePoints constructs from set of points
-    has vector<vector<set<Point>>>: layer cell points_set
-
-GeometricDS<TreePoints>
-    init:
-        computes weight layers
-    has vector<TreePoints>

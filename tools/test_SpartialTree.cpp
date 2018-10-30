@@ -55,7 +55,7 @@ void testCoordMapping(SpatialTreeCoordinateHelper<D>& helper) {
     for(auto i=0; i<100; ++i) {
 
         // generate random point in [0..1)^D
-        array<double, D> point;
+        auto point = vector<double>(D, 0.0);
         for(auto d=0u; d<D; ++d)
             point[d] = dist(gen);
 
@@ -78,14 +78,22 @@ void testCoordMapping(SpatialTreeCoordinateHelper<D>& helper) {
 }
 
 
-template<unsigned int D>
-void testIfComplete(std::vector<Node<D>> graph) {
-    for(auto& each : graph)
+void testIfComplete(std::vector<Node>& graph) {
+    for(auto& each : graph){
+        sort(each.edges.begin(), each.edges.end(), [](Node* a, Node* b){
+            return a->index < b->index;
+        });
         test(each.edges.size() == graph.size());
+        for(int i=0u; i<graph.size(); ++i)
+            test(each.edges[i]->index == i);
+    }
 }
 
 
 int main(int argc, char* argv[]) {
+
+    const auto seed = 42;
+
 
     auto a1 = SpatialTree<1>();
     auto a2 = SpatialTree<2>();
@@ -112,27 +120,27 @@ int main(int argc, char* argv[]) {
     auto b = a1.firstCellOfLevel(5) + a1.numCellsInLevel(5) - 1;
     test(b1.touching(a,b,5));
 
-    auto weights = generatePowerLawWeights(100, 1.0, 99, -2.1, 14);
+    // TODO write better tests for dist of cells
+    test(b1.dist(10, 11, 3) == 0);
+    test(b1.dist(10, 12, 3) == (1.0/8)* 1);
+    test(b1.dist(10, 13, 3) == (1.0/8)* 2);
+    test(b1.dist(10, 14, 3) == (1.0/8)* 3);
 
-    auto g1 = a1.generateGraph(weights);
-    auto g2 = a2.generateGraph(weights);
-    auto g3 = a3.generateGraph(weights);
-    auto g4 = a4.generateGraph(weights);
+    test(b2.dist(10, 8, 2) == (1.0/4)* 1);
+    test(b2.dist(10, 9, 2) == 0);
+    test(b2.dist(10, 14, 2) == (1.0/4)* 1);
+    test(b2.dist(10, 17, 2) == (1.0/4)* 1);
+
+    auto weights = generatePowerLawWeights(100, 1.0, 99, -2.3, seed);
+    auto g1 = a1.generateGraph(weights, 0, 1, seed);
+    auto g2 = a2.generateGraph(weights, 0, 1, seed);
+    auto g3 = a3.generateGraph(weights, 0, 1, seed);
+    auto g4 = a4.generateGraph(weights, 0, 1, seed);
 
     testIfComplete(g1);
     testIfComplete(g2);
     testIfComplete(g3);
     testIfComplete(g4);
-
-    /*
-    sort(g2.begin(), g2.end(), [](auto& a, auto& b){
-       return a.weight > b.weight;
-    });
-
-    sort(g2.front().edges.begin(), g2.front().edges.end(), [](auto& a, auto& b){
-        return a->index < b->index;
-    });
-     */
 
     cout << "all tests passed." << endl;
     return 0;

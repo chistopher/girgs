@@ -2,6 +2,7 @@
 #pragma once
 
 #include <vector>
+#include <cmath>
 
 #include <Common.h>
 #include <SpatialTreeCoordinateHelper.h>
@@ -17,7 +18,7 @@ public:
     static const unsigned int dimension = D;
 
     WeightLayer() = delete;
-    WeightLayer(unsigned int layer, unsigned int logW, const SpatialTreeCoordinateHelper<D>& helper, std::vector<Node<D>*>&& nodes);
+    WeightLayer(unsigned int layer, unsigned int logW, const SpatialTreeCoordinateHelper<D>& helper, std::vector<Node*>&& nodes);
 
 
     // helper functions from paper:
@@ -33,19 +34,19 @@ public:
     // PRECONDITION: cell must be of lower level than the target level
     //               i.e. cell index > first cell index in target level (see n)
     // find first descendent of cell in target level and use m_A to find the point
-    Node<D>* kthPoint(unsigned int cell, unsigned int level, int k) const; // maybe also give level of cell?
+    Node* kthPoint(unsigned int cell, unsigned int level, int k) const; // maybe also give level of cell?
 
 protected:
 
     const unsigned int      m_layer;
     const unsigned int      m_target_level;
 
-    std::vector<Node<D>*>   m_nodes;
+    std::vector<Node*>   m_nodes;
 
 
     std::vector<int>        m_points_in_cell;   // the number of points in each cell of target_level
     std::vector<int>        m_prefix_sums;      // for each cell c in target level: the sum of points of this layer in all cells <c
-    std::vector<Node<D>*>   m_A;                // m_A[m_prefix_sums[i]+k] contains the k-th point in the i-th cell of target level
+    std::vector<Node*>   m_A;                // m_A[m_prefix_sums[i]+k] contains the k-th point in the i-th cell of target level
 };
 
 

@@ -3,6 +3,9 @@
 
 #include <vector>
 #include <algorithm>
+#include <random>
+#include <limits>
+#include <iostream>
 #include <cassert>
 
 #include <SpatialTreeCoordinateHelper.h>
@@ -28,17 +31,22 @@ public:
 
     SpatialTree() = default;
 
-    using Graph = std::vector<Node<D>>;
+    using Graph = std::vector<Node>;
     // entry point for the algorithm
-    Graph generateGraph(std::vector<double>& weights);
+    Graph generateGraph(const std::vector<double> &weights, double alpha, double c, int seed = 1337);
 
 protected:
 
     // recursive function that samples all edges between points in A and B
-    void visitCellPair(unsigned int cellA, unsigned int cellB, unsigned int level, Graph& graph) const;
+    void visitCellPair(unsigned int cellA, unsigned int cellB, unsigned int level, Graph& graph);
 
-    void sampleBetweenViAVjB(unsigned int cellA, unsigned int cellB, unsigned int level, unsigned int i, unsigned int j, Graph& graph) const;
+    // sample edges of type 1 between V_i^A V_j^B
+    void sampleTypeI(unsigned int cellA, unsigned int cellB, unsigned int level, unsigned int i, unsigned int j, Graph& graph);
 
+    // sample edges of type 2 between V_i^A V_j^B
+    void sampleTypeII(unsigned int cellA, unsigned int cellB, unsigned int level, unsigned int i, unsigned int j, Graph& graph);
+
+    bool checkEdgeExplicit(double dist, double w1, double w2);
 
 private:
 
@@ -51,6 +59,15 @@ private:
     std::vector<WeightLayer<D>> m_weight_layers;
 
     double m_W; // sum of weights
+
+    // edge prob stuff
+    double m_alpha;
+    double m_c;
+
+    std::mt19937 m_gen;
+    std::uniform_real_distribution<> m_dist;
+
+    int m_1, m_2; // test
 };
 
 

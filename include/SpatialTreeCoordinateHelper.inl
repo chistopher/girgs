@@ -41,9 +41,10 @@ std::array<std::pair<double, double>, D> SpatialTreeCoordinateHelper<D>::bounds(
 
 
 template<unsigned int D>
-unsigned int SpatialTreeCoordinateHelper<D>::cellForPoint(std::array<double, D>& point, unsigned int targetLevel) const {
+unsigned int SpatialTreeCoordinateHelper<D>::cellForPoint(std::vector<double>& point, unsigned int targetLevel) const {
 
     // calculate coords
+    assert(point.size() == D);
     auto diameter = 1.0 / (1<<targetLevel);
     std::array<int, D> coords;
     for(auto d=0; d<D; ++d) {
@@ -69,4 +70,35 @@ bool SpatialTreeCoordinateHelper<D>::touching(unsigned int cellA, unsigned int c
         touching &= dist<=1;
     }
     return touching;
+}
+
+template<unsigned int D>
+double SpatialTreeCoordinateHelper<D>::dist(std::vector<double> &a, std::vector<double> &b) const {
+    assert(a.size() == b.size());
+    assert(a.size() == D);
+
+    // max over the torus distance in all dimensions
+    auto result = 0.0;
+    for(auto d=0u; d<D; ++d){
+        auto dist = std::abs(a[d] - b[d]);
+        dist = std::min(dist, 1.0-dist);
+        result = std::max(result, dist);
+    }
+    return result;
+}
+
+template<unsigned int D>
+double SpatialTreeCoordinateHelper<D>::dist(unsigned int cellA, unsigned int cellB, unsigned int level) const {
+    auto diameter = 1.0 / (1<<level);
+    
+    // first work with integer d dimensional index
+    auto& coordA = m_coords[cellA];
+    auto& coordB = m_coords[cellB];
+    auto result = 0;
+    for(auto d=0; d<D; ++d){
+        auto dist = std::abs(coordA[d] - coordB[d]);
+        dist = std::min(dist, (1<<level) - dist);
+        result = std::max(result, dist);
+    }
+    return std::max(0.0, (result-1) * diameter); // TODO if cellA and cellB are not touching, this max is irrelevant
 }

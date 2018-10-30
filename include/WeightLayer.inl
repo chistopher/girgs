@@ -5,7 +5,7 @@ template<unsigned int D>
 WeightLayer<D>::WeightLayer(unsigned int layer,
                             unsigned int logW,
                             const SpatialTreeCoordinateHelper<D>& helper,
-                            std::vector<Node<D>*>&& nodes)
+                            std::vector<Node*>&& nodes)
     : m_layer(layer)
     , m_target_level((logW - (layer + 1)) / D) // w0*wi/W = 2^(-dl) solved for l
     , m_nodes(std::move(nodes))
@@ -81,7 +81,7 @@ int WeightLayer<D>::pointsInCell(unsigned int cell, unsigned int level) const {
 
 
 template<unsigned int D>
-Node<D>* WeightLayer<D>::kthPoint(unsigned int cell, unsigned int level, int k) const {
+Node* WeightLayer<D>::kthPoint(unsigned int cell, unsigned int level, int k) const {
     assert(level <= m_target_level);
     assert(firstCellOfLevel(level) <= cell && cell < firstCellOfLevel(level+1)); // cell is from fromLevel
 

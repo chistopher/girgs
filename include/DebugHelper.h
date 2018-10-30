@@ -35,7 +35,7 @@ void printInfo(const T & tree) {
 
 
 std::vector<double> generatePowerLawWeights(unsigned int n, double lower, double upper, double beta, int seed = -1) {
-    auto gen = (seed >= 0) ? std::mt19937(seed) : std::mt19937(std::random_device()());
+    auto gen = std::mt19937(seed >= 0 ?  seed : std::random_device()());
     std::uniform_real_distribution<> dist(0,1);
     auto weights = std::vector<double>(n);
     for(auto i=0; i<n; ++i)
