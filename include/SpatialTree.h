@@ -46,6 +46,8 @@ protected:
     // sample edges of type 2 between V_i^A V_j^B
     void sampleTypeII(unsigned int cellA, unsigned int cellB, unsigned int level, unsigned int i, unsigned int j, Graph& graph);
 
+    unsigned int partitioningBaseLevel(int layer1, int layer2) const;
+
     bool checkEdgeExplicit(double dist, double w1, double w2);
 
 private:
@@ -57,6 +59,7 @@ private:
     SpatialTreeCoordinateHelper<D> m_helper;
 
     std::vector<WeightLayer<D>> m_weight_layers;
+    std::vector<std::vector<std::pair<unsigned int, unsigned int>>> m_layer_pairs; // which pairs of weight layers to check in each level
 
     double m_W; // sum of weights
 
@@ -67,7 +70,7 @@ private:
     std::mt19937 m_gen;
     std::uniform_real_distribution<> m_dist;
 
-    int m_1, m_2; // test
+    long int m_1, m_2; // test
 };
 
 

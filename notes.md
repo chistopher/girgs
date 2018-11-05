@@ -8,11 +8,7 @@ level:
 
 # TODOs
 - revisit notes
-- write exporter
-- write tests for threshold model
-    - check each pair of nodes and if the edge is there if it should be
-- write tests for not threshold model
-    - for each node v sum edge probs and look if ca. the same number of edges are present (expected value check)
+- write exporter for hyperbolic graphs
 - write constructor for SpartialTree ?
 - refactor code for edge probs into functions
 
@@ -31,6 +27,8 @@ level:
 - look at average size of the V_i^A (I guess they are too small)
 - profile time spend in type 1 / type 2
 - checkEdgeExplicit make alpha == inf check earlier
+- remove type 2 samples in threshold model
+- benchmark bruteforce over all ij for type1
 
 
 # kd-tree

@@ -78,22 +78,8 @@ void testCoordMapping(SpatialTreeCoordinateHelper<D>& helper) {
 }
 
 
-void testIfComplete(std::vector<Node>& graph) {
-    for(auto& each : graph){
-        sort(each.edges.begin(), each.edges.end(), [](Node* a, Node* b){
-            return a->index < b->index;
-        });
-        test(each.edges.size() == graph.size());
-        for(int i=0u; i<graph.size(); ++i)
-            test(each.edges[i]->index == i);
-    }
-}
-
 
 int main(int argc, char* argv[]) {
-
-    const auto seed = 42;
-
 
     auto a1 = SpatialTree<1>();
     auto a2 = SpatialTree<2>();
@@ -131,16 +117,6 @@ int main(int argc, char* argv[]) {
     test(b2.dist(10, 14, 2) == (1.0/4)* 1);
     test(b2.dist(10, 17, 2) == (1.0/4)* 1);
 
-    auto weights = generatePowerLawWeights(100, 1.0, 99, -2.3, seed);
-    auto g1 = a1.generateGraph(weights, 0, 1, seed);
-    auto g2 = a2.generateGraph(weights, 0, 1, seed);
-    auto g3 = a3.generateGraph(weights, 0, 1, seed);
-    auto g4 = a4.generateGraph(weights, 0, 1, seed);
-
-    testIfComplete(g1);
-    testIfComplete(g2);
-    testIfComplete(g3);
-    testIfComplete(g4);
 
     cout << "all tests passed." << endl;
     return 0;

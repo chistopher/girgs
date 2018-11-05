@@ -38,15 +38,14 @@ public:
 
 protected:
 
-    const unsigned int      m_layer;
-    const unsigned int      m_target_level;
+    const unsigned int m_layer;
+    const unsigned int m_target_level;
 
-    std::vector<Node*>   m_nodes;
+    std::vector<Node*> m_nodes;
 
-
-    std::vector<int>        m_points_in_cell;   // the number of points in each cell of target_level
-    std::vector<int>        m_prefix_sums;      // for each cell c in target level: the sum of points of this layer in all cells <c
-    std::vector<Node*>   m_A;                // m_A[m_prefix_sums[i]+k] contains the k-th point in the i-th cell of target level
+    std::vector<int>   m_points_in_cell;   // the number of points in each cell of target_level
+    std::vector<int>   m_prefix_sums;      // for each cell c in target level: the sum of points of this layer in all cells <c
+    std::vector<Node*> m_A;                // m_A[m_prefix_sums[i]+k] contains the k-th point in the i-th cell of target level
 };
 
 

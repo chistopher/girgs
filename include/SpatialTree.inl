@@ -18,6 +18,14 @@ std::vector<Node> SpatialTree<D>::generateGraph(const std::vector<double> &weigh
     m_levels = (m_layers - 1) / D + 1; // level are in range [0, (layer-1)/D]
     m_helper = SpatialTreeCoordinateHelper<D>(m_levels);
 
+    // determine which layer pairs to sample in which level
+    // given a fixed number of levels, this can be done at compile time (just as the coordinate helper)
+    m_layer_pairs.resize(m_levels);
+    for (auto i = 0; i < m_layers; ++i)
+        for (auto j = 0; j < m_layers; ++j)
+            m_layer_pairs[partitioningBaseLevel(i, j)].emplace_back(i,j);
+
+
     // sample positions
     auto graph = Graph(weights.size());
     for(auto i=0; i<weights.size(); ++i) {
@@ -42,8 +50,7 @@ std::vector<Node> SpatialTree<D>::generateGraph(const std::vector<double> &weigh
     // sample all edges
     visitCellPair(0,0,0, graph);
 
-    std::cout << m_1 << "\t" << m_2 << std::endl;
-    assert(m_1 + m_2 == graph.size() * graph.size());
+    assert(m_1 + m_2 == graph.size()*(graph.size()-1));
     return graph;
 }
 
@@ -53,23 +60,24 @@ void SpatialTree<D>::visitCellPair(unsigned int cellA, unsigned int cellB, unsig
 
     auto touching = m_helper.touching(cellA, cellB, level);
 
-    // TODO early return if A or B empty
+    // TODO consider early return if A or B empty
 
     if(cellA == cellB or touching) {
 
         // sample all type 1 occurrences with this cell pair
-        // TODO dont do bruteforce over all layer-pairs
-        for(auto i=0; i<m_layers; ++i)
-            for (auto j=(cellA == cellB ? i : 0); j<m_layers; ++j)
-                if(std::max(((int)m_layers-(i+j+2))/(int)dimension, 0) == level)
-                    sampleTypeI(cellA, cellB, level, i, j, graph);
+        for(auto& layer_pair : m_layer_pairs[level]){
+            assert(partitioningBaseLevel(layer_pair.first, layer_pair.second) == level);
+            if(cellA != cellB || layer_pair.first <= layer_pair.second)
+                sampleTypeI(cellA, cellB, level, layer_pair.first, layer_pair.second, graph);
+        }
 
     } else { // not touching
 
         // sample all type 2 occurrences with this cell pair
+        // TODO consider early break 1st for loop
         for(auto i=0; i<m_layers; ++i)
             for (auto j=0; j<m_layers; ++j)
-                if(std::max(((int)m_layers-(i+j+2))/(int)dimension, 0) >= level){
+                if(partitioningBaseLevel(i,j) >= level){
                     sampleTypeII(cellA, cellB, level, i, j, graph);
                 } else {
                     break; // if condition failed it will also fail for all subsequent j
@@ -120,7 +128,7 @@ void SpatialTree<D>::sampleTypeI(
     auto sizeV_j_B = m_weight_layers[j].pointsInCell(cellB, level);
 
     for(int kA=0; kA<sizeV_i_A; ++kA){
-        for (int kB =(cellA == cellB && i==j ? kA : 0); kB<sizeV_j_B; ++kB) {
+        for (int kB =(cellA == cellB && i==j ? kA+1 : 0); kB<sizeV_j_B; ++kB) {
             Node* nodeInA = m_weight_layers[i].kthPoint(cellA, level, kA);
             Node* nodeInB = m_weight_layers[j].kthPoint(cellB, level, kB);
 
@@ -132,7 +140,7 @@ void SpatialTree<D>::sampleTypeI(
             assert(i == static_cast<unsigned int>(std::log2(nodeInA->weight)));
             assert(j == static_cast<unsigned int>(std::log2(nodeInB->weight)));
 
-            // TODO replace by real sampling
+            assert(nodeInA->index != nodeInB->index);
             m_1 += 1 + (nodeInA->index != nodeInB->index);
             auto dist = m_helper.dist(nodeInA->coord, nodeInB->coord);
             if(checkEdgeExplicit(dist, nodeInA->weight, nodeInB->weight)){
@@ -178,6 +186,8 @@ void SpatialTree<D>::sampleTypeII(
     auto dist_lower_bound = std::pow(m_helper.dist(cellA, cellB, level), dimension);
     assert(dist_lower_bound > w_upper_bound); // in threshold model we would not sample anything
     auto max_connection_prob = std::min(m_c*std::pow(w_upper_bound/dist_lower_bound, m_alpha), 1.0);
+    if(max_connection_prob <= 1e-10)
+        return;
     auto geo = [this](double p) -> int {
         auto R = this->m_dist(this->m_gen);
         return p==1 ? 1 : std::ceil(std::log2(R) / std::log2(1-p)); // this does not work if p=1
@@ -201,19 +211,28 @@ void SpatialTree<D>::sampleTypeII(
     }
 }
 
+template<unsigned int D>
+unsigned int SpatialTree<D>::partitioningBaseLevel(int layer1, int layer2) const {
+    assert(0 <= layer1 && layer1 < m_layers);
+    assert(0 <= layer2 && layer2 < m_layers);
+    assert(0 <= std::max(((int) m_layers - (layer1 + layer2 + 2)) / (int) dimension, 0));
+    assert(m_levels > std::max(((int) m_layers - (layer1 + layer2 + 2)) / (int) dimension, 0));
+    // we need to do the computation on signed ints but cast back after the max with 0
+    return static_cast<unsigned int>(std::max(((int) m_layers - (layer1 + layer2 + 2)) / (int) dimension, 0));
+}
 
 
 template<unsigned int D>
 bool SpatialTree<D>::checkEdgeExplicit(double dist, double w1, double w2) {
 
     double p;
-    // TODO do this check earlier
+
+    auto w = w1*w2/m_W;
     if(m_alpha == std::numeric_limits<double>::infinity()){
-        p = dist < m_c*std::pow(w1*w2/m_W, 1.0/D);
+        p = dist < m_c*std::pow(w, 1.0/D);
     } else {
-        auto w = std::pow(w1*w2/m_W, m_alpha);
-        auto d = std::pow(dist, m_alpha * dimension);
-        p = std::min(m_c*w/d, 1.0);
+        auto d = std::pow(dist, dimension);
+        p = std::min(m_c*std::pow(w/d, m_alpha), 1.0);
     }
 
     return m_dist(m_gen) < p;

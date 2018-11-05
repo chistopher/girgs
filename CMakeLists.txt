@@ -25,11 +25,13 @@ SET(HEADER_FILES
 
 set(SOURCE_FILES
         source/Generator.cpp
-        )
+        source/Common.cpp)
 
 
 set(EXECUTABLE_FILES
+        tools/benchmark.cpp
         tools/dev.cpp
+        tools/test_Generator.cpp
         tools/test_SpartialTree.cpp
         )
 
