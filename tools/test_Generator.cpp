@@ -17,23 +17,10 @@ void test(bool cond){
 }
 
 
-// max over the torus distance in all dimensions
-double distance(const std::vector<double>& a, const std::vector<double>& b) {
-    test(a.size() == b.size());
-    auto result = 0.0;
-    for(auto d=0u; d<a.size(); ++d){
-        auto dist = std::abs(a[d] - b[d]);
-        dist = std::min(dist, 1.0-dist);
-        result = std::max(result, dist);
-    }
-    return result;
-}
-
-
 void testThresholdModel(int seed) {
 
     const auto n = 100;
-    const auto c = 0.75;
+    const auto c = 1.0;
     const auto alpha = numeric_limits<double>::infinity();
 
     auto weights = generateWeights(n, -2.5, seed);
