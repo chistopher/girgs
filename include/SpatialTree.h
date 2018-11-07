@@ -6,6 +6,7 @@
 #include <random>
 #include <limits>
 #include <iostream>
+#include <numeric>
 #include <cassert>
 
 #include <SpatialTreeCoordinateHelper.h>

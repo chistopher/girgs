@@ -37,9 +37,9 @@ set(EXECUTABLE_FILES
         )
 
 
-include_directories(./include)
-# add_library(girgs STATIC ${SOURCE_FILES} ${HEADER_FILES})
-add_library(girgs SHARED ${SOURCE_FILES} ${HEADER_FILES})
+add_library(girgs STATIC ${SOURCE_FILES} ${HEADER_FILES})
+# add_library(girgs SHARED ${SOURCE_FILES} ${HEADER_FILES}) # needs insertion of system specific export attributes in headers
+target_include_directories(girgs PUBLIC ./include)
 foreach(file ${EXECUTABLE_FILES})
     get_filename_component(executable ${file} NAME_WE)
     add_executable(${executable} ${file})

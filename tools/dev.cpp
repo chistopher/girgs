@@ -102,19 +102,23 @@ double c_for_avg_deg(const std::vector<double>& weights, int desired_avg_degree,
 int main(int argc, char* argv[]) {
 
     auto d = 1;
-    auto n = 1000;
-    auto desired_avg = 12;
+    auto n = 10000;
+    auto desired_avg = 7;
     auto alpha = std::numeric_limits<double>::infinity();
 
     auto weight_seed = 1337;
     auto PLE = -2.5;
     auto weights = generateWeights(n, PLE, weight_seed);
-    auto estimated_c = c_for_avg_deg(weights, desired_avg, d);
 
+    auto start = std::chrono::high_resolution_clock::now();
+    auto estimated_c = c_for_avg_deg(weights, desired_avg, d);
+    auto end = std::chrono::high_resolution_clock::now();
+
+    cout << (end - start).count() << endl;
     int runs = 50;
 
     auto observed_avg = 0.0;
-
+    auto time_sum = 0;
     for(int i = 0; i<runs; ++i) {
 
         auto position_seed = i;
@@ -123,19 +127,15 @@ int main(int argc, char* argv[]) {
         for(auto& each : scaled_weights) each *= estimated_c;
 
         auto generator = Generator();
+        auto start = std::chrono::high_resolution_clock::now();
         generator.generateGIRG(d, scaled_weights, alpha, 1.0, position_seed);
-
-        auto pos = vector<vector<double>>(n);
-        for(int i=0; i<n; ++i)
-            pos[i] = generator.graph()[i].coord;
-
-        auto generated_avg1 = generator.avg_degree();
-        auto generated_avg2 =trivialTryAvgWithPos(weights,estimated_c, d, pos);
-        if(generated_avg1 != generated_avg2)
-            cout << "mismatch! " << generated_avg1 << " " << generated_avg2 << endl;
-        observed_avg += generated_avg1;
+        auto end = std::chrono::high_resolution_clock::now();
+        time_sum += (end-start).count();
+        observed_avg += generator.avg_degree();
     }
     observed_avg /= runs;
+
+    cout << time_sum / runs << endl;
 
 
     cout << "desired avg deg  " << desired_avg << endl;

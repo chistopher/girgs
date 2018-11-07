@@ -62,7 +62,7 @@ void SpatialTree<D>::visitCellPair(unsigned int cellA, unsigned int cellB, unsig
 
     // TODO consider early return if A or B empty
 
-    if(cellA == cellB or touching) {
+    if(cellA == cellB || touching) {
 
         // sample all type 1 occurrences with this cell pair
         for(auto& layer_pair : m_layer_pairs[level]){
