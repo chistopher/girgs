@@ -15,6 +15,7 @@ const auto ple = -2.5;
 const auto c = 1.0;
 //const auto alpha = 1.0;
 const auto alpha = std::numeric_limits<double>::infinity();
+const auto avgDeg = 10;
 
 // measuring parameter
 const auto SEED = 13;
@@ -27,13 +28,16 @@ using resolution = chrono::milliseconds;
 
 int measure(int dimension, int n, int run) {
 
-    Generator g;
     auto seed = SEED + n + run;
-    auto weights = generateWeights(n, ple, seed);
+
+    Generator g;
+    g.setWeights(n, ple, seed);
+    g.setPositions(n, dimension, seed);
+    // g.scaleWeights(10, dimension, alpha);
 
     // measure
     auto start = chrono::high_resolution_clock::now();
-    g.generateGIRG(dimension, weights, alpha, c, seed);
+    g.generate(alpha, seed);
     auto end = chrono::high_resolution_clock::now();
 
     return chrono::duration_cast<resolution>(end-start).count();

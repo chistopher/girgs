@@ -4,6 +4,7 @@
 #include <cmath>
 #include <algorithm>
 #include <numeric>
+#include <random>
 
 #include <Generator.h>
 
@@ -28,119 +29,64 @@ double trivialTryAvgWithPos(const std::vector<double>& w, double c, int d, const
     return res/n;
 }
 
+vector<vector<double>> samplePositions(int n, int dimension, int positionSeed) {
+    auto gen = std::mt19937(positionSeed >= 0 ?  positionSeed : std::random_device()());
+    std::uniform_real_distribution<> dist; // [0..1)
 
-double avg_degree(int n, double c, int dimension, double W, double sq_W, vector<double>& sorted_rich_club) {
-    // compute overestimation
-    auto overestimation = pow(2, dimension) * pow(c, dimension) / n * (W - sq_W/W);
-
-    // subtract error
-    auto error = 0.0;
-    for(int i = 0; i<sorted_rich_club.size(); ++i)
-        for(int j = 0; j<sorted_rich_club.size(); ++j) {
-            if(i==j) continue;
-            auto w1 = sorted_rich_club[i];
-            auto w2 = sorted_rich_club[j];
-            auto e = max( std::pow(2*c,dimension)*(w1*w2/W)-1.0, 0.0);
-            error += e;
-            if(e <= 0) break;
-        }
-
-    return overestimation - error/n;
+    auto result = vector<vector<double>>(n);
+    for(int i=0; i<n; ++i) {
+        result[i].resize(dimension);
+        for (int d=0; d<dimension; ++d)
+            result[i][d] = dist(gen);
+    }
+    return result;
 }
-
-double c_for_avg_deg(const std::vector<double>& weights, int desired_avg_degree, int dimension) {
-
-    // compute some constant stuff
-    auto max_weight = *max_element(weights.begin(), weights.end());
-    auto W = 0.0, sq_W = 0.0;
-    for(auto each : weights){
-        W += each;
-        sq_W += each*each;
-    }
-
-    // my function to do the exponential search on
-    auto f = [W, sq_W, &weights, dimension, n(weights.size()), max_weight](double c) {
-        vector<double> rich_club;
-        for(auto weight : weights)
-            if(std::pow(2*c,dimension) * (weight*max_weight/W) > 1.0)
-                rich_club.push_back(weight);
-        sort(rich_club.begin(), rich_club.end(), greater<>());
-        return avg_degree(n, c, dimension, W, sq_W, rich_club);
-    };
-
-    // do exponential search on avg_degree function
-    auto upper = pow( weights.size()*desired_avg_degree / pow(2.0,dimension) / (W-sq_W/W), 1.0/dimension);
-    auto lower = upper / 2.0;
-
-    // scale interval up if necessary
-    while(f(upper) < desired_avg_degree){
-        lower = upper;
-        upper *= 2;
-    }
-
-    // scale interval down if necessary
-    while(f(lower) > desired_avg_degree){
-        upper = lower;
-        lower /= 2;
-    }
-
-    // do binary search
-    auto mid = f((upper+lower)/2);
-    while(abs(mid - desired_avg_degree) > 0.02) {
-        if(mid < desired_avg_degree)
-            lower = (upper+lower)/2;
-        else
-            upper = (upper+lower)/2;
-        mid = f((upper+lower)/2);
-    }
-
-    return (upper+lower)/2;
-}
-
 
 
 int main(int argc, char* argv[]) {
 
-    auto d = 1;
-    auto n = 10000;
-    auto desired_avg = 7;
-    auto alpha = std::numeric_limits<double>::infinity();
+    auto d = 2;
+    auto n = 1000;
+    auto desired_avg = 9;
+    auto alpha = numeric_limits<double>::infinity();
 
     auto weight_seed = 1337;
     auto PLE = -2.5;
-    auto weights = generateWeights(n, PLE, weight_seed);
+
+    Generator generator;
+    generator.setWeights(n, PLE, weight_seed);
+    auto weights = generator.weights();
 
     auto start = std::chrono::high_resolution_clock::now();
-    auto estimated_c = c_for_avg_deg(weights, desired_avg, d);
+    auto scaling = generator.scaleWeights(desired_avg, d, alpha);
+    auto estimated_c = pow(scaling, 1.0/d);
     auto end = std::chrono::high_resolution_clock::now();
 
-    cout << (end - start).count() << endl;
-    int runs = 50;
-
+    int runs = 10;
     auto observed_avg = 0.0;
     auto time_sum = 0;
     for(int i = 0; i<runs; ++i) {
 
-        auto position_seed = i;
+        auto positions = samplePositions(n, d, i);
+        generator.setPositions(positions);
 
-        auto scaled_weights = weights;
-        for(auto& each : scaled_weights) each *= estimated_c;
-
-        auto generator = Generator();
         auto start = std::chrono::high_resolution_clock::now();
-        generator.generateGIRG(d, scaled_weights, alpha, 1.0, position_seed);
+        generator.generateTreshold();
         auto end = std::chrono::high_resolution_clock::now();
-        time_sum += (end-start).count();
-        observed_avg += generator.avg_degree();
+        time_sum += std::chrono::duration_cast<chrono::milliseconds>(end-start).count();
+
+        auto avg_deg = generator.avg_degree();
+        auto quadratic_avg = trivialTryAvgWithPos(weights, estimated_c, d, positions);
+        if(avg_deg != quadratic_avg)
+            cout << "oh no!" << endl;
+        observed_avg += avg_deg;
     }
     observed_avg /= runs;
 
-    cout << time_sum / runs << endl;
-
-
-    cout << "desired avg deg  " << desired_avg << endl;
-    cout << "estimated c      " << estimated_c << endl;
-    cout << "observed avg deg " << observed_avg << endl;
+    cout << "find scaling (ms) " << std::chrono::duration_cast<chrono::milliseconds>(end - start).count() << endl;
+    cout << "generation (ms)   " << time_sum / runs << endl;
+    cout << "desired avg deg   " << desired_avg << endl;
+    cout << "observed avg deg  " << observed_avg << endl;
     
     return 0;
 }

@@ -14,16 +14,35 @@
 class Generator
 {
 public:
-   void generateGIRG(unsigned int dimension, const std::vector<double> &weights, double alpha, double c, int seed);
 
-   const std::vector<Node>& graph() const {return m_graph;}
+    // init parameter
+    void setWeights(const std::vector<double>& weights);
+    void setWeights(int n, double ple, int weightSeed);
+    void setPositions(const std::vector<std::vector<double>>& positions);
+    void setPositions(int n, int dimension, int positionSeed);
 
-   double avg_degree() const;
+    double scaleWeights(int desiredAvgDegree, int dimension, double alpha); // must also have positions ready to determine dimension
 
-   void saveDot(std::string file) const;
+    // generate
+    void generate(double alpha, int samplingSeed);
+    void generateTreshold();
+    // convenience
+    const std::vector<Node>& generate(int n, int dimension, double ple, double alpha, int desiredAvgDegree, int weightSeed, int positionSeed, int samplingSeed);
+
+
+    // access results
+    const std::vector<Node>& graph() const {return m_graph;}
+    double avg_degree() const;
+    void saveDot(std::string file) const;
+    // copy internal data for access
+    std::vector<double> weights() const;
+    std::vector<std::vector<double>> positions() const;
+
+    // helper
+    // currently works only for alpha = std::numeric_limits<double>::infinity()
+    double estimateWeightScaling(const std::vector<double>& weights, int desiredAvgDegree, int dimension, double alpha) const;
 
 protected:
-
 
     std::vector<Node> m_graph;
 };

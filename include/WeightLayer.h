@@ -18,7 +18,7 @@ public:
     static const unsigned int dimension = D;
 
     WeightLayer() = delete;
-    WeightLayer(unsigned int layer, unsigned int logW, const SpatialTreeCoordinateHelper<D>& helper, std::vector<Node*>&& nodes);
+    WeightLayer(unsigned int layer, unsigned int targetLevel, const SpatialTreeCoordinateHelper<D>& helper, std::vector<Node*>&& nodes);
 
 
     // helper functions from paper:

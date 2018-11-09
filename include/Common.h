@@ -11,7 +11,5 @@ struct Node {
 };
 
 
-std::vector<double> generateWeights(unsigned int n, double beta, int seed);
-
-// max over the torus distance in all dimensions
+// max over the torus distance in all dimensions TODO find place for this function
 double distance(const std::vector<double>& a, const std::vector<double>& b);

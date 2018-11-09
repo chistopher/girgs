@@ -2,56 +2,55 @@
 
 
 template<unsigned int D>
-std::vector<Node> SpatialTree<D>::generateGraph(const std::vector<double> &weights, double alpha, double c, int seed) {
+void SpatialTree<D>::generateEdges(std::vector<Node>& graph, double alpha, int seed) {
 
     // init member
     m_alpha = alpha;
-    m_c = c;
     m_1 = 0;
     m_2 = 0;
     m_gen = std::mt19937(seed >= 0 ?  seed : std::random_device()());
     m_dist = std::uniform_real_distribution<>(0.0, 1.0);
 
+    // determine min max and sum of weights
+    m_w0 = std::numeric_limits<double>::infinity();
+    m_wn = 0.0;
+    m_W = 0.0;
+    for(auto i=0; i<graph.size(); ++i) {
+        graph[i].index = i;
+        m_w0 = std::min(m_w0, graph[i].weight);
+        m_wn = std::max(m_wn, graph[i].weight);
+        m_W += graph[i].weight;
+    }
+
     // determine size of tree and weight layers
-    m_W = std::accumulate(weights.begin(), weights.end(), 0.0);
-    m_layers = static_cast<unsigned int>(std::log2(m_W));
-    m_levels = (m_layers - 1) / D + 1; // level are in range [0, (layer-1)/D]
-    m_helper = SpatialTreeCoordinateHelper<D>(m_levels);
+    m_layers = static_cast<unsigned int>(floor(std::log2(m_wn/m_w0)))+1;
+    m_baseLevelConstant = static_cast<int>(std::log2(m_W/m_w0/m_w0)); // log2(W/w0^2)
+    m_levels = partitioningBaseLevel(0,0) + 1; // (log2(W/w0^2) - 2) / d
+    // we need a helper for the deepest insertion level which possibly is one larger than the deepest comparison level
+    m_helper = SpatialTreeCoordinateHelper<D>(m_levels+1);
 
     // determine which layer pairs to sample in which level
-    // given a fixed number of levels, this can be done at compile time (just as the coordinate helper)
     m_layer_pairs.resize(m_levels);
     for (auto i = 0; i < m_layers; ++i)
         for (auto j = 0; j < m_layers; ++j)
             m_layer_pairs[partitioningBaseLevel(i, j)].emplace_back(i,j);
 
 
-    // sample positions
-    auto graph = Graph(weights.size());
-    for(auto i=0; i<weights.size(); ++i) {
-        auto &node = graph[i];
-        node.weight = weights[i];
-        node.index = i;
-        for (auto d = 0u; d < D; ++d)
-            node.coord.push_back(m_dist(m_gen));
-    }
-
     // sort weights into exponentially growing layers
     {   // block to let weightLayerNodes go out of scope after it was moved away
         auto weightLayerNodes = std::vector<std::vector<Node*>>(m_layers);
-        for (auto i = 0; i < weights.size(); ++i)
-            weightLayerNodes[std::log2(weights[i])].push_back(&graph[i]);
+        for (auto i = 0; i < graph.size(); ++i)
+            weightLayerNodes[std::log2(graph[i].weight/m_w0)].push_back(&graph[i]);
 
         // build spatial structure described in paper
         for (auto layer = 0; layer < m_layers; ++layer)
-            m_weight_layers.emplace_back(layer, m_layers, m_helper, std::move(weightLayerNodes[layer]));
+            m_weight_layers.emplace_back(layer, weightLayerTargetLevel(layer), m_helper, std::move(weightLayerNodes[layer]));
     }
 
     // sample all edges
     visitCellPair(0,0,0, graph);
 
     assert(m_1 + m_2 == graph.size()*(graph.size()-1));
-    return graph;
 }
 
 
@@ -85,7 +84,7 @@ void SpatialTree<D>::visitCellPair(unsigned int cellA, unsigned int cellB, unsig
     }
 
     // break if last level reached
-    if(level >= (m_layers-2)/dimension) // we skip level (L - 1)/d, because i,j are compared at most in depth (L-2)/d
+    if(level == m_levels-1) // if we are at the last level we don't need recursive calls
         return;
 
     if(cellA == cellB){
@@ -112,18 +111,6 @@ void SpatialTree<D>::sampleTypeI(
         unsigned int i, unsigned int j, SpatialTree::Graph &graph)
 {
 
-    // a lot of assertions that we have the correct comparison level
-    {
-        // use layer+1 because paper has one based indices for weight layers
-        auto v = std::pow(2.0,i+1.0) * std::pow(2.0,j+1.0) / (m_W);             // in paper v(i,j)
-        auto volume_comparison_level = std::pow(2.0, -(level+0.0)*dimension);   // in paper \mu with v <= \mu < O(v)
-        auto volume_one_deeper       = std::pow(2.0, -(level+1.0)*dimension);
-        assert(level < m_levels);
-        assert(level >= 0);
-        assert(v <= volume_comparison_level || v >= 1.0);
-        assert(v >  volume_one_deeper);
-    }
-
     auto sizeV_i_A = m_weight_layers[i].pointsInCell(cellA, level);
     auto sizeV_j_B = m_weight_layers[j].pointsInCell(cellB, level);
 
@@ -137,8 +124,8 @@ void SpatialTree<D>::sampleTypeI(
             assert(cellB == m_helper.cellForPoint(nodeInB->coord, level));
 
             // points are in correct weight layer
-            assert(i == static_cast<unsigned int>(std::log2(nodeInA->weight)));
-            assert(j == static_cast<unsigned int>(std::log2(nodeInB->weight)));
+            assert(i == static_cast<unsigned int>(std::log2(nodeInA->weight/m_w0)));
+            assert(j == static_cast<unsigned int>(std::log2(nodeInB->weight/m_w0)));
 
             assert(nodeInA->index != nodeInB->index);
             m_1 += 1 + (nodeInA->index != nodeInB->index);
@@ -159,21 +146,6 @@ void SpatialTree<D>::sampleTypeII(
         unsigned int i, unsigned int j, SpatialTree::Graph &graph)
 {
 
-    // a lot of assertions that we have the correct comparison level
-    {
-        // use layer+1 because paper has one based indices for weight layers
-        auto v = std::pow(2.0,i+1.0) * std::pow(2.0,j+1.0) / (m_W);             // in paper v(i,j)
-        auto volume_comparison_level = std::pow(2.0, -(level+0.0)*dimension);   // in paper \mu with v <= \mu < O(v)
-        assert(level < m_levels);
-        assert(level >= 0);
-        assert(v <= volume_comparison_level || v >= 1.0);
-        assert(cellA != cellB);
-        // the level of type 1 pairs in the partitioning we belong to
-        auto partitioning_base_level = ((int)m_layers-(i+j+2))/(int)dimension;
-        assert(0 < partitioning_base_level);
-        assert(level <= partitioning_base_level);
-    }
-
     auto sizeV_i_A = m_weight_layers[i].pointsInCell(cellA, level);
     auto sizeV_j_B = m_weight_layers[j].pointsInCell(cellB, level);
     if(sizeV_i_A == 0 || sizeV_j_B == 0)
@@ -182,10 +154,10 @@ void SpatialTree<D>::sampleTypeII(
     m_2 += 2*sizeV_i_A*sizeV_j_B;
 
     // implicit sampling
-    auto w_upper_bound = (1<<i+1) * (1<<j+1) / m_W;
+    auto w_upper_bound = m_w0*(1<<i+1) * m_w0*(1<<j+1) / m_W;
     auto dist_lower_bound = std::pow(m_helper.dist(cellA, cellB, level), dimension);
     assert(dist_lower_bound > w_upper_bound); // in threshold model we would not sample anything
-    auto max_connection_prob = std::min(m_c*std::pow(w_upper_bound/dist_lower_bound, m_alpha), 1.0);
+    auto max_connection_prob = std::min(std::pow(w_upper_bound/dist_lower_bound, m_alpha), 1.0);
     if(max_connection_prob <= 1e-10)
         return;
     auto geo = [this](double p) -> int {
@@ -202,7 +174,7 @@ void SpatialTree<D>::sampleTypeII(
         assert(w < w_upper_bound);
         auto d = std::pow(m_helper.dist(nodeInA->coord, nodeInB->coord), dimension);
         assert(d >= dist_lower_bound);
-        auto connection_prob = std::min(m_c*std::pow(w/d, m_alpha), 1.0);
+        auto connection_prob = std::min(std::pow(w/d, m_alpha), 1.0);
         if(m_dist(m_gen) < connection_prob/max_connection_prob) {
             nodeInA->edges.push_back(nodeInB);
             nodeInB->edges.push_back(nodeInA);
@@ -211,14 +183,60 @@ void SpatialTree<D>::sampleTypeII(
     }
 }
 
+
+template<unsigned int D>
+unsigned int SpatialTree<D>::weightLayerTargetLevel(int layer) const {
+    // -1 coz w0 is the upper bound for layer 0 in paper and our layers are shifted by -1
+    auto result = std::max((m_baseLevelConstant - layer - 1) / (int)D, 0);
+    {   // a lot of assertions that we have the correct insertion level
+        assert(0 <= layer && layer < m_layers);
+        assert(0 <= result && result <= m_levels); // note the result may be one larger than the deepest level (hence the <= m_levels)
+        auto volume_requested  = m_w0*m_w0*std::pow(2,layer+1)/m_W; // v(i) = w0*wi/W
+        auto volume_current    = std::pow(2.0, -(result+0.0)*D); // in paper \mu with v <= \mu < O(v)
+        auto volume_one_deeper = std::pow(2.0, -(result+1.0)*D);
+        assert(volume_requested <= volume_current); // current level has more volume than requested
+        assert(volume_requested >  volume_one_deeper);    // but is the smallest such level
+    }
+    return static_cast<unsigned int>(result);
+}
+
+
 template<unsigned int D>
 unsigned int SpatialTree<D>::partitioningBaseLevel(int layer1, int layer2) const {
-    assert(0 <= layer1 && layer1 < m_layers);
-    assert(0 <= layer2 && layer2 < m_layers);
-    assert(0 <= std::max(((int) m_layers - (layer1 + layer2 + 2)) / (int) dimension, 0));
-    assert(m_levels > std::max(((int) m_layers - (layer1 + layer2 + 2)) / (int) dimension, 0));
-    // we need to do the computation on signed ints but cast back after the max with 0
-    return static_cast<unsigned int>(std::max(((int) m_layers - (layer1 + layer2 + 2)) / (int) dimension, 0));
+    /*
+     * v(i,j) -- partitioning base level
+     *
+     * w0 is min weight
+     * wi = 2*w(i-1) = 2^i * w0 // split wi into power of two and w0
+     *
+     * 2^(-ld) = wi*wj/W
+     * = 2^i*w0 * 2^j*w0 / W
+     * = 2^i * 2^j / (W/w0^2)
+     * -> -ld = i+j - log2(W/w0^2)
+     * -> l  = (log2(W/w0^2) - (i+j)) / d
+     *
+     * a point with weight w is inserted into layer floor(log2(w/w0))
+     *  -> w0 is inserted in layer 0 (instead of layer 1 like in paper)
+     *  -> so in fact wi in our implementation equals w(i+1) in paper
+     * a pair of layers is compared in level (log2(W/w0^2) - (i+j+2)) / d rounded down
+     * - +2 to shift from our wi back to paper wi
+     * - rounding down means a level with less depth like requested in paper
+    */
+
+    // we do the computation on signed ints but cast back after the max with 0
+    // m_baseLevelConstant is just log(W/w0^2)
+    auto result = std::max((m_baseLevelConstant - layer1 - layer2 - 2) / (int)D, 0);
+    {   // a lot of assertions that we have the correct comparison level
+        assert(0 <= layer1 && layer1 < m_layers);
+        assert(0 <= layer2 && layer2 < m_layers);
+        assert(0 <= result && result < m_levels);
+        auto volume_requested  = m_w0*std::pow(2,layer1+1) * m_w0*std::pow(2,layer2+1) / m_W; // v(i,j) = wi*wj/W
+        auto volume_current    = std::pow(2.0, -(result+0.0)*D); // in paper \mu with v <= \mu < O(v)
+        auto volume_one_deeper = std::pow(2.0, -(result+1.0)*D);
+        assert(volume_requested <= volume_current || volume_requested >= 1.0); // current level has more volume than requested
+        assert(volume_requested >  volume_one_deeper);    // but is the smallest such level
+    }
+    return static_cast<unsigned int>(result);
 }
 
 
@@ -229,10 +247,10 @@ bool SpatialTree<D>::checkEdgeExplicit(double dist, double w1, double w2) {
 
     auto w = w1*w2/m_W;
     if(m_alpha == std::numeric_limits<double>::infinity()){
-        p = dist < m_c*std::pow(w, 1.0/D);
+        p = dist < std::pow(w, 1.0/D);  // TODO return p here and benchmark improvement
     } else {
         auto d = std::pow(dist, dimension);
-        p = std::min(m_c*std::pow(w/d, m_alpha), 1.0);
+        p = std::min(std::pow(w/d, m_alpha), 1.0);
     }
 
     return m_dist(m_gen) < p;

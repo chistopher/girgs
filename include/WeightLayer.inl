@@ -3,27 +3,13 @@
 
 template<unsigned int D>
 WeightLayer<D>::WeightLayer(unsigned int layer,
-                            unsigned int logW,
+                            unsigned int targetLevel,
                             const SpatialTreeCoordinateHelper<D>& helper,
                             std::vector<Node*>&& nodes)
     : m_layer(layer)
-    , m_target_level((logW - (layer + 1)) / D) // w0*wi/W = 2^(-dl) solved for l
+    , m_target_level(targetLevel) // w0*wi/W = 2^(-dl) solved for l --- l = (log2(W/w0^2) - i) / d
     , m_nodes(std::move(nodes))
 {
-
-    // a lot of assertions that we have the correct insertion level
-    {
-        // use layer+1 because paper has one based indices for weight layers
-        auto v = std::pow(2,layer+1)/(1<<logW);
-        auto volume_current = std::pow(2.0, -(m_target_level+0.0)*dimension);
-        auto volume_next = std::pow(2.0, -(m_target_level+1.0)*dimension);
-        auto deepestLevel = (logW-1)/dimension;
-        assert(layer<logW); // because 2^ld = 1/W
-        assert(v <= volume_current);
-        assert(v >  volume_next);
-        assert(m_target_level <= deepestLevel); // obvious
-        assert(m_target_level >= 0);
-    }
 
     // convenience constants
     const auto firstCell = firstCellOfLevel(m_target_level);

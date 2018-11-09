@@ -31,7 +31,6 @@ set(SOURCE_FILES
 set(EXECUTABLE_FILES
         tools/benchmark.cpp
         tools/dev.cpp
-        tools/test_avg_deg_estimation.cpp
         tools/test_Generator.cpp
         tools/test_SpartialTree.cpp
         )

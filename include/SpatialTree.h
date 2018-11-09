@@ -34,7 +34,7 @@ public:
 
     using Graph = std::vector<Node>;
     // entry point for the algorithm
-    Graph generateGraph(const std::vector<double> &weights, double alpha, double c, int seed = 1337);
+    void generateEdges(std::vector<Node>& graph, double alpha, int seed);
 
 protected:
 
@@ -43,18 +43,20 @@ protected:
 
     // sample edges of type 1 between V_i^A V_j^B
     void sampleTypeI(unsigned int cellA, unsigned int cellB, unsigned int level, unsigned int i, unsigned int j, Graph& graph);
-
     // sample edges of type 2 between V_i^A V_j^B
     void sampleTypeII(unsigned int cellA, unsigned int cellB, unsigned int level, unsigned int i, unsigned int j, Graph& graph);
 
+    // called v(i) in paper
+    unsigned int weightLayerTargetLevel(int layer) const;
+    // called v(i,j) in paper
     unsigned int partitioningBaseLevel(int layer1, int layer2) const;
 
     bool checkEdgeExplicit(double dist, double w1, double w2);
 
 private:
 
-    unsigned int m_layers; // number of layers
-    unsigned int m_levels; // number of levels
+    unsigned int m_layers = -1; // number of layers
+    unsigned int m_levels = -1; // number of levels
 
     // can be precomputed at compile time
     SpatialTreeCoordinateHelper<D> m_helper;
@@ -62,11 +64,13 @@ private:
     std::vector<WeightLayer<D>> m_weight_layers;
     std::vector<std::vector<std::pair<unsigned int, unsigned int>>> m_layer_pairs; // which pairs of weight layers to check in each level
 
+    double m_w0; // minimum weight
+    double m_wn; // maximum weight
     double m_W; // sum of weights
+    int    m_baseLevelConstant; // log(W/w0^2)
 
     // edge prob stuff
     double m_alpha;
-    double m_c;
 
     std::mt19937 m_gen;
     std::uniform_real_distribution<> m_dist;
