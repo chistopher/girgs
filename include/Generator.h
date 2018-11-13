@@ -11,6 +11,7 @@
 // can be used multiple times
 // if multiple graphs are generated with the same generator instance, the generation process implies the deletion of the previous graph
 // accessors to graph data always refer to the last generated graph
+// weightSeed and position seed should not be equal!
 class Generator
 {
 public:
@@ -21,7 +22,7 @@ public:
     void setPositions(const std::vector<std::vector<double>>& positions);
     void setPositions(int n, int dimension, int positionSeed);
 
-    double scaleWeights(int desiredAvgDegree, int dimension, double alpha); // must also have positions ready to determine dimension
+    double scaleWeights(int desiredAvgDegree, int dimension, double alpha);
 
     // generate
     void generate(double alpha, int samplingSeed);

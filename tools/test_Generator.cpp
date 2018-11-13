@@ -188,6 +188,27 @@ void testThresholdEstimation(int seed) {
 }
 
 
+void testWeightSampling(int seed) {
+
+    auto n = 10000;
+    auto ple = -2.1;
+    int runs = 10;
+
+    Generator g;
+
+    for(int i=0; i<runs; ++i){
+        g.setWeights(n, ple, seed+i);
+        auto weights = g.weights();
+
+        for(auto each : weights) {
+            test(each >= 1.0);
+            test(each < n);
+        }
+        auto max_weight = *max_element(weights.begin(), weights.end());
+        test(max_weight > n/10);
+    }
+}
+
 
 
 int main(int argc, char* argv[]) {
@@ -198,6 +219,7 @@ int main(int argc, char* argv[]) {
     testGeneralModel(seed);
     testCompleteGraph(seed);
     testThresholdEstimation(seed);
+    testWeightSampling(seed);
 
     cout << "all tests passed." << endl;
     return 0;

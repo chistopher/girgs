@@ -160,7 +160,7 @@ void SpatialTree<D>::sampleTypeII(
     auto max_connection_prob = std::min(std::pow(w_upper_bound/dist_lower_bound, m_alpha), 1.0);
     if(max_connection_prob <= 1e-10)
         return;
-    auto geo = [this](double p) -> int {
+    auto geo = [this](double p) -> long long {
         auto R = this->m_dist(this->m_gen);
         return p==1 ? 1 : std::ceil(std::log2(R) / std::log2(1-p)); // this does not work if p=1
     };

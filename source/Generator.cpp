@@ -26,7 +26,7 @@ void Generator::setWeights(int n, double ple, int weightSeed) {
     auto gen = std::mt19937(weightSeed >= 0 ?  weightSeed : std::random_device()());
     std::uniform_real_distribution<> dist; // [0..1)
     for(int i=0; i<n; ++i)
-        m_graph[i].weight = std::pow(std::pow(n,ple+1)*dist(gen) + 1, 1.0/(ple+1));
+        m_graph[i].weight = std::pow((std::pow(n,ple+1)-1)*dist(gen) + 1, 1/(ple+1));
 }
 
 

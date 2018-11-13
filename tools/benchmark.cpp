@@ -1,18 +1,14 @@
 
 #include <chrono>
 #include <iostream>
-#include <fstream>
-#include <cmath>
 
 #include <Generator.h>
-#include <random>
 
 
 using namespace std;
 
 // GIRG parameter
 const auto ple = -2.5;
-const auto c = 1.0;
 //const auto alpha = 1.0;
 const auto alpha = std::numeric_limits<double>::infinity();
 const auto avgDeg = 10;
@@ -21,23 +17,25 @@ const auto avgDeg = 10;
 const auto SEED = 13;
 const auto RUNS = 50;
 const auto N_1 = 1000;
-const auto N_2 = 100'000;
+const auto N_2 = 10'000;
 const auto D_MAX = 4;
 using resolution = chrono::milliseconds;
 
 
 int measure(int dimension, int n, int run) {
 
-    auto seed = SEED + n + run;
+    auto weightSeed = SEED;
+    auto positionSeed = SEED+run;
+    auto samplingSeed = SEED+run+n;
 
     Generator g;
-    g.setWeights(n, ple, seed);
-    g.setPositions(n, dimension, seed);
-    // g.scaleWeights(10, dimension, alpha);
+    g.setWeights(n, ple, weightSeed);
+    g.setPositions(n, dimension, positionSeed);
+    g.scaleWeights(avgDeg, dimension, alpha);
 
     // measure
     auto start = chrono::high_resolution_clock::now();
-    g.generate(alpha, seed);
+    g.generate(alpha, samplingSeed);
     auto end = chrono::high_resolution_clock::now();
 
     return chrono::duration_cast<resolution>(end-start).count();
