@@ -5,6 +5,7 @@
 #include <numeric>
 
 #include <Generator.h>
+#include <SpatialTreeCoordinateHelper.h> // for distance function
 
 
 using namespace std;

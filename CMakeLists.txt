@@ -15,24 +15,23 @@ SET(HEADER_FILES
         include/Generator.h
         include/SpatialTree.h
         include/SpatialTree.inl
-        include/DebugHelper.h
         include/SpatialTreeCoordinateHelper.h
         include/SpatialTreeCoordinateHelper.inl
         include/WeightLayer.h
         include/WeightLayer.inl
-        include/Common.h)
+        include/Node.h)
 
 
 set(SOURCE_FILES
         source/Generator.cpp
-        source/Common.cpp)
+        source/Node.cpp)
 
 
 set(EXECUTABLE_FILES
         tools/benchmark.cpp
         tools/dev.cpp
         tools/test_Generator.cpp
-        tools/test_SpartialTree.cpp
+        tools/test_SpartialTreeCoordinateHelper.cpp
         tools/test_DegreeEstimation.cpp
         )
 

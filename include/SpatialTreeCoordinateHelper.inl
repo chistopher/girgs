@@ -73,7 +73,7 @@ bool SpatialTreeCoordinateHelper<D>::touching(unsigned int cellA, unsigned int c
 }
 
 template<unsigned int D>
-double SpatialTreeCoordinateHelper<D>::dist(std::vector<double> &a, std::vector<double> &b) const {
+double SpatialTreeCoordinateHelper<D>::dist(std::vector<double> &a, std::vector<double> &b) {
     assert(a.size() == b.size());
     assert(a.size() == D);
 
@@ -89,8 +89,7 @@ double SpatialTreeCoordinateHelper<D>::dist(std::vector<double> &a, std::vector<
 
 template<unsigned int D>
 double SpatialTreeCoordinateHelper<D>::dist(unsigned int cellA, unsigned int cellB, unsigned int level) const {
-    auto diameter = 1.0 / (1<<level);
-    
+
     // first work with integer d dimensional index
     auto& coordA = m_coords[cellA];
     auto& coordB = m_coords[cellB];
@@ -100,5 +99,8 @@ double SpatialTreeCoordinateHelper<D>::dist(unsigned int cellA, unsigned int cel
         dist = std::min(dist, (1<<level) - dist);
         result = std::max(result, dist);
     }
+
+    // then apply the diameter
+    auto diameter = 1.0 / (1<<level);
     return std::max(0.0, (result-1) * diameter); // TODO if cellA and cellB are not touching, this max is irrelevant
 }

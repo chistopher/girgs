@@ -50,12 +50,14 @@ void SpatialTree<D>::generateEdges(std::vector<Node>& graph, double alpha, int s
     // sample all edges
     visitCellPair(0,0,0, graph);
 
+    // after sampling the graph m_1+m_2 should always be n(n-1) to ensure that all edges were considered
     assert(m_1 + m_2 == graph.size()*(graph.size()-1));
 }
 
 
 template<unsigned int D>
 void SpatialTree<D>::visitCellPair(unsigned int cellA, unsigned int cellB, unsigned int level, std::vector<Node> &graph) {
+    using Helper = SpatialTreeCoordinateHelper<D>;
 
     auto touching = m_helper.touching(cellA, cellB, level);
 
@@ -89,8 +91,8 @@ void SpatialTree<D>::visitCellPair(unsigned int cellA, unsigned int cellB, unsig
 
     if(cellA == cellB){
         // recursive call for all children pairs of cell A=B
-        for(auto a = firstChild(cellA); a<firstChild(cellA)+numChildren; ++a)
-            for(auto b = a; b<firstChild(cellA)+numChildren; ++b)
+        for(auto a = Helper::firstChild(cellA); a<=Helper::lastChild(cellA); ++a)
+            for(auto b = a; b<=Helper::lastChild(cellA); ++b)
                 visitCellPair(a,b, level+1, graph);
     }
 
@@ -98,8 +100,8 @@ void SpatialTree<D>::visitCellPair(unsigned int cellA, unsigned int cellB, unsig
     if(touching && cellA!=cellB) {
         // recursive call for all children pairs (a,b) where a in A and b in B
         // these will be type 1 if a and b touch or type 2 if they don't
-        for(auto a = firstChild(cellA); a<firstChild(cellA)+numChildren; ++a)
-            for(auto b = firstChild(cellB); b<firstChild(cellB)+numChildren; ++b)
+        for(auto a = Helper::firstChild(cellA); a<=Helper::lastChild(cellA); ++a)
+            for(auto b = Helper::firstChild(cellB); b<=Helper::lastChild(cellB); ++b)
                 visitCellPair(a, b, level+1, graph);
     }
 }
@@ -108,7 +110,7 @@ void SpatialTree<D>::visitCellPair(unsigned int cellA, unsigned int cellB, unsig
 template<unsigned int D>
 void SpatialTree<D>::sampleTypeI(
         unsigned int cellA, unsigned int cellB, unsigned int level,
-        unsigned int i, unsigned int j, SpatialTree::Graph &graph)
+        unsigned int i, unsigned int j, std::vector<Node>& graph)
 {
 
     auto sizeV_i_A = m_weight_layers[i].pointsInCell(cellA, level);
@@ -132,8 +134,7 @@ void SpatialTree<D>::sampleTypeI(
             auto dist = m_helper.dist(nodeInA->coord, nodeInB->coord);
             if(checkEdgeExplicit(dist, nodeInA->weight, nodeInB->weight)){
                 nodeInA->edges.push_back(nodeInB);
-                if(nodeInA->index != nodeInB->index)
-                    nodeInB->edges.push_back(nodeInA);
+                nodeInB->edges.push_back(nodeInA);
             }
         }
     }
@@ -143,7 +144,7 @@ void SpatialTree<D>::sampleTypeI(
 template<unsigned int D>
 void SpatialTree<D>::sampleTypeII(
         unsigned int cellA, unsigned int cellB, unsigned int level,
-        unsigned int i, unsigned int j, SpatialTree::Graph &graph)
+        unsigned int i, unsigned int j, std::vector<Node>& graph)
 {
 
     auto sizeV_i_A = m_weight_layers[i].pointsInCell(cellA, level);
@@ -229,7 +230,7 @@ unsigned int SpatialTree<D>::partitioningBaseLevel(int layer1, int layer2) const
     {   // a lot of assertions that we have the correct comparison level
         assert(0 <= layer1 && layer1 < m_layers);
         assert(0 <= layer2 && layer2 < m_layers);
-        assert(0 <= result && result < m_levels);
+        assert(0 <= result && result < m_levels || m_levels == 0);
         auto volume_requested  = m_w0*std::pow(2,layer1+1) * m_w0*std::pow(2,layer2+1) / m_W; // v(i,j) = wi*wj/W
         auto volume_current    = std::pow(2.0, -(result+0.0)*D); // in paper \mu with v <= \mu < O(v)
         auto volume_one_deeper = std::pow(2.0, -(result+1.0)*D);
@@ -242,17 +243,11 @@ unsigned int SpatialTree<D>::partitioningBaseLevel(int layer1, int layer2) const
 
 template<unsigned int D>
 bool SpatialTree<D>::checkEdgeExplicit(double dist, double w1, double w2) {
+    auto w_term = w1*w2/m_W;
+    auto d_term = std::pow(dist, D);
+    if(m_alpha == std::numeric_limits<double>::infinity())
+        return d_term < w_term;
 
-    double p;
-
-    auto w = w1*w2/m_W;
-    if(m_alpha == std::numeric_limits<double>::infinity()){
-        return dist < std::pow(w, 1.0/D);
-    } else {
-        auto d = std::pow(dist, dimension);
-        p = std::min(std::pow(w/d, m_alpha), 1.0);
-    }
-
-    return m_dist(m_gen) < p;
+    auto edge_prob = std::min(std::pow(w_term/d_term, m_alpha), 1.0);
+    return m_dist(m_gen) < edge_prob;
 }
-

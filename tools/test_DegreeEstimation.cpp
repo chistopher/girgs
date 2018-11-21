@@ -7,7 +7,6 @@
 #include <random>
 
 #include <Generator.h>
-#include <cassert>
 
 
 using namespace std;
@@ -84,10 +83,10 @@ double longEdgesTrivial(const std::vector<double>& w, double c, int d, double a)
 
             // since crazy_w is the turning point for the minimum we must get Pr = 1 for dist = crazy_W
             auto control_one = c * pow(w_term / pow(crazy_w, d), a);
-            assert(0.99 < control_one && control_one < 1.01);
+            test(0.99 < control_one && control_one < 1.01);
 
             auto long_edge_prob = c*pow(w_term, a) * d*(1<<d) / (d - a*d) * ( pow(0.5, d-a*d) - pow(crazy_w, d-a*d));
-            assert(long_edge_prob <= 1.0); // prob for a long edge cannot be bigger than 1
+            test(long_edge_prob <= 1.0); // prob for a long edge cannot be bigger than 1
 
             long_edges += 2*long_edge_prob;
         }

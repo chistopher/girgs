@@ -2,8 +2,6 @@
 #include <iostream>
 #include <random>
 
-#include <DebugHelper.h>
-#include <SpatialTree.h>
 #include <SpatialTreeCoordinateHelper.h>
 
 
@@ -18,10 +16,10 @@ void test(bool cond){
 
 
 template<unsigned int D>
-void testTreeStructure(SpatialTree<D>& tree) {
+void testTreeStructure(SpatialTreeCoordinateHelper<D>& tree) {
 
     // test consistency of cell index up to level 12 / D
-    const auto max_level = 12 / D;
+    const auto max_level = tree.levels();
 
     // check the number of children on all layers and helper functions
     auto cells = tree.firstCellOfLevel(max_level+1);
@@ -81,20 +79,15 @@ void testCoordMapping(SpatialTreeCoordinateHelper<D>& helper) {
 
 int main(int argc, char* argv[]) {
 
-    auto a1 = SpatialTree<1>();
-    auto a2 = SpatialTree<2>();
-    auto a3 = SpatialTree<3>();
-    auto a4 = SpatialTree<4>();
-
-    testTreeStructure(a1);
-    testTreeStructure(a2);
-    testTreeStructure(a3);
-    testTreeStructure(a4);
-
     auto b1 = SpatialTreeCoordinateHelper<1>(12);
     auto b2 = SpatialTreeCoordinateHelper<2>(6);
     auto b3 = SpatialTreeCoordinateHelper<3>(4);
     auto b4 = SpatialTreeCoordinateHelper<4>(3);
+
+    testTreeStructure(b1);
+    testTreeStructure(b2);
+    testTreeStructure(b3);
+    testTreeStructure(b4);
 
     testCoordMapping(b1);
     testCoordMapping(b2);
@@ -102,8 +95,8 @@ int main(int argc, char* argv[]) {
     testCoordMapping(b4);
 
     // TODO write better test for touching
-    auto a = a1.firstCellOfLevel(5);
-    auto b = a1.firstCellOfLevel(5) + a1.numCellsInLevel(5) - 1;
+    auto a = b1.firstCellOfLevel(5);
+    auto b = b1.firstCellOfLevel(5) + b1.numCellsInLevel(5) - 1;
     test(b1.touching(a,b,5));
 
     // TODO write better tests for dist of cells

@@ -12,8 +12,8 @@ WeightLayer<D>::WeightLayer(unsigned int layer,
 {
 
     // convenience constants
-    const auto firstCell = firstCellOfLevel(m_target_level);
-    const auto cellsInLevel = numCellsInLevel(m_target_level);
+    const auto firstCell = SpatialTreeCoordinateHelper<D>::firstCellOfLevel(m_target_level);
+    const auto cellsInLevel = SpatialTreeCoordinateHelper<D>::numCellsInLevel(m_target_level);
     const auto lastCell = firstCell + cellsInLevel - 1;
 
     // allocate stuff
@@ -48,19 +48,20 @@ WeightLayer<D>::WeightLayer(unsigned int layer,
 
 template<unsigned int D>
 int WeightLayer<D>::pointsInCell(unsigned int cell, unsigned int level) const {
+    using Helper = SpatialTreeCoordinateHelper<D>;
     assert(level <= m_target_level);
-    assert(firstCellOfLevel(level) <= cell && cell < firstCellOfLevel(level+1)); // cell is from fromLevel
+    assert(Helper::firstCellOfLevel(level) <= cell && cell < Helper::firstCellOfLevel(level+1)); // cell is from correct level
 
     // we want the begin-th and end-th cell in level targetLevel to be the first and last descendant of cell in this level
     // we could apply the firstChild function to find the first descendant but this is in O(1)
-    auto descendants = numCellsInLevel(m_target_level - level);
-    auto localIndexCell = cell - firstCellOfLevel(level);
-    auto localIndexDescendant = localIndexCell * descendants; // each cell before the parent splits in 2^D cells in the next layer that are all before our descendent
+    auto descendants = Helper::numCellsInLevel(m_target_level - level);
+    auto localIndexCell = cell - Helper::firstCellOfLevel(level);
+    auto localIndexDescendant = localIndexCell * descendants; // each cell before the parent splits in 2^D cells in the next layer that are all before our descendant
     auto begin = localIndexDescendant;
     auto end = begin + descendants - 1;
 
-    assert(begin + firstCellOfLevel(level) < firstCellOfLevel(m_target_level+1));
-    assert(end + firstCellOfLevel(level) < firstCellOfLevel(m_target_level+1));
+    assert(begin + Helper::firstCellOfLevel(level) < Helper::firstCellOfLevel(m_target_level+1));
+    assert(end + Helper::firstCellOfLevel(level) < Helper::firstCellOfLevel(m_target_level+1));
 
     return m_prefix_sums[end] - m_prefix_sums[begin] + m_points_in_cell[end];
 }
@@ -68,12 +69,13 @@ int WeightLayer<D>::pointsInCell(unsigned int cell, unsigned int level) const {
 
 template<unsigned int D>
 Node* WeightLayer<D>::kthPoint(unsigned int cell, unsigned int level, int k) const {
+    using Helper = SpatialTreeCoordinateHelper<D>;
     assert(level <= m_target_level);
-    assert(firstCellOfLevel(level) <= cell && cell < firstCellOfLevel(level+1)); // cell is from fromLevel
+    assert(Helper::firstCellOfLevel(level) <= cell && cell < Helper::firstCellOfLevel(level+1)); // cell is from fromLevel
 
     // same as in "pointsInCell"
-    auto descendants = numCellsInLevel(m_target_level - level);
-    auto localIndexCell = cell - firstCellOfLevel(level);
+    auto descendants = Helper::numCellsInLevel(m_target_level - level);
+    auto localIndexCell = cell - Helper::firstCellOfLevel(level);
     auto localIndexDescendant = localIndexCell * descendants;
     auto begin = localIndexDescendant;
 

@@ -5,7 +5,7 @@
 #include <string>
 #include <functional>
 
-#include <Common.h>
+#include <Node.h>
 
 
 // a generator that samples a GIRG in expected linear time and provides access to the result

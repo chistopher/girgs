@@ -2,6 +2,7 @@
 #include <Generator.h>
 
 #include <fstream>
+#include <iostream>
 #include <iomanip>
 #include <random>
 
