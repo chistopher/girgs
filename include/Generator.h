@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <string>
+#include <functional>
 
 #include <Common.h>
 
@@ -26,7 +27,7 @@ public:
 
     // generate
     void generate(double alpha, int samplingSeed);
-    void generateTreshold();
+    void generateThreshold();
     // convenience
     const std::vector<Node>& generate(int n, int dimension, double ple, double alpha, int desiredAvgDegree, int weightSeed, int positionSeed, int samplingSeed);
 
@@ -40,8 +41,10 @@ public:
     std::vector<std::vector<double>> positions() const;
 
     // helper
-    // currently works only for alpha = std::numeric_limits<double>::infinity()
+    double estimateWeightScalingThreshold(const std::vector<double>& weights, int desiredAvgDegree, int dimension) const;
     double estimateWeightScaling(const std::vector<double>& weights, int desiredAvgDegree, int dimension, double alpha) const;
+
+    double exponentialSearch(std::function<double(double)> f, double desiredValue, double accuracy = 0.02, double lower = 1.0, double upper = 2.0) const;
 
 protected:
 

@@ -33,6 +33,7 @@ set(EXECUTABLE_FILES
         tools/dev.cpp
         tools/test_Generator.cpp
         tools/test_SpartialTree.cpp
+        tools/test_DegreeEstimation.cpp
         )
 
 

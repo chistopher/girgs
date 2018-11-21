@@ -247,7 +247,7 @@ bool SpatialTree<D>::checkEdgeExplicit(double dist, double w1, double w2) {
 
     auto w = w1*w2/m_W;
     if(m_alpha == std::numeric_limits<double>::infinity()){
-        p = dist < std::pow(w, 1.0/D);  // TODO return p here and benchmark improvement
+        return dist < std::pow(w, 1.0/D);
     } else {
         auto d = std::pow(dist, dimension);
         p = std::min(std::pow(w/d, m_alpha), 1.0);

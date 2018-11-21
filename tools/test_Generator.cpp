@@ -31,7 +31,7 @@ void testThresholdModel(int seed) {
     for(auto d=1u; d<5; ++d){
 
         generator.setPositions(n, d, seed+d);
-        generator.generateTreshold();
+        generator.generateThreshold();
 
         // check that there is an edge if and only if the condition in the paper holds: dist < c*(w1w2/W)^-d
         for(int j=0; j<n; ++j){
@@ -171,7 +171,7 @@ void testThresholdEstimation(int seed) {
 
             // try GIRGS generator and quadratic sampling
             generator.setPositions(n, d, positionSeed+i);
-            generator.generateTreshold();
+            generator.generateThreshold();
 
             auto avg1 = generator.avg_degree();
             auto avg2 = edgesInQuadraticSampling(weights, generator.positions(), estimated_c) / n;
@@ -184,6 +184,53 @@ void testThresholdEstimation(int seed) {
 
         // test the goodness of the estimation for weight scaling
         test(abs(desired_avg - observed_avg) < 0.1);
+    }
+}
+
+
+void testEstimation(int seed) {
+
+    auto all_n = {100, 150, 200};
+    auto all_alpha = {0.6, 0.9, 1.5, 3.0, 5.0, numeric_limits<double>::infinity()};
+    auto all_desired_avg = {10, 15, 20, 25};
+    auto all_dimensions = {1, 2, 3, 4};
+    auto runs = 5;
+
+    auto PLE = -2.5;
+    auto weightSeed = seed;
+    auto positionSeed = seed;
+
+    for(int n : all_n){
+        for(double alpha : all_alpha){
+            for(double desired_avg : all_desired_avg){
+                for(int d : all_dimensions){
+
+                    // generate weights
+                    Generator generator;
+                    generator.setWeights(n, PLE, weightSeed);
+                    auto weights = generator.weights();
+
+                    // estimate scaling for current dimension
+                    generator.setWeights(weights); // reset weights
+                    generator.scaleWeights(desired_avg, d, alpha);
+
+                    auto observed_avg = 0.0;
+                    for(int i = 0; i<runs; ++i) {
+
+                        // try GIRGS generator
+                        generator.setPositions(n, d, positionSeed+i);
+                        generator.generate(alpha, n+i);
+
+                        auto avg = generator.avg_degree();
+                        observed_avg += avg;
+                    }
+                    observed_avg /= runs;
+
+                    // test the goodness of the estimation for weight scaling
+                    test(abs(desired_avg - observed_avg) < 1.0);
+                }
+            }
+        }
     }
 }
 
@@ -219,6 +266,7 @@ int main(int argc, char* argv[]) {
     testGeneralModel(seed);
     testCompleteGraph(seed);
     testThresholdEstimation(seed);
+    // testEstimation(seed); // takes some time
     testWeightSampling(seed);
 
     cout << "all tests passed." << endl;
