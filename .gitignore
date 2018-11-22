@@ -1,4 +1,3 @@
-
 # Compiled Object files
 *.slo
 *.lo
@@ -20,14 +19,23 @@ release_build
 /bin
 /lib
 /install
-/cmake-build-debug
-/cmake-build-release
-/cmake-build-relwithdebinfo
+
+# Qt cache
+CMakeLists.txt.user
+CMakeLists.txt.user.*
 
 # IDE project files
 *.sublime-project
 *.sublime-workspace
-/.idea/
 
-# python
-*.pyc
+# Local config windows
+_configure.bat
+_open-project.bat
+_start-cmake-gui.bat
+_start-cmd.bat
+
+# Local config unix
+.localconfig
+
+# Wiki
+wiki

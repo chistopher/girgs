@@ -1,0 +1,10 @@
+
+# Check if examples are enabled
+if(NOT OPTION_BUILD_EXAMPLES)
+    return()
+endif()
+
+# Example applications
+add_subdirectory(benchmark)
+add_subdirectory(dev)
+add_subdirectory(dev2)
