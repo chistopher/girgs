@@ -9,6 +9,8 @@
 #include <girgs/SpatialTree.h>
 
 
+using namespace girgs;
+
 
 void Generator::setWeights(const std::vector<double>& weights) {
     auto n = weights.size();
@@ -104,12 +106,7 @@ void Generator::generate(double alpha, int samplingSeed) {
 }
 
 
-void Generator::generateThreshold() {
-    generate(std::numeric_limits<double>::infinity(), 0);
-}
-
-
-const std::vector<Node>& Generator::generate(
+std::vector<Node> Generator::generate(
         int n, int dimension, double ple, double alpha, int desiredAvgDegree, int weightSeed, int positionSeed, int samplingSeed) {
 
     setWeights(n, ple, weightSeed);
@@ -122,6 +119,10 @@ const std::vector<Node>& Generator::generate(
     return m_graph;
 }
 
+
+void Generator::generateThreshold() {
+    generate(std::numeric_limits<double>::infinity(), 0);
+}
 
 
 double Generator::avg_degree() const {
@@ -253,7 +254,9 @@ double Generator::estimateWeightScaling(const std::vector<double> &weights, int 
     auto sorted_weights = weights;
     sort(sorted_weights.begin(), sorted_weights.end(), greater<double>());
 
-    auto f = [a(alpha), d(dimension), W, factor1, factor2, &sorted_weights](double c) {
+    auto f = [alpha, dimension, W, factor1, factor2, &sorted_weights](double c) {
+        auto d = dimension;
+        auto a = alpha;
 
         // as originally in Marianne's thesis
         auto long_and_short_with_error = pow(c, 1/a) * factor1 - c * factor2;

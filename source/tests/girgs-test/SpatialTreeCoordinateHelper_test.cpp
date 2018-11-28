@@ -7,6 +7,7 @@
 
 
 using namespace std;
+using namespace girgs;
 
 
 class SpatialTreeCoordinateHelper_test: public testing::Test

@@ -6,6 +6,9 @@
 #include <cassert>
 
 
+namespace girgs {
+
+
 template<unsigned int D>
 class SpatialTreeCoordinateHelper
 {
@@ -47,5 +50,7 @@ protected:
     std::vector<unsigned int>       m_coords2Index; // packed coord to cell index
 };
 
+
+} // namespace girgs
 
 #include <girgs/SpatialTreeCoordinateHelper.inl>

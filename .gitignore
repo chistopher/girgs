@@ -20,13 +20,13 @@ release_build
 /lib
 /install
 
-# Qt cache
-CMakeLists.txt.user
-CMakeLists.txt.user.*
+# CLion build dirs
+cmake-build-*
 
 # IDE project files
 *.sublime-project
 *.sublime-workspace
+.idea
 
 # Local config windows
 _configure.bat

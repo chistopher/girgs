@@ -6,13 +6,22 @@
 #include <girgs/girgs_api.h>
 
 
+namespace girgs {
+
+/**
+ * @brief
+ *  data container for nodes of a graph
+ */
 struct GIRGS_API Node {
     std::vector<double> coord;
-    double weight;
-    int index;
-    std::vector<Node*> edges;
+    double              weight;
+    int                 index;
+    std::vector<Node*>  edges;
 };
 
 
 // max over the torus distance in all dimensions TODO find place for this function
 GIRGS_API double distance(const std::vector<double>& a, const std::vector<double>& b);
+
+
+} // namespace girgs

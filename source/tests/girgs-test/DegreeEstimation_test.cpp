@@ -36,7 +36,7 @@ double tryOften(const std::vector<double>& w, double c, int dim, double a) {
         for(int i=0; i<n; ++i)
             for(int j=i+1; j<n; ++j) {
                 auto w_term = w[i] * w[j] / W;
-                auto d_term = pow(distance(pos[i], pos[j]), dim);
+                auto d_term = pow(girgs::distance(pos[i], pos[j]), dim);
                 auto edgeProb = min(c * pow(w_term/d_term, a), 1.0);
                 sum += 2*edgeProb;
             }
@@ -232,7 +232,7 @@ TEST(DegreeEstimation_test, testEstimationFormula)
 
     auto epsilon = 0.00001;
 
-    Generator g;
+    girgs::Generator g;
     g.setWeights(n, ple, seed);
     auto weights = g.weights();
 

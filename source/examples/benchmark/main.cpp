@@ -6,6 +6,7 @@
 
 
 using namespace std;
+using namespace girgs;
 
 // GIRG parameter
 const auto ple = -2.5;

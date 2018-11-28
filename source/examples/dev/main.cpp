@@ -10,6 +10,7 @@
 
 
 using namespace std;
+using namespace girgs;
 
 
 double trivialTryAvgWithPos(const std::vector<double>& w, double c, int d, const vector<vector<double>>& pos, double a) {

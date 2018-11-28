@@ -1,4 +1,5 @@
 
+namespace girgs {
 
 
 template<unsigned int D>
@@ -104,3 +105,6 @@ double SpatialTreeCoordinateHelper<D>::dist(unsigned int cellA, unsigned int cel
     auto diameter = 1.0 / (1<<level);
     return std::max(0.0, (result-1) * diameter); // TODO if cellA and cellB are not touching, this max is irrelevant
 }
+
+
+} // namespace girgs

@@ -1,5 +1,5 @@
 
-
+namespace girgs {
 
 template<unsigned int D>
 WeightLayer<D>::WeightLayer(unsigned int layer,
@@ -81,3 +81,6 @@ Node* WeightLayer<D>::kthPoint(unsigned int cell, unsigned int level, int k) con
 
     return m_A[m_prefix_sums[begin] + k];
 }
+
+
+} // namespace girgs

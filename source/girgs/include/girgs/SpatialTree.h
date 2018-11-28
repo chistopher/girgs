@@ -13,7 +13,13 @@
 #include <girgs/Node.h>
 
 
-// datastucture is full D-dimensional space partitioning tree
+namespace girgs {
+
+
+/**
+ * @brief
+ *  the data stucture is a full D-dimensional space partitioning tree
+ */
 template<unsigned int D>
 class SpatialTree
 {
@@ -63,5 +69,7 @@ private:
     long int m_1, m_2;          // number of checked type 1 and type 2 connections
 };
 
+
+} // namespace girgs
 
 #include <girgs/SpatialTree.inl>

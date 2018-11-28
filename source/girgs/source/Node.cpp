@@ -5,7 +5,7 @@
 #include <cassert>
 
 
-double distance(const std::vector<double>& a, const std::vector<double>& b) {
+double girgs::distance(const std::vector<double>& a, const std::vector<double>& b) {
     assert(a.size() == b.size());
     auto result = 0.0;
     for(auto d=0u; d<a.size(); ++d){

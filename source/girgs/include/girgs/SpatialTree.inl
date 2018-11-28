@@ -1,4 +1,5 @@
 
+namespace girgs {
 
 
 template<unsigned int D>
@@ -251,3 +252,7 @@ bool SpatialTree<D>::checkEdgeExplicit(double dist, double w1, double w2) {
     auto edge_prob = std::min(std::pow(w_term/d_term, m_alpha), 1.0);
     return m_dist(m_gen) < edge_prob;
 }
+
+
+
+} // namespace girgs

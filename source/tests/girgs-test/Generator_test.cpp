@@ -25,7 +25,7 @@ TEST_F(Generator_test, testThresholdModel)
     const auto alpha = numeric_limits<double>::infinity();
     const auto ple = -2.8;
 
-    Generator generator;
+    girgs::Generator generator;
     generator.setWeights(n, ple, seed);
     auto weights = generator.weights();
     auto W = accumulate(weights.begin(), weights.end(), 0.0);
@@ -41,7 +41,7 @@ TEST_F(Generator_test, testThresholdModel)
                 auto& a = generator.graph()[j];
                 auto& b = generator.graph()[i];
 
-                auto dist = distance(a.coord, b.coord);
+                auto dist = girgs::distance(a.coord, b.coord);
                 auto w = std::pow(a.weight * b.weight / W, 1.0/d);
 
                 auto edge1 = find(a.edges.begin(), a.edges.end(), &b);
@@ -64,7 +64,7 @@ TEST_F(Generator_test, testGeneralModel)
     const auto alpha = 2.5;
     const auto ple = -2.5;
 
-    auto generator = Generator();
+    auto generator = girgs::Generator();
     generator.setWeights(n, ple, seed);
     auto weights = generator.weights();
     auto W = accumulate(weights.begin(), weights.end(), 0.0);
@@ -83,7 +83,7 @@ TEST_F(Generator_test, testGeneralModel)
                 auto& a = generator.graph()[j];
                 auto& b = generator.graph()[i];
 
-                auto dist = std::pow(distance(a.coord, b.coord), d);
+                auto dist = std::pow(girgs::distance(a.coord, b.coord), d);
                 auto w = a.weight * b.weight / W;
 
                 auto prob = std::min(std::pow(w/dist, alpha), 1.0);
@@ -93,9 +93,8 @@ TEST_F(Generator_test, testGeneralModel)
         }
 
         auto total_expected = accumulate(expectedEdges.begin(), expectedEdges.end(), 0.0);
-        auto total_actual = accumulate(generator.graph().begin(), generator.graph().end(), 0.0, [](double sum, const Node& node){
-            return sum + node.edges.size();
-        });
+        auto total_actual = accumulate(generator.graph().begin(), generator.graph().end(), 0.0,
+                [](double sum, const girgs::Node& node){ return sum + node.edges.size(); });
 
         auto rigor = 0.99;
         EXPECT_LT(rigor * total_expected, total_actual) << "edges too much below expected value";
@@ -110,7 +109,7 @@ TEST_F(Generator_test, testCompleteGraph)
     const auto alpha = 0.0; // each edge prob will be 100% now
     const auto ple = -2.5;
 
-    auto generator = Generator();
+    auto generator = girgs::Generator();
     generator.setWeights(n, ple, seed);
 
     for(auto d=1u; d<5; ++d) {
@@ -140,7 +139,7 @@ double edgesInQuadraticSampling(const std::vector<double>& w, const vector<vecto
     auto edges = 0.0;
     for(int i=0; i<n; ++i)
         for(int j=i+1; j<n; ++j)
-            if(distance(pos[i], pos[j]) < c*std::pow(w[i] * w[j] / W, 1.0/d))
+            if(girgs::distance(pos[i], pos[j]) < c*std::pow(w[i] * w[j] / W, 1.0/d))
                 edges += 2; // both endpoints get an edge
     return edges;
 }
@@ -157,7 +156,7 @@ TEST_F(Generator_test, testThresholdEstimation)
     auto desired_avg = 10;
     auto runs = 50;
 
-    Generator generator;
+    girgs::Generator generator;
     generator.setWeights(n, PLE, weightSeed);
     auto weights = generator.weights();
 
@@ -210,7 +209,7 @@ TEST_F(Generator_test, testEstimation)
                 for(int d : all_dimensions){
 
                     // generate weights
-                    Generator generator;
+                    girgs::Generator generator;
                     generator.setWeights(n, PLE, weightSeed);
                     auto weights = generator.weights();
 
@@ -245,7 +244,7 @@ TEST_F(Generator_test, testWeightSampling)
     auto ple = -2.1;
     int runs = 10;
 
-    Generator g;
+    girgs::Generator g;
 
     for(int i=0; i<runs; ++i){
         g.setWeights(n, ple, seed+i);
