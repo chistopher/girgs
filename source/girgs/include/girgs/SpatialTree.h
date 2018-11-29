@@ -34,6 +34,9 @@ public:
 protected:
 
     // recursive function that samples all edges between points in A and B
+    void visitCellPair_sequentialStart(unsigned int cellA, unsigned int cellB, unsigned int level,
+            unsigned int first_parallel_level, std::vector<std::vector<unsigned int>>& parallel_calls);
+    void visitRoot_parallel();
     void visitCellPair(unsigned int cellA, unsigned int cellB, unsigned int level);
 
     // sample edges of type 1 between V_i^A V_j^B
