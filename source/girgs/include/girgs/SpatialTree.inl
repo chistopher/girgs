@@ -56,14 +56,14 @@ void SpatialTree<D>::generateEdges(std::vector<Node>& graph, double alpha, int s
 
     const auto num_threads = omp_get_max_threads();
     std::cout << "threads " << num_threads << '\n';
-	if (num_threads == 1) {
+	const unsigned int first_parallel_level = std::ceil(std::log2(10.0*num_threads) / D);
+	if (num_threads == 1 || first_parallel_level >= m_levels) {
 		auto start1 = std::chrono::high_resolution_clock::now();
 		visitCellPair(0, 0, 0);
 		auto start2 = std::chrono::high_resolution_clock::now();
 		std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(start2 - start1).count() << '\n';
 		return;
 	}
-    const unsigned int first_parallel_level = std::ceil(std::log2(4.0*num_threads) / D);
     const auto parallel_cells = SpatialTreeCoordinateHelper<D>::numCellsInLevel(first_parallel_level);
     const auto first_parallel_cell = SpatialTreeCoordinateHelper<D>::firstCellOfLevel(first_parallel_level);
     assert(first_parallel_level < m_levels);
@@ -73,7 +73,7 @@ void SpatialTree<D>::generateEdges(std::vector<Node>& graph, double alpha, int s
     visitCellPair_sequentialStart(0,0,0, first_parallel_level, parallel_calls);
 	auto start2 = std::chrono::high_resolution_clock::now();
 
-    #pragma omp parallel for schedule(dynamic), num_threads(num_threads)
+    #pragma omp parallel for schedule(guided), num_threads(num_threads)
     for(int i=0; i< parallel_cells; ++i) {
         auto current_cell = first_parallel_cell + i;
         for(auto each : parallel_calls[i])
@@ -276,6 +276,7 @@ template<unsigned int D>
 unsigned int SpatialTree<D>::weightLayerTargetLevel(int layer) const {
     // -1 coz w0 is the upper bound for layer 0 in paper and our layers are shifted by -1
     auto result = std::max((m_baseLevelConstant - layer - 1) / (int)D, 0);
+#ifndef NDEBUG
     {   // a lot of assertions that we have the correct insertion level
         assert(0 <= layer && layer < m_layers);
         assert(0 <= result && result <= m_levels); // note the result may be one larger than the deepest level (hence the <= m_levels)
@@ -285,6 +286,7 @@ unsigned int SpatialTree<D>::weightLayerTargetLevel(int layer) const {
         assert(volume_requested <= volume_current); // current level has more volume than requested
         assert(volume_requested >  volume_one_deeper);    // but is the smallest such level
     }
+#endif // NDEBUG
     return static_cast<unsigned int>(result);
 }
 
@@ -314,6 +316,7 @@ unsigned int SpatialTree<D>::partitioningBaseLevel(int layer1, int layer2) const
     // we do the computation on signed ints but cast back after the max with 0
     // m_baseLevelConstant is just log(W/w0^2)
     auto result = std::max((m_baseLevelConstant - layer1 - layer2 - 2) / (int)D, 0);
+#ifndef NDEBUG
     {   // a lot of assertions that we have the correct comparison level
         assert(0 <= layer1 && layer1 < m_layers);
         assert(0 <= layer2 && layer2 < m_layers);
@@ -324,6 +327,7 @@ unsigned int SpatialTree<D>::partitioningBaseLevel(int layer1, int layer2) const
         assert(volume_requested <= volume_current || volume_requested >= 1.0); // current level has more volume than requested
         assert(volume_requested >  volume_one_deeper);    // but is the smallest such level
     }
+#endif // NDEBUG
     return static_cast<unsigned int>(result);
 }
 
@@ -331,7 +335,9 @@ unsigned int SpatialTree<D>::partitioningBaseLevel(int layer1, int layer2) const
 template<unsigned int D>
 bool SpatialTree<D>::checkEdgeExplicit(double dist, double w1, double w2) {
     auto w_term = w1*w2/m_W;
-    auto d_term = std::pow(dist, D);
+	auto d_term = 1.0; // dist^D
+	for (int i = 0; i < D; ++i)
+		d_term *= dist;
     if(m_alpha == std::numeric_limits<double>::infinity())
         return d_term < w_term;
 

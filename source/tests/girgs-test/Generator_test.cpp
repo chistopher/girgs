@@ -19,6 +19,17 @@ protected:
 };
 
 
+bool connected(const girgs::Node& a, const girgs::Node& b) {
+	bool a2b = find(a.edges.begin(), a.edges.end(), &b) != a.edges.end();
+	bool b2a = find(b.edges.begin(), b.edges.end(), &a) != b.edges.end();
+	if (a2b == false && b2a == false)
+		return false;
+	EXPECT_NE(a2b, b2a);
+	return true;
+}
+
+
+
 TEST_F(Generator_test, testThresholdModel)
 {
     const auto n = 100;
@@ -44,14 +55,10 @@ TEST_F(Generator_test, testThresholdModel)
                 auto dist = girgs::distance(a.coord, b.coord);
                 auto w = std::pow(a.weight * b.weight / W, 1.0/d);
 
-                auto edge1 = find(a.edges.begin(), a.edges.end(), &b);
-                auto edge2 = find(b.edges.begin(), b.edges.end(), &a);
                 if(dist < w) {
-                    //EXPECT_NE(edge1, a.edges.end()) << "edge should be present";
-                    //EXPECT_NE(edge2, b.edges.end()) << "edge should be present";
+                    EXPECT_TRUE(connected(a,b)) << "edge should be present";
                 } else {
-                    //EXPECT_EQ(edge1, a.edges.end()) << "edge should be absent";
-                    //EXPECT_EQ(edge2, b.edges.end()) << "edge should be absent";
+					EXPECT_FALSE(connected(a, b)) << "edge should be absent";
                 }
             }
         }
@@ -116,16 +123,19 @@ TEST_F(Generator_test, testCompleteGraph)
 
         generator.setPositions(n, d, seed+d);
         generator.generate(alpha, seed+d);
+		
+		// check for the correct number of edges
+		auto edges = 0;
+		for (auto& node : generator.graph())
+			edges += node.edges.size();
+		EXPECT_EQ(edges, (n*(n - 1)) / 2) << "expect a complete graph withour self loops";
 
         // check that each node is connected to all other nodes
-        for(auto& node : generator.graph()) {
-            //EXPECT_EQ(node.edges.size(), n-1) << "expect a complete graph withour self loops";
+        for(auto& node : generator.graph()) 
             for(auto& other : generator.graph())
-                if(node.index != other.index){
-                    auto it = find(node.edges.begin(), node.edges.end(), &other);
-                    //EXPECT_NE(it, node.edges.end()) << "edge should be present";
-                }
-        }
+                if(node.index != other.index) 
+                    EXPECT_TRUE(connected(node, other)) << "edge should be present";
+                 
     }
 }
 
