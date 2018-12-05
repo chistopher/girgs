@@ -239,39 +239,54 @@ void SpatialTree<D>::sampleTypeII(
     if(sizeV_i_A == 0 || sizeV_j_B == 0)
         return;
 
+    // get upper bound for probability
+    auto w_upper_bound = m_w0*(1<<(i+1)) * m_w0*(1<<(j+1)) / m_W;
+    auto dist_lower_bound = std::pow(m_helper.dist(cellA, cellB, level), dimension);
+    auto max_connection_prob = std::min(std::pow(w_upper_bound/dist_lower_bound, m_alpha), 1.0);
+    assert(dist_lower_bound > w_upper_bound); // in threshold model we would not sample anything
+    if(max_connection_prob <= 1e-10)
+        return;
+
+    // if we must sample all pairs we treat this as type 1 sampling
+    // also, 1.0 is no valid prob for a geometric dist (see c++ std)
+    if(max_connection_prob == 1.0){
+        sampleTypeI(cellA, cellB, level, i, j);
+        return;
+    }
+
+    // init geometric distribution
+    auto threadID = omp_get_thread_num();
+    auto& gen = m_gens[threadID];
+    auto geo = std::geometric_distribution<unsigned long long>(max_connection_prob);
+
 #ifndef NDEBUG
     m_type2_checks[omp_get_thread_num()] += 2 * sizeV_i_A * sizeV_j_B;
 #endif // NDEBUG
 
-    // implicit sampling
-    auto w_upper_bound = m_w0*(1<<(i+1)) * m_w0*(1<<(j+1)) / m_W;
-    auto dist_lower_bound = std::pow(m_helper.dist(cellA, cellB, level), dimension);
-    assert(dist_lower_bound > w_upper_bound); // in threshold model we would not sample anything
-    auto max_connection_prob = std::min(std::pow(w_upper_bound/dist_lower_bound, m_alpha), 1.0);
-    if(max_connection_prob <= 1e-10)
-        return;
-
-    auto threadID = omp_get_thread_num();
-    auto geo = [this, threadID](double p) -> long long {
-		auto R = this->m_dists[threadID](this->m_gens[threadID]);
-        return p==1 ? 1 : std::ceil(std::log2(R) / std::log2(1-p)); // this does not work if p=1
-    };
-    auto r = geo(max_connection_prob);
-    while(r <= sizeV_i_A * sizeV_j_B){
+    for (auto r = geo(gen); r < sizeV_i_A * sizeV_j_B; r += 1 + geo(gen)) {
         // determine the r-th pair
-        Node *nodeInA = m_weight_layers[i].kthPoint(cellA, level, (r-1)%sizeV_i_A);
-        Node *nodeInB = m_weight_layers[j].kthPoint(cellB, level, (r-1)/sizeV_i_A);
+        Node* nodeInA = m_weight_layers[i].kthPoint(cellA, level, r%sizeV_i_A);
+        Node* nodeInB = m_weight_layers[j].kthPoint(cellB, level, r/sizeV_i_A);
 
+        // points are in correct cells
+        assert(cellA == m_helper.cellForPoint(nodeInA->coord, level));
+        assert(cellB == m_helper.cellForPoint(nodeInB->coord, level));
+
+        // points are in correct weight layer
+        assert(i == static_cast<unsigned int>(std::log2(nodeInA->weight/m_w0)));
+        assert(j == static_cast<unsigned int>(std::log2(nodeInB->weight/m_w0)));
+
+        // get actual connection probability
         auto w = nodeInA->weight*nodeInB->weight/m_W;
-        assert(w < w_upper_bound);
         auto d = std::pow(m_helper.dist(nodeInA->coord, nodeInB->coord), dimension);
-        assert(d >= dist_lower_bound);
         auto connection_prob = std::min(std::pow(w/d, m_alpha), 1.0);
-        if(m_dists[threadID](m_gens[threadID]) < connection_prob/max_connection_prob) {
+        assert(w < w_upper_bound);
+        assert(d >= dist_lower_bound);
+
+        if(m_dists[threadID](gen) < connection_prob/max_connection_prob) {
             nodeInA->edges.push_back(nodeInB);
             //nodeInB->edges.push_back(nodeInA);
         }
-        r += geo(max_connection_prob);
     }
 }
 
@@ -297,25 +312,6 @@ unsigned int SpatialTree<D>::weightLayerTargetLevel(int layer) const {
 
 template<unsigned int D>
 unsigned int SpatialTree<D>::partitioningBaseLevel(int layer1, int layer2) const {
-    /*
-     * v(i,j) -- partitioning base level
-     *
-     * w0 is min weight
-     * wi = 2*w(i-1) = 2^i * w0 // split wi into power of two and w0
-     *
-     * 2^(-ld) = wi*wj/W
-     * = 2^i*w0 * 2^j*w0 / W
-     * = 2^i * 2^j / (W/w0^2)
-     * -> -ld = i+j - log2(W/w0^2)
-     * -> l  = (log2(W/w0^2) - (i+j)) / d
-     *
-     * a point with weight w is inserted into layer floor(log2(w/w0))
-     *  -> w0 is inserted in layer 0 (instead of layer 1 like in paper)
-     *  -> so in fact wi in our implementation equals w(i+1) in paper
-     * a pair of layers is compared in level (log2(W/w0^2) - (i+j+2)) / d rounded down
-     * - +2 to shift from our wi back to paper wi
-     * - rounding down means a level with less depth like requested in paper
-    */
 
     // we do the computation on signed ints but cast back after the max with 0
     // m_baseLevelConstant is just log(W/w0^2)

@@ -152,8 +152,7 @@ void Generator::saveDot(std::string file) const {
     f << '\n';
     for(auto& each : m_graph){
         for(auto neighbor : each.edges)
-            if(each.index < neighbor->index)
-                f << '\t' << each.index << "\t-- " << neighbor->index << ";\n";
+            f << '\t' << each.index << "\t-- " << neighbor->index << ";\n";
     }
     f << "}\n";
 }

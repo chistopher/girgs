@@ -30,7 +30,7 @@
 - [ ] look at average size of the V_i^A (I guess they are very small)
 - [ ] profile time spend in type 1 / type 2
 - [ ] clean up array view concept in WeightLayer
-- [ ] adapt exporter to directed saving of edges
+- [x] adapt exporter to directed saving of edges
 
 
 # kd-tree
