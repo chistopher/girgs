@@ -1,3 +1,4 @@
+#include "WeightLayer.h"
 
 namespace girgs {
 
@@ -22,10 +23,12 @@ WeightLayer<D>::WeightLayer(unsigned int layer,
     m_A.resize(m_nodes.size(), nullptr);
 
     // count num of points in each cell
-    for(auto node : m_nodes){
-        auto targetCell = helper.cellForPoint(node->coord, m_target_level);
+	auto cellForPoint = std::vector<unsigned int>(m_nodes.size(), -1);
+	for (int i = 0; i < m_nodes.size(); ++i) {
+        auto targetCell = helper.cellForPoint(m_nodes[i]->coord, m_target_level);
+		cellForPoint[i] = targetCell; // remeber this for last loop
         assert(firstCell <= targetCell && targetCell <= lastCell); // cell on right level
-        ++m_points_in_cell[targetCell-firstCell];
+        ++m_points_in_cell[targetCell - firstCell];
     }
 
     // fill prefix sums
@@ -37,10 +40,10 @@ WeightLayer<D>::WeightLayer(unsigned int layer,
 
     // fill point lookup
     auto num_inserted = std::vector<int>(cellsInLevel, 0); // keeps track of bucket size for counting sort
-    for(auto node : m_nodes){
-        auto targetCell = helper.cellForPoint(node->coord, m_target_level);
+    for(int i = 0; i < m_nodes.size(); ++i){
+        auto targetCell = cellForPoint[i];
         assert(firstCell <= targetCell && targetCell <= lastCell); // cell on right level
-        m_A[m_prefix_sums[targetCell-firstCell] + num_inserted[targetCell-firstCell]] = node;
+        m_A[m_prefix_sums[targetCell-firstCell] + num_inserted[targetCell-firstCell]] = m_nodes[i];
         ++num_inserted[targetCell-firstCell];
     }
 }
@@ -80,6 +83,23 @@ Node* WeightLayer<D>::kthPoint(unsigned int cell, unsigned int level, int k) con
     auto begin = localIndexDescendant;
 
     return m_A[m_prefix_sums[begin] + k];
+}
+
+
+template<unsigned int D>
+Node* const * WeightLayer<D>::firstPointPointer(unsigned int cell, unsigned int level) const
+{
+	using Helper = SpatialTreeCoordinateHelper<D>;
+	assert(level <= m_target_level);
+	assert(Helper::firstCellOfLevel(level) <= cell && cell < Helper::firstCellOfLevel(level + 1)); // cell is from fromLevel
+
+	// same as in "pointsInCell"
+	auto descendants = Helper::numCellsInLevel(m_target_level - level);
+	auto localIndexCell = cell - Helper::firstCellOfLevel(level);
+	auto localIndexDescendant = localIndexCell * descendants;
+	auto begin = localIndexDescendant;
+
+	return m_A.data() + m_prefix_sums[begin];
 }
 
 

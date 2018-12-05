@@ -1,6 +1,4 @@
 
-#include <chrono>
-#include <omp.h>
 
 namespace girgs {
 
@@ -8,14 +6,8 @@ namespace girgs {
 template<unsigned int D>
 void SpatialTree<D>::generateEdges(std::vector<Node>& graph, double alpha, int seed) {
 
-    // init member
+    // init member and determine min max and sum of weights
     m_alpha = alpha;
-    m_1 = 0;
-    m_2 = 0;
-    m_gen = std::mt19937(seed >= 0 ?  seed : std::random_device()());
-    m_dist = std::uniform_real_distribution<>(0.0, 1.0);
-
-    // determine min max and sum of weights
     m_w0 = std::numeric_limits<double>::infinity();
     m_wn = 0.0;
     m_W = 0.0;
@@ -34,6 +26,7 @@ void SpatialTree<D>::generateEdges(std::vector<Node>& graph, double alpha, int s
     m_helper = SpatialTreeCoordinateHelper<D>(m_levels+1);
 
     // determine which layer pairs to sample in which level
+    // TODO maybe also save type2 pairs? or loop over multiple vectors for type2?
     m_layer_pairs.resize(m_levels);
     for (auto i = 0u; i < m_layers; ++i)
         for (auto j = 0u; j < m_layers; ++j)
@@ -51,41 +44,92 @@ void SpatialTree<D>::generateEdges(std::vector<Node>& graph, double alpha, int s
             m_weight_layers.emplace_back(layer, weightLayerTargetLevel(layer), m_helper, std::move(weightLayerNodes[layer]));
     }
 
-    // sample all edges
-    // visitRoot_parallel();
-
+    // one random generator and distribution for each thread
     const auto num_threads = omp_get_max_threads();
-    std::cout << "threads " << num_threads << '\n';
-	const unsigned int first_parallel_level = std::ceil(std::log2(10.0*num_threads) / D);
-	if (num_threads == 1 || first_parallel_level >= m_levels) {
-		auto start1 = std::chrono::high_resolution_clock::now();
+    m_gens.resize(num_threads);
+    m_dists.resize(num_threads);
+    for (int thread = 0; thread < num_threads; thread++) {
+        m_gens[thread].seed(seed >= 0 ? seed+thread : std::random_device()());
+    } 
+
+#ifndef NDEBUG
+    // ensure that all node pairs are compared either type 1 or type 2
+    m_type1_checks.resize(num_threads, 0);
+    m_type2_checks.resize(num_threads, 0);
+#endif // NDEBUG
+
+    // sample all edges
+	if (num_threads == 1) { 
+        // sequential
 		visitCellPair(0, 0, 0);
-		auto start2 = std::chrono::high_resolution_clock::now();
-		std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(start2 - start1).count() << '\n';
-		return;
-	}
-    const auto parallel_cells = SpatialTreeCoordinateHelper<D>::numCellsInLevel(first_parallel_level);
-    const auto first_parallel_cell = SpatialTreeCoordinateHelper<D>::firstCellOfLevel(first_parallel_level);
-    assert(first_parallel_level < m_levels);
+    } else {
+        // parallel see docs for visitCellPair_sequentialStart
+        const auto first_parallel_level = static_cast<unsigned int>(std::ceil(std::log2(4.0*num_threads) / D));
+        const auto parallel_cells = SpatialTreeCoordinateHelper<D>::numCellsInLevel(first_parallel_level);
+        const auto first_parallel_cell = SpatialTreeCoordinateHelper<D>::firstCellOfLevel(first_parallel_level);
 
-	auto start1 = std::chrono::high_resolution_clock::now();
-    auto parallel_calls = std::vector<std::vector<unsigned int>>(parallel_cells);
-    visitCellPair_sequentialStart(0,0,0, first_parallel_level, parallel_calls);
-	auto start2 = std::chrono::high_resolution_clock::now();
-
-    #pragma omp parallel for schedule(guided), num_threads(num_threads)
-    for(int i=0; i< parallel_cells; ++i) {
-        auto current_cell = first_parallel_cell + i;
-        for(auto each : parallel_calls[i])
-            visitCellPair(current_cell, each, first_parallel_level);
+        // saw off recursion before "first_parallel_level" and save all calls that would be made 
+        auto parallel_calls = std::vector<std::vector<unsigned int>>(parallel_cells);
+        visitCellPair_sequentialStart(0, 0, 0, first_parallel_level, parallel_calls);
+        
+        // do the collected calls in parallel
+        #pragma omp parallel for schedule(static), num_threads(num_threads) // dynamic scheduling would be better but not reproducible
+        for (int i = 0; i < parallel_cells; ++i) {
+            auto current_cell = first_parallel_cell + i;
+            for (auto each : parallel_calls[i])
+                visitCellPair(current_cell, each, first_parallel_level);
+        }
     }
-	auto start3 = std::chrono::high_resolution_clock::now();
 
-	std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(start2 - start1).count() << '\n';
-	std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(start3 - start2).count() << '\n';
+#ifndef NDEBUG
+    // after sampling the graph the sum of type 1 and type 2 checks should always be n(n-1) to ensure that all edges were considered
+    auto type1 = std::accumulate(m_type1_checks.begin(), m_type1_checks.end(), 0);
+    auto type2 = std::accumulate(m_type2_checks.begin(), m_type2_checks.end(), 0);
+    assert(type1 + type2 == graph.size()*(graph.size() - 1) 
+        || alpha == std::numeric_limits<double>::infinity()); // we do not compare all nodes in threshold since we skip all type 2 checks
+#endif // NDEBUG 
+}
 
-    // after sampling the graph m_1+m_2 should always be n(n-1) to ensure that all edges were considered
-    assert(m_1 + m_2 == graph.size()*(graph.size()-1));
+
+template<unsigned int D>
+void SpatialTree<D>::visitCellPair(unsigned int cellA, unsigned int cellB, unsigned int level) {
+    using Helper = SpatialTreeCoordinateHelper<D>;
+
+    auto touching = m_helper.touching(cellA, cellB, level);
+    if(cellA == cellB || touching) {
+
+        // sample all type 1 occurrences with this cell pair
+        for(auto& layer_pair : m_layer_pairs[level]){
+            assert(partitioningBaseLevel(layer_pair.first, layer_pair.second) == level);
+            if(cellA != cellB || layer_pair.first <= layer_pair.second)
+                sampleTypeI(cellA, cellB, level, layer_pair.first, layer_pair.second);
+        }
+
+    } else { // not touching
+		if (m_alpha == std::numeric_limits<double>::infinity())
+			return;
+        // sample all type 2 occurrences with this cell pair
+        // TODO is it correct to sample all pairs in m_layer_pairs[k] for k in range(level, m_levels) ???
+        for(auto i=0u; i<m_layers; ++i)
+            for (auto j=0u; j<m_layers; ++j)
+                if(partitioningBaseLevel(i,j) >= level){
+                    sampleTypeII(cellA, cellB, level, i, j);
+                } else {
+                    break; // if condition failed it will also fail for all subsequent j
+                }
+    }
+
+    // break if last level reached
+    if(level == m_levels-1) // if we are at the last level we don't need recursive calls
+        return;
+
+    if(touching) {
+        // recursive call for all children pairs (a,b) where a in A and b in B
+        // these will be type 1 if a and b touch or type 2 if they don't
+        for(auto a = Helper::firstChild(cellA); a<=Helper::lastChild(cellA); ++a)
+            for(auto b = cellA == cellB ? a : Helper::firstChild(cellB); b<=Helper::lastChild(cellB); ++b)
+                visitCellPair(a, b, level+1);
+    }
 }
 
 
@@ -115,6 +159,10 @@ void SpatialTree<D>::visitCellPair_sequentialStart(unsigned int cellA, unsigned 
                 }
     }
 
+    // break if last level reached
+    if (level == m_levels - 1) // if we are at the last level we don't need recursive calls
+        return;
+
     if(touching) {
         // recursive call for all children pairs (a,b) where a in A and b in B
         // these will be type 1 if a and b touch or type 2 if they don't
@@ -130,68 +178,6 @@ void SpatialTree<D>::visitCellPair_sequentialStart(unsigned int cellA, unsigned 
 }
 
 
-template<unsigned int D>
-void SpatialTree<D>::visitRoot_parallel() {
-    using Helper = SpatialTreeCoordinateHelper<D>;
-
-    // sample all type 1 occurrences with this cell pair
-    for(auto& layer_pair : m_layer_pairs[0]){
-        assert(partitioningBaseLevel(layer_pair.first, layer_pair.second) == 0);
-        if(layer_pair.first <= layer_pair.second)
-            sampleTypeI(0, 0, 0, layer_pair.first, layer_pair.second);
-    }
-
-    // recursive call for all children pairs (a,b) of root node 0
-    #pragma omp parallel for schedule(dynamic), num_threads(3), if(D>1)
-    for(int a = Helper::firstChild(0); a<=Helper::lastChild(0); ++a)
-        for (auto b = a; b <= Helper::lastChild(0); ++b)
-            visitCellPair(a, b, 1);
-}
-
-
-template<unsigned int D>
-void SpatialTree<D>::visitCellPair(unsigned int cellA, unsigned int cellB, unsigned int level) {
-    using Helper = SpatialTreeCoordinateHelper<D>;
-
-    auto touching = m_helper.touching(cellA, cellB, level);
-
-    // TODO consider early return if A or B empty
-
-    if(cellA == cellB || touching) {
-
-        // sample all type 1 occurrences with this cell pair
-        for(auto& layer_pair : m_layer_pairs[level]){
-            assert(partitioningBaseLevel(layer_pair.first, layer_pair.second) == level);
-            if(cellA != cellB || layer_pair.first <= layer_pair.second)
-                sampleTypeI(cellA, cellB, level, layer_pair.first, layer_pair.second);
-        }
-
-    } else { // not touching
-
-        // sample all type 2 occurrences with this cell pair
-        // TODO consider early break 1st for loop
-        for(auto i=0u; i<m_layers; ++i)
-            for (auto j=0u; j<m_layers; ++j)
-                if(partitioningBaseLevel(i,j) >= level){
-                    sampleTypeII(cellA, cellB, level, i, j);
-                } else {
-                    break; // if condition failed it will also fail for all subsequent j
-                }
-    }
-
-    // break if last level reached
-    if(level == m_levels-1) // if we are at the last level we don't need recursive calls
-        return;
-
-    if(touching) {
-        // recursive call for all children pairs (a,b) where a in A and b in B
-        // these will be type 1 if a and b touch or type 2 if they don't
-        for(auto a = Helper::firstChild(cellA); a<=Helper::lastChild(cellA); ++a)
-            for(auto b = cellA == cellB ? a : Helper::firstChild(cellB); b<=Helper::lastChild(cellB); ++b)
-                visitCellPair(a, b, level+1);
-    }
-}
-
 
 template<unsigned int D>
 void SpatialTree<D>::sampleTypeI(
@@ -201,11 +187,28 @@ void SpatialTree<D>::sampleTypeI(
 
     auto sizeV_i_A = m_weight_layers[i].pointsInCell(cellA, level);
     auto sizeV_j_B = m_weight_layers[j].pointsInCell(cellB, level);
+	if (sizeV_i_A == 0 || sizeV_j_B == 0)
+		return;
+
+#ifndef NDEBUG
+    m_type1_checks[omp_get_thread_num()] += (cellA == cellB && i == j) 
+        ? sizeV_i_A * (sizeV_i_A-1)  // all pairs in AxA without {v,v}
+        : sizeV_i_A * sizeV_j_B * 2; // all pairs in AxB and BxA
+#endif // NDEBUG
+
+	Node* const * firstA = m_weight_layers[i].firstPointPointer(cellA, level);
+	Node* const * firstB = m_weight_layers[j].firstPointPointer(cellB, level);
 
     for(int kA=0; kA<sizeV_i_A; ++kA){
         for (int kB =(cellA == cellB && i==j ? kA+1 : 0); kB<sizeV_j_B; ++kB) {
-            Node* nodeInA = m_weight_layers[i].kthPoint(cellA, level, kA);
-            Node* nodeInB = m_weight_layers[j].kthPoint(cellB, level, kB);
+            Node* nodeInA = *(firstA+kA);
+            Node* nodeInB = *(firstB+kB);
+			//Node* nodeInA = m_weight_layers[i].kthPoint(cellA, level, kA);
+			//Node* nodeInB = m_weight_layers[j].kthPoint(cellB, level, kB);
+
+			// pointer magic gives same results
+			assert(nodeInA == m_weight_layers[i].kthPoint(cellA, level, kA));
+			assert(nodeInB == m_weight_layers[j].kthPoint(cellB, level, kB));
 
             // points are in correct cells
             assert(cellA == m_helper.cellForPoint(nodeInA->coord, level));
@@ -216,8 +219,6 @@ void SpatialTree<D>::sampleTypeI(
             assert(j == static_cast<unsigned int>(std::log2(nodeInB->weight/m_w0)));
 
             assert(nodeInA->index != nodeInB->index);
-            //#pragma omp atomic update
-            //m_1 += 1 + (nodeInA->index != nodeInB->index);
             auto dist = m_helper.dist(nodeInA->coord, nodeInB->coord);
             if(checkEdgeExplicit(dist, nodeInA->weight, nodeInB->weight)){
                 nodeInA->edges.push_back(nodeInB);
@@ -238,8 +239,9 @@ void SpatialTree<D>::sampleTypeII(
     if(sizeV_i_A == 0 || sizeV_j_B == 0)
         return;
 
-    //#pragma omp atomic update
-    //m_2 += 2*sizeV_i_A*sizeV_j_B;
+#ifndef NDEBUG
+    m_type2_checks[omp_get_thread_num()] += 2 * sizeV_i_A * sizeV_j_B;
+#endif // NDEBUG
 
     // implicit sampling
     auto w_upper_bound = m_w0*(1<<(i+1)) * m_w0*(1<<(j+1)) / m_W;
@@ -248,8 +250,10 @@ void SpatialTree<D>::sampleTypeII(
     auto max_connection_prob = std::min(std::pow(w_upper_bound/dist_lower_bound, m_alpha), 1.0);
     if(max_connection_prob <= 1e-10)
         return;
-    auto geo = [this](double p) -> long long {
-		auto R = this->m_dist(this->m_gen);
+
+    auto threadID = omp_get_thread_num();
+    auto geo = [this, threadID](double p) -> long long {
+		auto R = this->m_dists[threadID](this->m_gens[threadID]);
         return p==1 ? 1 : std::ceil(std::log2(R) / std::log2(1-p)); // this does not work if p=1
     };
     auto r = geo(max_connection_prob);
@@ -263,7 +267,7 @@ void SpatialTree<D>::sampleTypeII(
         auto d = std::pow(m_helper.dist(nodeInA->coord, nodeInB->coord), dimension);
         assert(d >= dist_lower_bound);
         auto connection_prob = std::min(std::pow(w/d, m_alpha), 1.0);
-        if(m_dist(m_gen) < connection_prob/max_connection_prob) {
+        if(m_dists[threadID](m_gens[threadID]) < connection_prob/max_connection_prob) {
             nodeInA->edges.push_back(nodeInB);
             //nodeInB->edges.push_back(nodeInA);
         }
@@ -342,7 +346,8 @@ bool SpatialTree<D>::checkEdgeExplicit(double dist, double w1, double w2) {
         return d_term < w_term;
 
     auto edge_prob = std::min(std::pow(w_term/d_term, m_alpha), 1.0);
-    return m_dist(m_gen) < edge_prob;
+    auto threadID = omp_get_thread_num();
+    return m_dists[threadID](m_gens[threadID]) < edge_prob;
 }
 
 

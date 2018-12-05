@@ -67,7 +67,7 @@ TEST_F(Generator_test, testThresholdModel)
 
 TEST_F(Generator_test, testGeneralModel)
 {
-    const auto n = 1000;
+    const auto n = 500;
     const auto alpha = 2.5;
     const auto ple = -2.5;
 
@@ -164,7 +164,7 @@ TEST_F(Generator_test, testThresholdEstimation)
     auto positionSeed = seed;
 
     auto desired_avg = 10;
-    auto runs = 50;
+    auto runs = 20;
 
     girgs::Generator generator;
     generator.setWeights(n, PLE, weightSeed);
@@ -204,8 +204,8 @@ TEST_F(Generator_test, testThresholdEstimation)
 TEST_F(Generator_test, testEstimation)
 {
     auto all_n = {100, 150};
-    auto all_alpha = {0.7, 1.5, 3.0, numeric_limits<double>::infinity()};
-    auto all_desired_avg = {10, 15, 20};
+    auto all_alpha = {0.7, 3.0, numeric_limits<double>::infinity()};
+    auto all_desired_avg = {10, 20};
     auto all_dimensions = {1, 2, 3};
     auto runs = 5;
 
@@ -266,5 +266,53 @@ TEST_F(Generator_test, testWeightSampling)
         }
         auto max_weight = *max_element(weights.begin(), weights.end());
         EXPECT_GT(max_weight * max_weight, n) << "max weight should be large";
+    }
+}
+
+
+TEST_F(Generator_test, testReproducible)
+{
+    auto n = 1000;
+    auto ple = -2.4;
+    auto weight_seed    = 1337;
+    auto position_seed  = 42;
+    auto avg_deg = 15;
+
+    auto alphas = { 1.5, std::numeric_limits<double>::infinity() };
+    auto dimensions = { 1, 2 };
+
+    girgs::Generator g1;
+    girgs::Generator g2;
+
+    for (auto alpha : alphas) {
+        for (auto d : dimensions) {
+            auto graph1 = g1.generate(n, d, ple, alpha, avg_deg, weight_seed, position_seed, weight_seed + position_seed);
+            auto graph2 = g2.generate(n, d, ple, alpha, avg_deg, weight_seed, position_seed, weight_seed + position_seed);
+            
+            // same weights
+            for (int i = 0; i < n; ++i) {
+                EXPECT_EQ(graph1[i].weight, graph2[i].weight);
+            }
+
+            // same positions
+            for (int i = 0; i < n; ++i) {
+                for (int dim = 0; dim < d; dim++) {
+                    EXPECT_EQ(graph1[i].coord[dim], graph2[i].coord[dim]);
+                }
+            }
+
+            // same number of edges
+            auto edges1 = 0;
+            for (auto& each : graph1)
+                edges1 += each.edges.size();
+
+            auto edges2 = 0;
+            for (auto& each : graph2)
+                edges2 += each.edges.size();
+
+            EXPECT_EQ(edges1, edges2);
+        }
+
+        
     }
 }

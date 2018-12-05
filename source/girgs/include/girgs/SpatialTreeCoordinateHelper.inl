@@ -47,6 +47,7 @@ unsigned int SpatialTreeCoordinateHelper<D>::cellForPoint(std::vector<double>& p
     // calculate coords
     assert(point.size() == D);
     auto diameter = 1.0 / (1<<targetLevel);
+	/*
     std::array<int, D> coords;
     for(auto d=0u; d<D; ++d) {
         coords[d] = static_cast<int>(point[d] / diameter);
@@ -57,6 +58,10 @@ unsigned int SpatialTreeCoordinateHelper<D>::cellForPoint(std::vector<double>& p
     auto packedCoord = 0;
     for(auto d=0u; d<D; ++d)
         packedCoord += coords[d] * (1<<(targetLevel*d));
+	*/
+	auto packedCoord = 0u;
+	for (auto d = 0u; d < D; ++d)
+		packedCoord += static_cast<unsigned int>(point[d] / diameter) * (1u << (targetLevel*d));
     return m_coords2Index[firstCellOfLevel(targetLevel) + packedCoord];
 }
 

@@ -1,34 +1,36 @@
-# Naming
-
-layer:
-    - partitioning of points in weight-layers
-
-level:
-    - depth in kd-tree
-
-# TODOs
-- revisit notes
-- write exporter for hyperbolic graphs
-- write constructor for SpartialTree ?
-- refactor code for edge probs into functions
 
 
-# improvement ideas
-- use level local index for cells
-- in WeightLayer: use array_view concept to provide access to all nodes in ViA
+# Improvement Ideas
+- [ ] use level local index for cells
+- [x] in WeightLayer: use array_view concept to provide access to all nodes in ViA
     - e.g. only one method that returns pointer to first element and size of collection
     - removes need for multiple calls to k-th point
-- use omp to process recursive calls in parallel (somehow aggregate on edge vectors?)
-- stop building empty weight_layers
-- set levels to (L-2)/D+1 ? because we need no coord_helper if we stop recursion after (L-2)/D
-- make graph member to reduce stack size ? needs benchmarking
-- move index helper functions to common.h
-- pre-compute expressions used in for loop condition
-- look at average size of the V_i^A (I guess they are too small)
-- profile time spend in type 1 / type 2
-- checkEdgeExplicit make alpha == inf check earlier
-- remove type 2 samples in threshold model
-- benchmark bruteforce over all ij for type1
+- [x] only save one directed edge instead of both directions
+- [x] use omp to process recursive calls in parallel (somehow aggregate on edge vectors?
+    - circumvented aggregation by grouping calls for parallel execution
+    - possible because of not saving both directions for edges
+- [x] produce deterministic results with same seed even when parallel
+    - needs static scheduling and a random generators for each thread
+- [x] stop building empty weight_layers
+- [x] set levels to (L-2)/D+1 ? because we need no coord_helper if we stop recursion after (L-2)/D
+    - does not work because we also need coord helper for node insertion
+- [x] make graph member to reduce stack size
+    - removed graph from recursion
+- [x] move all index helper functions to coordinate helper
+- [ ] pre-compute expressions used in for loop conditions
+- [x] checkEdgeExplicit make alpha == inf check return
+    - prevents a call to random generator
+- [x] remove type 2 samples in threshold model
+- [x] remove bruteforce over all ij for type1
+- [ ] remove bruteforce over all ij for type2
+- [x] remove computations for assertions in release builds
+
+
+# TODO's
+- [ ] look at average size of the V_i^A (I guess they are very small)
+- [ ] profile time spend in type 1 / type 2
+- [ ] clean up array view concept in WeightLayer
+- [ ] adapt exporter to directed saving of edges
 
 
 # kd-tree
@@ -101,81 +103,6 @@ constraints:
         - in recursive impl. the target level is determined like before and we try all possible layer-pairs that could have this level as target level
     - type 2
         - we sample all layer pairs that include this cell pair in their  partitioning data structure described in the paper (hopefully)
-6. all point-pairs should be sampled once
-    - follows from constraints 4,5 and the fact that original algo samples all point-pairs
-    - explanation for type 2 is in comment after "sample edges between V_i^A and V_j^B"
-
-
-Alternative proof for 4-6
-we sample all point-pairs once
-    let a,b be two points from layer i and j respectively
-
-    we now show that the pair a,b is sampled exactly once.
-
-    let k be the deepest (with highest index) level in which their cells touch
-    -> their cells touch in level k, thus they also touch in all levels <=k
-
-    observation 1: there are type 1 cell-pairs containing our points on all levels <=k
-    observation 2: there is only one type 2 cell-pair containing our points and it is on level k+1
-        (unless the points are in touching cells on the deepest level; for bounded number of layers we change i+j to min(maxLayer, i+j)) TODO verify that remark 1 still holds
-
-    1) (i+j<=k): k is deeper than (or equal to) i+j
-        1.1) we sample them in exactly one type 1 cell-pair:
-            since i+j<=k, observation 1 states that there is a type 1 cell-pair on level i+j
-            this cell-pair will sample our point-pair
-            the point-pair is not sampled by other type 1 cell-pairs, because type 1 cell-pairs on level l sample only layers where i+j=l
-            -> we sample the point-pair only on level i+j
-        1.2) we do not sample them in any type 2 cell-pair:
-            (observation 2) the only type 2 cell-pair containing our points is on level k+1
-            for this type 2 cell-pair we sample all layer-pairs i',j' >= k+1 > k => i+j
-            inequality yields: i',j'>i,j
-            -> the layers i,j are not sampled by that (or any other) type 2 cell-pair
-    2) (k<i+j): i+j is deeper than k
-        2.1) we do not sample them in any type 1 cell-pair:
-            a layer-pair can only be sampled by a type 1 cell-pair when the cell-pair is on level i+j
-            all type 1 cell-pairs from observation 1 are on levels <=k<i+j (since the cells containing a,b do not touch in level i+j)
-            -> they are not sampled in any type 1 cell-pair
-        2.2) we sample them in exactly one type 2 cell-pair:
-            (observation 2) the only type 2 cell-pair containing our points is on level k+1
-            for this type 2 cell-pair we sample all layer-pairs i',j' >= k+1 > k
-            since i,j > k, our two points are one of those pairs
-
-
-    Remark: can we change the level l where layer-pairs i,j are sampled by type 1 cell-pairs (currently l=i+j)?
-    - proof holds if l satisfies:
-        - unique for i,j    (needed for 1.1)
-        - l>i and l>j       (needed for for inequality in 1.2)
-    - max(i,j) is ok
-    Remark 2: can be verified empirically by changing the edge probability to 1.0 and expecting the complete graph
-
-
-
-
-```
-sample(cell A, cell B)
-    let l be level of cells
-
-    if(touching A,B or A=B)
-        // sample all type 1 occurrences with this cell pair
-        sample edges for weightlayers i,j with (wi*wj/W) somehow determines l as target level // is i+j = l right ??? -> see "we sample all point-pairs" proof
-    else // not touching
-        // sample all type 2 occurrences with this cell pair
-        // the type 2 occurrences can come from any pair of lower levels i,j>=l
-        // assert(parent must be touching) to be sure we are type II pair; otherwise we would not have done this recursive call
-        for all weightlayer pairs i,j>=l
-            sample edges between V_i^A and V_j^B
-            // for two points x in V_i^A and y in V_j^B this can happen only one time, because there is just one pair of cells (A', B') in the hierarchy with x in A' and y in B' where:
-            // 1. A' and B' are not touching
-            // 2: parent(A') touches parent(B')
-            // It is easy to see, that no children of these cells will sample those points again, because the recursion ends here
-
-    if(A=B)
-        recursive call for all children pairs of cell A=B
-
-    if(touching A,B and A!=B)
-        recursive call for all children pairs (a,b) where a in A and b in B
-        // these will be type 1 if a and b touch or type 2 if they dont
-```
 
 
 
