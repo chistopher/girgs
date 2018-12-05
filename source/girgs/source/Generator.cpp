@@ -129,7 +129,7 @@ double Generator::avg_degree() const {
     auto edges = 0.0;
     for(auto& each : graph())
         edges += each.edges.size();
-    return edges / m_graph.size();
+    return 2 * edges / m_graph.size();
 }
 
 

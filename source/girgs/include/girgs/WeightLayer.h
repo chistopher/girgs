@@ -62,6 +62,8 @@ public:
      */
     Node* kthPoint(unsigned int cell, unsigned int level, int k) const;
 
+	Node* const * firstPointPointer(unsigned int cell, unsigned int level) const;
+
 protected:
 
     const unsigned int m_layer;             ///< the index of the layer

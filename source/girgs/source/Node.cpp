@@ -3,6 +3,7 @@
 
 #include <cmath>
 #include <cassert>
+#include <algorithm>
 
 
 double girgs::distance(const std::vector<double>& a, const std::vector<double>& b) {

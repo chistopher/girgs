@@ -19,6 +19,17 @@ protected:
 };
 
 
+bool connected(const girgs::Node& a, const girgs::Node& b) {
+	bool a2b = find(a.edges.begin(), a.edges.end(), &b) != a.edges.end();
+	bool b2a = find(b.edges.begin(), b.edges.end(), &a) != b.edges.end();
+	if (a2b == false && b2a == false)
+		return false;
+	EXPECT_NE(a2b, b2a);
+	return true;
+}
+
+
+
 TEST_F(Generator_test, testThresholdModel)
 {
     const auto n = 100;
@@ -44,14 +55,10 @@ TEST_F(Generator_test, testThresholdModel)
                 auto dist = girgs::distance(a.coord, b.coord);
                 auto w = std::pow(a.weight * b.weight / W, 1.0/d);
 
-                auto edge1 = find(a.edges.begin(), a.edges.end(), &b);
-                auto edge2 = find(b.edges.begin(), b.edges.end(), &a);
                 if(dist < w) {
-                    EXPECT_NE(edge1, a.edges.end()) << "edge should be present";
-                    EXPECT_NE(edge2, b.edges.end()) << "edge should be present";
+                    EXPECT_TRUE(connected(a,b)) << "edge should be present";
                 } else {
-                    EXPECT_EQ(edge1, a.edges.end()) << "edge should be absent";
-                    EXPECT_EQ(edge2, b.edges.end()) << "edge should be absent";
+					EXPECT_FALSE(connected(a, b)) << "edge should be absent";
                 }
             }
         }
@@ -60,7 +67,7 @@ TEST_F(Generator_test, testThresholdModel)
 
 TEST_F(Generator_test, testGeneralModel)
 {
-    const auto n = 1000;
+    const auto n = 500;
     const auto alpha = 2.5;
     const auto ple = -2.5;
 
@@ -94,9 +101,9 @@ TEST_F(Generator_test, testGeneralModel)
 
         auto total_expected = accumulate(expectedEdges.begin(), expectedEdges.end(), 0.0);
         auto total_actual = accumulate(generator.graph().begin(), generator.graph().end(), 0.0,
-                [](double sum, const girgs::Node& node){ return sum + node.edges.size(); });
+                [](double sum, const girgs::Node& node){ return sum + node.edges.size() * 2; });
 
-        auto rigor = 0.99;
+        auto rigor = 0.98;
         EXPECT_LT(rigor * total_expected, total_actual) << "edges too much below expected value";
         EXPECT_LT(rigor * total_actual, total_expected) << "edges too much above expected value";
     }
@@ -116,16 +123,19 @@ TEST_F(Generator_test, testCompleteGraph)
 
         generator.setPositions(n, d, seed+d);
         generator.generate(alpha, seed+d);
+		
+		// check for the correct number of edges
+		auto edges = 0;
+		for (auto& node : generator.graph())
+			edges += node.edges.size();
+		EXPECT_EQ(edges, (n*(n - 1)) / 2) << "expect a complete graph withour self loops";
 
         // check that each node is connected to all other nodes
-        for(auto& node : generator.graph()) {
-            EXPECT_EQ(node.edges.size(), n-1) << "expect a complete graph withour self loops";
+        for(auto& node : generator.graph()) 
             for(auto& other : generator.graph())
-                if(node.index != other.index){
-                    auto it = find(node.edges.begin(), node.edges.end(), &other);
-                    EXPECT_NE(it, node.edges.end()) << "edge should be present";
-                }
-        }
+                if(node.index != other.index) 
+                    EXPECT_TRUE(connected(node, other)) << "edge should be present";
+                 
     }
 }
 
@@ -154,7 +164,7 @@ TEST_F(Generator_test, testThresholdEstimation)
     auto positionSeed = seed;
 
     auto desired_avg = 10;
-    auto runs = 50;
+    auto runs = 20;
 
     girgs::Generator generator;
     generator.setWeights(n, PLE, weightSeed);
@@ -194,8 +204,8 @@ TEST_F(Generator_test, testThresholdEstimation)
 TEST_F(Generator_test, testEstimation)
 {
     auto all_n = {100, 150};
-    auto all_alpha = {0.7, 1.5, 3.0, numeric_limits<double>::infinity()};
-    auto all_desired_avg = {10, 15, 20};
+    auto all_alpha = {0.7, 3.0, numeric_limits<double>::infinity()};
+    auto all_desired_avg = {10, 20};
     auto all_dimensions = {1, 2, 3};
     auto runs = 5;
 
@@ -256,5 +266,53 @@ TEST_F(Generator_test, testWeightSampling)
         }
         auto max_weight = *max_element(weights.begin(), weights.end());
         EXPECT_GT(max_weight * max_weight, n) << "max weight should be large";
+    }
+}
+
+
+TEST_F(Generator_test, testReproducible)
+{
+    auto n = 1000;
+    auto ple = -2.4;
+    auto weight_seed    = 1337;
+    auto position_seed  = 42;
+    auto avg_deg = 15;
+
+    auto alphas = { 1.5, std::numeric_limits<double>::infinity() };
+    auto dimensions = { 1, 2 };
+
+    girgs::Generator g1;
+    girgs::Generator g2;
+
+    for (auto alpha : alphas) {
+        for (auto d : dimensions) {
+            auto graph1 = g1.generate(n, d, ple, alpha, avg_deg, weight_seed, position_seed, weight_seed + position_seed);
+            auto graph2 = g2.generate(n, d, ple, alpha, avg_deg, weight_seed, position_seed, weight_seed + position_seed);
+            
+            // same weights
+            for (int i = 0; i < n; ++i) {
+                EXPECT_EQ(graph1[i].weight, graph2[i].weight);
+            }
+
+            // same positions
+            for (int i = 0; i < n; ++i) {
+                for (int dim = 0; dim < d; dim++) {
+                    EXPECT_EQ(graph1[i].coord[dim], graph2[i].coord[dim]);
+                }
+            }
+
+            // same number of edges
+            auto edges1 = 0;
+            for (auto& each : graph1)
+                edges1 += each.edges.size();
+
+            auto edges2 = 0;
+            for (auto& each : graph2)
+                edges2 += each.edges.size();
+
+            EXPECT_EQ(edges1, edges2);
+        }
+
+        
     }
 }
