@@ -147,6 +147,7 @@ public:
      * @return the average degree of the current graph
      */
     double avg_degree() const;
+    unsigned int edges() const;
 
     /**
      * @brief
@@ -155,6 +156,10 @@ public:
      *  The file name of the .dot file. Should end with ".dot".
      */
     void saveDot(std::string file) const;
+    void saveEdgeList(std::string file) const;
+    void saveHyperbolicCoordinates(std::string file) const;
+
+
     // copy internal data for access
     std::vector<double> weights() const;
     std::vector<std::vector<double>> positions() const;

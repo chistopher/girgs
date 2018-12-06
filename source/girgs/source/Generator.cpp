@@ -126,10 +126,14 @@ void Generator::generateThreshold() {
 
 
 double Generator::avg_degree() const {
-    auto edges = 0.0;
-    for(auto& each : graph())
+    return 2.0 * edges() / m_graph.size();
+}
+
+unsigned int girgs::Generator::edges() const {
+    auto edges = 0u;
+    for (auto& each : graph())
         edges += each.edges.size();
-    return 2 * edges / m_graph.size();
+    return edges;
 }
 
 
@@ -155,6 +159,20 @@ void Generator::saveDot(std::string file) const {
             f << '\t' << each.index << "\t-- " << neighbor->index << ";\n";
     }
     f << "}\n";
+}
+
+
+void girgs::Generator::saveEdgeList(std::string file) const {
+    auto f = std::ofstream(file);
+    f << m_graph.size() << ' ' << edges() << '\n';
+    for (auto& from : m_graph)
+        for (auto to : from.edges)
+            f << from.index << ' ' << to->index << '\n';
+}
+
+
+void girgs::Generator::saveHyperbolicCoordinates(std::string file) const {
+    // TODO implement
 }
 
 
