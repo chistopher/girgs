@@ -95,6 +95,7 @@ protected:
      * @brief
      *  Sample edges of type 1 between \f$ V_i^A V_j^B \f$.
      *  Type 1 means the cells A and B must touch or be identical.
+     *
      * @param cellA
      *  Same as in visitCellPair(unsigned int, unsigned int, unsigned int).
      * @param cellB
@@ -112,6 +113,7 @@ protected:
      * @brief
      *  Sample edges of type 2 between \f$ V_i^A V_j^B \f$.
      *  Type 2 means the cells A and B must not touch.
+     *
      * @param cellA
      *  Same as in visitCellPair(unsigned int, unsigned int, unsigned int).
      * @param cellB
@@ -192,10 +194,10 @@ protected:
     double m_W;                 ///< sum of weights
     int    m_baseLevelConstant; ///< \f$\log_2(W/w_0^2)\f$ see partitioningBaseLevel(int, int) const
 
-    double m_alpha;             ///< edge prob stuff
+    double m_alpha;             ///< girg model parameter, with higher alpha, long edges become less likely
    
-    std::vector<std::mt19937> m_gens; ///< for parallel access
-    std::vector<std::uniform_real_distribution<>> m_dists; ///< for parallel access
+    std::vector<std::mt19937> m_gens; ///< random generators for each thread
+    std::vector<std::uniform_real_distribution<>> m_dists; ///< random distributions for each thread
 
 #ifndef NDEBUG
     std::vector<long long> m_type1_checks; ///< number of node pairs per thread that are checked via a type 1 check

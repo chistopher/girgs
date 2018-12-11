@@ -7,6 +7,7 @@
 
 #include <omp.h>
 
+#include <girgs/girgs-version.h>
 #include <girgs/Generator.h>
 
 
@@ -64,6 +65,16 @@ int main(int argc, char* argv[]) {
             << "\t\t[-dot 0|1]          // write result as dot (.dot)               default 0\n"
             << "\t\t[-edge 0|1]         // write result as edgelist (.txt)          default 1\n"
             << "\t\t[-hyp 0|1]          // write hyperbolic coordinates (.hyp)      default 0\n";
+        return 0;
+    }
+
+    // write version
+    if(argc > 1 && 0 == strcmp(argv[1], "--version")) {
+        cout << GIRGS_NAME_VERSION << '\n'
+             << GIRGS_PROJECT_DESCRIPTION << '\n'
+             << GIRGS_AUTHOR_ORGANIZATION << '\n'
+             << GIRGS_AUTHOR_DOMAIN << " (soon)\n"
+             << GIRGS_AUTHOR_MAINTAINER << '\n';
         return 0;
     }
 

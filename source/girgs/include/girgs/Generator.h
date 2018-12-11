@@ -26,9 +26,11 @@ public:
 
     /**
      * @brief
-     *  Set new weights explicitly
+     *  Set new weights explicitly.
+     *
      * @param weights
-     *  Weights for the generation process. Size of vector should match with positions
+     *  Weights for the generation process. Size of the vector should match with positions.
+     *  The behaviour is undefined if the weights are negative or do not follow a power law distribution.
      */
     void setWeights(const std::vector<double>& weights);
 
@@ -47,7 +49,7 @@ public:
 
     /**
      * @brief
-     *  Set new positions explicitely.
+     *  Set new positions explicitly.
      *
      * @param positions
      *  Explicit positions for the underlying geometry. The coordinates for all nodes should have the same size.
@@ -74,7 +76,7 @@ public:
      * @bug
      *  For \f$\alpha > 10\f$ we use the estimation for threshold graphs due to numerical difficulties.
      *  This leads to slightly higher degrees than desired.
-     *  Also I experienced wrong results for \f$9 \leq \alpha < 10\f$.
+     *  Also I experienced inaccurate results for \f$9 \leq \alpha < 10\f$.
      *
      * @param desiredAvgDegree
      *  The desired average degree
@@ -108,7 +110,15 @@ public:
     /**
      * @brief
      *  Convenience method that sets weights and positions, scales weights, and samples the edges.
-     *  This enables code like: `auto graph = girgs::Generator().generate(...);`.
+     *  This enables code like:
+     *
+     *  `auto graph = girgs::Generator().generate(...);`
+     *
+     *  or
+     *
+     *  `for(auto& node : girgs::Generator().generate(...))`
+     *
+     *  Note that the data must be moved, because it stores the edges as pointer.
      *
      * @param n
      *  Size of the graph.
@@ -127,6 +137,7 @@ public:
      * @param samplingSeed
      *  Seed to sample the edges. (see generate(double, int))
      * @return
+     *  A graph which is move constructed from the #m_graph member of the current Generator instance.
      */
     std::vector<Node> generate(int n, int dimension, double ple, double alpha, int desiredAvgDegree, int weightSeed, int positionSeed, int samplingSeed);
 
@@ -137,9 +148,7 @@ public:
 
 
     /**
-     * @brief just an accessor
-     * @return
-     *  a reference to the last sampled graph
+     * @return a reference to the last sampled graph
      */
     const std::vector<Node>& graph() const {return m_graph;}
 
@@ -147,23 +156,62 @@ public:
      * @return the average degree of the current graph
      */
     double avg_degree() const;
+
+    /**
+     * @return the number of edges in the current graph
+     */
     unsigned int edges() const;
 
     /**
      * @brief
-     *  Saves the graph in dot format.
+     *  Saves the graph in dot format (graphviz).
+     *  The weight is saved as a label and the coordinates as a position attribute for each Node.
+     *
      * @param file
-     *  The file name of the .dot file. Should end with ".dot".
+     *  The name of the output file. Should end with ".dot".
      */
     void saveDot(std::string file) const;
+
+    /**
+     * @brief
+     *  Saves the graph as an edge list.
+     *  The first line contains the number of nodes and the number of edges.
+     *  Then for each edge there is a line with the indices (zero based) of the two endpoints.
+     *  All numbers are separated by spaces.
+     *
+     * @param file
+     *  The name of the output file.
+     */
     void saveEdgeList(std::string file) const;
+
+    /**
+     * NOT IMPLEMENTED
+     * feel free do open a PR
+     *
+     * @param file
+     *  The name of the output file.
+     */
     void saveHyperbolicCoordinates(std::string file) const;
 
-
-    // copy internal data for access
+    /**
+     * @brief
+     *  Provides a copy of all weights.
+     *
+     * @return
+     *  A copy of the weights saved in the current graph (#m_graph accessed with graph() const)
+     */
     std::vector<double> weights() const;
+
+    /**
+     * @brief
+     *  Provides a copy of all positions.
+     *
+     * @return
+     *  A copy of the positions saved in the current graph (#m_graph accessed with graph() const)
+     */
     std::vector<std::vector<double>> positions() const;
 
+private:
     // helper
     double estimateWeightScalingThreshold(const std::vector<double>& weights, int desiredAvgDegree, int dimension) const;
     double estimateWeightScaling(const std::vector<double>& weights, int desiredAvgDegree, int dimension, double alpha) const;
@@ -172,7 +220,7 @@ public:
 
 protected:
 
-    std::vector<Node> m_graph;
+    std::vector<Node> m_graph;  ///< stores the current graph including weights and positions
 };
 
 

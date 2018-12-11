@@ -83,9 +83,9 @@ void SpatialTree<D>::generateEdges(std::vector<Node>& graph, double alpha, int s
 
 #ifndef NDEBUG
     // after sampling the graph the sum of type 1 and type 2 checks should always be n(n-1) to ensure that all edges were considered
-    auto type1 = std::accumulate(m_type1_checks.begin(), m_type1_checks.end(), 0);
-    auto type2 = std::accumulate(m_type2_checks.begin(), m_type2_checks.end(), 0);
-    assert(type1 + type2 == graph.size()*(graph.size() - 1) 
+    auto type1 = std::accumulate(m_type1_checks.begin(), m_type1_checks.end(), 0ll);
+    auto type2 = std::accumulate(m_type2_checks.begin(), m_type2_checks.end(), 0ll);
+    assert(type1 + type2 == graph.size()*(graph.size() - 1ll)
         || alpha == std::numeric_limits<double>::infinity()); // we do not compare all nodes in threshold since we skip all type 2 checks
 #endif // NDEBUG 
 }
@@ -234,8 +234,8 @@ void SpatialTree<D>::sampleTypeII(
         unsigned int cellA, unsigned int cellB, unsigned int level,
         unsigned int i, unsigned int j)
 {
-    auto sizeV_i_A = m_weight_layers[i].pointsInCell(cellA, level);
-    auto sizeV_j_B = m_weight_layers[j].pointsInCell(cellB, level);
+    long long sizeV_i_A = m_weight_layers[i].pointsInCell(cellA, level);
+    long long sizeV_j_B = m_weight_layers[j].pointsInCell(cellB, level);
     if(sizeV_i_A == 0 || sizeV_j_B == 0)
         return;
 

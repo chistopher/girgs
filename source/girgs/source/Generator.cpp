@@ -116,7 +116,7 @@ std::vector<Node> Generator::generate(
 
     generate(alpha, samplingSeed);
 
-    return m_graph;
+    return std::move(m_graph);
 }
 
 

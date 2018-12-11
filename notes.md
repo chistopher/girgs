@@ -28,6 +28,7 @@
 
 # TODO's
 - [ ] look at average size of the V_i^A (I guess they are very small)
+- [ ] try use c again for transition into Erdos-Renyi
 - [ ] profile time spend in type 1 / type 2
 - [ ] clean up array view concept in WeightLayer
 - [x] adapt exporter to directed saving of edges
