@@ -184,14 +184,6 @@ public:
      */
     void saveEdgeList(std::string file) const;
 
-    /**
-     * NOT IMPLEMENTED
-     * feel free do open a PR
-     *
-     * @param file
-     *  The name of the output file.
-     */
-    void saveHyperbolicCoordinates(std::string file) const;
 
     /**
      * @brief

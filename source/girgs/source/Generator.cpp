@@ -171,10 +171,6 @@ void girgs::Generator::saveEdgeList(std::string file) const {
 }
 
 
-void girgs::Generator::saveHyperbolicCoordinates(std::string file) const {
-    // TODO implement
-}
-
 
 std::vector<double> Generator::weights() const {
     auto result = std::vector<double>(m_graph.size());

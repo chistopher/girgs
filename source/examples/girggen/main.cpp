@@ -63,8 +63,7 @@ int main(int argc, char* argv[]) {
             << "\t\t[-threads anInt]    // number of threads to use                 default 1\n"
             << "\t\t[-file aString]     // file name for output graph               default \"graph\"\n"
             << "\t\t[-dot 0|1]          // write result as dot (.dot)               default 0\n"
-            << "\t\t[-edge 0|1]         // write result as edgelist (.txt)          default 1\n"
-            << "\t\t[-hyp 0|1]          // write hyperbolic coordinates (.hyp)      default 0\n";
+            << "\t\t[-edge 0|1]         // write result as edgelist (.txt)          default 1\n";
         return 0;
     }
 
@@ -92,7 +91,6 @@ int main(int argc, char* argv[]) {
     auto file   = !params["file" ].empty()  ? params["file"] : "graph";
     auto dot    = params["dot" ] == "1";
     auto edge   = params["edge"] != "0";
-    auto hyp    = params["hyp" ] == "1";
 
     // log params and range checks
     cout << "using:\n";
@@ -109,13 +107,12 @@ int main(int argc, char* argv[]) {
     logParam(file, "file");
     logParam(dot, "dot");
     logParam(edge, "edge");
-    logParam(hyp, "hyp");
     cout << "\n";
 
     auto t1 = high_resolution_clock::now();
 
 
-    cout << "generating weights ...\t\t" << flush; 
+    cout << "generating weights ...\t\t" << flush;
     girgs::Generator generator;
     generator.setWeights(n, ple, wseed);
     auto t2 = high_resolution_clock::now();
@@ -154,11 +151,5 @@ int main(int argc, char* argv[]) {
         cout << "done in " << duration_cast<milliseconds>(t7 - t6).count() << "ms" << endl;
     }
 
-    if (hyp) {
-        cout << "writing hyp. coords (.hyp) ...\t" << flush;
-        auto t6 = high_resolution_clock::now();
-        generator.saveHyperbolicCoordinates(file + ".hyp");
-        auto t7 = high_resolution_clock::now();
-        cout << "done in " << duration_cast<milliseconds>(t7 - t6).count() << "ms" << endl;
-    }
+    return 0;
 }

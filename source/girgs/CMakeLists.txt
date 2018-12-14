@@ -41,11 +41,13 @@ set(headers
     ${include_path}/SpatialTreeCoordinateHelper.inl
     ${include_path}/WeightLayer.h
     ${include_path}/WeightLayer.inl
+    ${include_path}/Hyperbolic.h
 )
 
 set(sources
     ${source_path}/Generator.cpp
     ${source_path}/Node.cpp
+    ${source_path}/Hyperbolic.cpp
 )
 
 # Group source files
