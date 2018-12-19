@@ -56,7 +56,7 @@ int main(int argc, char* argv[]) {
             << "\t\t[-d anInt]          // dimension of geometry    range [1,5]     default 1\n"
             << "\t\t[-ple aFloat]       // power law exponent       range (-3,-2]   default -2.5\n"
             << "\t\t[-alpha aFloat]     // model parameter          range (1,inf]   default infinity\n"
-            << "\t\t[-deg anInt]        // average degree           range [1,n)     default 10\n"
+            << "\t\t[-deg aFloat]       // average degree           range [1,n)     default 10\n"
             << "\t\t[-wseed anInt]      // weight seed                              default 12\n"
             << "\t\t[-pseed anInt]      // position seed                            default 130\n"
             << "\t\t[-sseed anInt]      // sampling seed                            default 1400\n"
@@ -83,7 +83,7 @@ int main(int argc, char* argv[]) {
     auto d      = !params["d"    ].empty()  ? stoi(params["d"    ]) : 1;
     auto ple    = !params["ple"  ].empty()  ? stod(params["ple"  ]) : -2.5;
     auto alpha  = !params["alpha"].empty()  ? stod(params["alpha"]) : std::numeric_limits<double>::infinity();
-    auto deg    = !params["deg"  ].empty()  ? stoi(params["deg"  ]) : 10;
+    auto deg    = !params["deg"  ].empty()  ? stod(params["deg"  ]) : 10.0;
     auto wseed  = !params["wseed"].empty()  ? stoi(params["wseed"]) : 12;
     auto pseed  = !params["pseed"].empty()  ? stoi(params["pseed"]) : 130;
     auto sseed  = !params["sseed"].empty()  ? stoi(params["sseed"]) : 1400;
@@ -98,7 +98,7 @@ int main(int argc, char* argv[]) {
     rangeCheck(d, 1, 5, "d");
     rangeCheck(ple, -3.0, -2.0, "ple", false, true);
     rangeCheck(alpha, 1.0, std::numeric_limits<double>::infinity(), "alpha", true);
-    rangeCheck(deg, 1, n-1, "deg");
+    rangeCheck(deg, 1.0, n-1.0, "deg");
     logParam(wseed, "wseed");
     logParam(pseed, "pseed");
     logParam(sseed, "sseed");

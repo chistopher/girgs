@@ -114,7 +114,7 @@ constraints:
 - parent=(i-1)/2
 ```
 level: 4
-cells: 85
+cells: 15
 l       cells   indexRange
 0       1       [0..0]
 1       2       [1..2]

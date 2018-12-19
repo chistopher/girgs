@@ -57,7 +57,8 @@ int main(int argc, char* argv[]) {
              << "\t\t[-n anInt]          // number of nodes                          default 10000\n"
              << "\t\t[-alpha aFloat]     // ple is 2alpha+1          range [0.5,1]   default 0.75\n"
              << "\t\t[-T aFloat]         // temperature              range [0,1)     default 0\n"
-             << "\t\t[-deg anInt]        // average degree           range [1,n)     default 10\n"
+             << "\t\t[-deg aFloat]       // average degree           range [1,n)     default 10\n"
+             << "\t\t[-odeg aFloat]      // an offset to desired deg for girg        default 0.0\n"
              << "\t\t[-rseed anInt]      // radius seed                              default 12\n"
              << "\t\t[-aseed anInt]      // angle seed                               default 130\n"
              << "\t\t[-sseed anInt]      // sampling seed                            default 1400\n"
@@ -73,7 +74,8 @@ int main(int argc, char* argv[]) {
     auto n      = !params["n"    ].empty()  ? stoi(params["n"    ]) : 10000;
     auto alpha  = !params["alpha"].empty()  ? stod(params["alpha"]) : 0.75;
     auto T      = !params["T"    ].empty()  ? stod(params["T"    ]) : 0;
-    auto deg    = !params["deg"  ].empty()  ? stoi(params["deg"  ]) : 10;
+    auto deg    = !params["deg"  ].empty()  ? stod(params["deg"  ]) : 10.0;
+    auto odeg   = !params["odeg"].empty()   ? stod(params["odeg" ]) : 0.0;
     auto rseed  = !params["rseed"].empty()  ? stoi(params["rseed"]) : 12;
     auto aseed  = !params["aseed"].empty()  ? stoi(params["aseed"]) : 130;
     auto sseed  = !params["sseed"].empty()  ? stoi(params["sseed"]) : 1400;
@@ -87,7 +89,8 @@ int main(int argc, char* argv[]) {
     logParam(n, "n");
     rangeCheck(alpha, 0.5, 1.0, "alpha");
     rangeCheck(T, 0.0, 1.0, "T", false, true);
-    rangeCheck(deg, 1, n-1, "deg");
+    rangeCheck(deg, 1.0, n-1.0, "deg");
+    logParam(odeg, "odeg");
     logParam(rseed, "rseed");
     logParam(aseed, "aseed");
     logParam(sseed, "sseed");
@@ -127,7 +130,7 @@ int main(int argc, char* argv[]) {
     girgs::Generator generator;
     generator.setWeights(girg_weights);
     generator.setPositions(girg_positions);
-    generator.scaleWeights(deg, 1, girg_alpha);
+    generator.scaleWeights(deg + odeg, 1, girg_alpha);
     generator.generate(girg_alpha, sseed);
     auto t5 = high_resolution_clock::now();
     cout << "done in " << duration_cast<milliseconds>(t5 - t4).count() << "ms\tavg deg = " << generator.avg_degree() << endl;
@@ -198,15 +201,19 @@ int main(int argc, char* argv[]) {
     }
 
     auto t7 = high_resolution_clock::now();
+    auto total_edges = generator.edges();
     cout << "done in " << duration_cast<milliseconds>(t7 - t6).count() << "ms" << endl;
+    cout << '\n';
+    cout << "total edges       " << total_edges << '\n';
     cout << '\n';
     cout << "missing edges     " << missing_edges << '\n';
     cout << "missing deviation " << missing_deviation << '\n';
     cout << "average mistake   " << missing_deviation / missing_edges << '\n';
-
+    cout << '\n';
     cout << "false edges       " << false_edges << '\n';
     cout << "false deviation   " << false_deviation << '\n';
     cout << "average mistake   " << false_deviation / false_edges << '\n';
-
+    cout << '\n';
+    cout << "(false+missing)/total " << static_cast<double>(false_edges+missing_edges)/total_edges << '\n';
     return 0;
 }

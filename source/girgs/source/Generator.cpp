@@ -59,7 +59,7 @@ void Generator::setPositions(int n, int dimension, int positionSeed) {
 }
 
 
-double Generator::scaleWeights(int desiredAvgDegree, int dimension, double alpha) {
+double Generator::scaleWeights(double desiredAvgDegree, int dimension, double alpha) {
     assert(!m_graph.empty());
     auto n = m_graph.size();
 
@@ -107,7 +107,7 @@ void Generator::generate(double alpha, int samplingSeed) {
 
 
 std::vector<Node> Generator::generate(
-        int n, int dimension, double ple, double alpha, int desiredAvgDegree, int weightSeed, int positionSeed, int samplingSeed) {
+        int n, int dimension, double ple, double alpha, double desiredAvgDegree, int weightSeed, int positionSeed, int samplingSeed) {
 
     setWeights(n, ple, weightSeed);
     setPositions(n,dimension, positionSeed);
@@ -187,7 +187,7 @@ std::vector<std::vector<double>> Generator::positions() const {
 }
 
 
-double Generator::estimateWeightScalingThreshold(const std::vector<double>& weights, int desiredAvgDegree, int dimension) const {
+double Generator::estimateWeightScalingThreshold(const std::vector<double>& weights, double desiredAvgDegree, int dimension) const {
 
     // compute some constant stuff
     auto max_weight = *std::max_element(weights.begin(), weights.end());
@@ -236,7 +236,7 @@ double Generator::estimateWeightScalingThreshold(const std::vector<double>& weig
     return pow(estimated_c, dimension); // return scaling
 }
 
-double Generator::estimateWeightScaling(const std::vector<double> &weights, int desiredAvgDegree, int dimension, double alpha) const {
+double Generator::estimateWeightScaling(const std::vector<double> &weights, double desiredAvgDegree, int dimension, double alpha) const {
 
     using namespace std;
 

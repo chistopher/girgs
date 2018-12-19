@@ -90,7 +90,7 @@ public:
      *  The constant c hidden in the theta of the edge probabilities is \f$s^\alpha\f$ for \f$\alpha < \infty\f$
      *  and \f$s^{1/d}\f$ in the threshold case.
      */
-    double scaleWeights(int desiredAvgDegree, int dimension, double alpha);
+    double scaleWeights(double desiredAvgDegree, int dimension, double alpha);
 
     /**
      * @brief
@@ -129,7 +129,7 @@ public:
      * @param alpha
      *  Edge probability parameter.
      * @param desiredAvgDegree
-     *  Desired average degree. (see scaleWeights(int, int, double))
+     *  Desired average degree. (see scaleWeights(double, int, double))
      * @param weightSeed
      *  Seed to sample the weights. Should not be equal to positionSeed. (see setWeights(int, double, int))
      * @param positionSeed
@@ -139,7 +139,7 @@ public:
      * @return
      *  A graph which is move constructed from the #m_graph member of the current Generator instance.
      */
-    std::vector<Node> generate(int n, int dimension, double ple, double alpha, int desiredAvgDegree, int weightSeed, int positionSeed, int samplingSeed);
+    std::vector<Node> generate(int n, int dimension, double ple, double alpha, double desiredAvgDegree, int weightSeed, int positionSeed, int samplingSeed);
 
     /**
     *  @brief generates a threshold GIRG. (i.e. nodes u,v are connected if \f$ || x_u - x_v || < (w_u w_v / W)^{1/\alpha} \f$)
@@ -205,8 +205,8 @@ public:
 
 private:
     // helper
-    double estimateWeightScalingThreshold(const std::vector<double>& weights, int desiredAvgDegree, int dimension) const;
-    double estimateWeightScaling(const std::vector<double>& weights, int desiredAvgDegree, int dimension, double alpha) const;
+    double estimateWeightScalingThreshold(const std::vector<double>& weights, double desiredAvgDegree, int dimension) const;
+    double estimateWeightScaling(const std::vector<double>& weights, double desiredAvgDegree, int dimension, double alpha) const;
 
     double exponentialSearch(std::function<double(double)> f, double desiredValue, double accuracy = 0.02, double lower = 1.0, double upper = 2.0) const;
 
