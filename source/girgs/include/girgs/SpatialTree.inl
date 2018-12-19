@@ -109,14 +109,9 @@ void SpatialTree<D>::visitCellPair(unsigned int cellA, unsigned int cellB, unsig
 		if (m_alpha == std::numeric_limits<double>::infinity())
 			return;
         // sample all type 2 occurrences with this cell pair
-        // TODO is it correct to sample all pairs in m_layer_pairs[k] for k in range(level, m_levels) ???
-        for(auto i=0u; i<m_layers; ++i)
-            for (auto j=0u; j<m_layers; ++j)
-                if(partitioningBaseLevel(i,j) >= level){
-                    sampleTypeII(cellA, cellB, level, i, j);
-                } else {
-                    break; // if condition failed it will also fail for all subsequent j
-                }
+        for(auto l=level; l<m_levels; ++l)
+            for(auto& layer_pair : m_layer_pairs[l])
+                sampleTypeII(cellA, cellB, level, layer_pair.first, layer_pair.second);
     }
 
     // break if last level reached
@@ -149,14 +144,12 @@ void SpatialTree<D>::visitCellPair_sequentialStart(unsigned int cellA, unsigned 
                 sampleTypeI(cellA, cellB, level, layer_pair.first, layer_pair.second);
         }
     } else { // not touching
+        if (m_alpha == std::numeric_limits<double>::infinity())
+            return;
         // sample all type 2 occurrences with this cell pair
-        for(auto i=0u; i<m_layers; ++i)
-            for (auto j=0u; j<m_layers; ++j)
-                if(partitioningBaseLevel(i,j) >= level){
-                    sampleTypeII(cellA, cellB, level, i, j);
-                } else {
-                    break; // if condition failed it will also fail for all subsequent j
-                }
+        for(auto l=level; l<m_levels; ++l)
+            for(auto& layer_pair : m_layer_pairs[l])
+                sampleTypeII(cellA, cellB, level, layer_pair.first, layer_pair.second);
     }
 
     // break if last level reached
