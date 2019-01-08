@@ -30,19 +30,20 @@ protected:
 
     void sampleTypeII(unsigned int cellA, unsigned int cellB, unsigned int level, unsigned int i, unsigned int j);
 
+    unsigned int partitioningBaseLevel(double r_1, double r_2); // takes lower bound on radius for two layers
+
 
 protected:
 
     std::vector<std::pair<int,int>> m_result;
-    std::vector<double> m_radii;
-    std::vector<double> m_angles;
-    double m_T;
-    double m_R;
+    const std::vector<double> m_radii;
+    const std::vector<double> m_angles;
+    const double m_T;
+    const double m_R;
 
     unsigned int m_layers; ///< number of layers
     unsigned int m_levels; ///< number of levels
 
-    hypergirgs::AngleHelper m_helper;
     std::vector<RadiusLayer> m_radius_layers;
     std::vector<std::vector<std::pair<unsigned int, unsigned int>>> m_layer_pairs;
    
@@ -50,8 +51,8 @@ protected:
     std::uniform_real_distribution<> m_dist; ///< random distribution
 
 #ifndef NDEBUG
-    std::vector<long long> m_type1_checks; ///< number of node pairs per thread that are checked via a type 1 check
-    std::vector<long long> m_type2_checks; ///< number of node pairs per thread that are checked via a type 2 check
+    long long m_type1_checks; ///< number of node pairs per thread that are checked via a type 1 check
+    long long m_type2_checks; ///< number of node pairs per thread that are checked via a type 2 check
 #endif // NDEBUG
 };
 

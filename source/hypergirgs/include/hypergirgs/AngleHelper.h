@@ -1,7 +1,7 @@
 
 #pragma once
 
-#include <vector>
+#include <utility>
 
 
 namespace hypergirgs {
@@ -20,25 +20,13 @@ public:
     static constexpr unsigned int secondChild(unsigned int cell) noexcept { return 2*(cell+1); }
     static constexpr unsigned int numChildren() noexcept { return 2; }
 
-    AngleHelper() = default;
-    explicit AngleHelper(unsigned int levels);
+    static std::pair<double,double> bounds(unsigned int cell, unsigned int level);
+    static unsigned int cellForPoint(double angle, unsigned int targetLevel);
 
-    std::pair<double,double> bounds(unsigned int cell, unsigned int level) const;
-    unsigned int cellForPoint(double angle, unsigned int targetLevel) const;
-
-    bool touching(unsigned int cellA, unsigned int cellB, unsigned int level) const;
+    static bool touching(unsigned int cellA, unsigned int cellB, unsigned int level);
 
     // returns a lower bound for the angular difference of two points in these cells
-    double dist(unsigned int cellA, unsigned int cellB, unsigned int level) const;
-
-    unsigned int levels() const { return m_levels; }
-
-
-protected:
-    unsigned int m_levels = 0;
-
-    std::vector<int> m_coords;       // cell index to coord
-    std::vector<unsigned int>       m_coords2Index; // packed coord to cell index
+    static double dist(unsigned int cellA, unsigned int cellB, unsigned int level);
 };
 
 

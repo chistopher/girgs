@@ -232,6 +232,10 @@ void SpatialTree<D>::sampleTypeII(
     if(sizeV_i_A == 0 || sizeV_j_B == 0)
         return;
 
+#ifndef NDEBUG
+    m_type2_checks[omp_get_thread_num()] += 2 * sizeV_i_A * sizeV_j_B;
+#endif // NDEBUG
+
     // get upper bound for probability
     auto w_upper_bound = m_w0*(1<<(i+1)) * m_w0*(1<<(j+1)) / m_W;
     auto dist_lower_bound = std::pow(m_helper.dist(cellA, cellB, level), dimension);
@@ -251,10 +255,6 @@ void SpatialTree<D>::sampleTypeII(
     auto threadID = omp_get_thread_num();
     auto& gen = m_gens[threadID];
     auto geo = std::geometric_distribution<unsigned long long>(max_connection_prob);
-
-#ifndef NDEBUG
-    m_type2_checks[omp_get_thread_num()] += 2 * sizeV_i_A * sizeV_j_B;
-#endif // NDEBUG
 
     for (auto r = geo(gen); r < sizeV_i_A * sizeV_j_B; r += 1 + geo(gen)) {
         // determine the r-th pair
