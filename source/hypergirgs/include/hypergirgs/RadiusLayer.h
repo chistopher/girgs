@@ -33,9 +33,9 @@ public:
     const unsigned int m_target_level;
 
 protected:
-    std::vector<int>   m_points_in_cell;    ///< the number of points in each cell of target_level
     std::vector<int>   m_prefix_sums;       ///< for each cell c in target level: the sum of points of this layer in all cells <c
     std::vector<Point> m_points; 			///< vector of points in this layer
+
 };
 
 } // namespace hypergirgs

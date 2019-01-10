@@ -17,22 +17,27 @@ RadiusLayer::RadiusLayer(double r_min, double r_max, unsigned int targetLevel, c
 {
     // allocate stuff
     const auto cellsInLevel = AngleHelper::numCellsInLevel(targetLevel);
-    m_points_in_cell.resize(cellsInLevel, 0);
-    m_prefix_sums.resize(cellsInLevel, 0);
+    m_prefix_sums.resize(cellsInLevel+1, 0);
 
     // count num of points in each cell
     for(auto node : nodes) {
-        ++m_points_in_cell[AngleHelper::cellForPoint(angles[node], targetLevel)];
+        const auto cell = AngleHelper::cellForPoint(angles[node], targetLevel);
+        assert(cell < cellsInLevel);
+        ++m_prefix_sums[cell];
     }
 
-    // fill prefix sums
+    // compute exclusive prefix sums
     // prefix_sums[i] is the number of all points in cells j<i of the same level
-    m_prefix_sums[0] = 0;
-    for(auto cell = 1u; cell < cellsInLevel; ++cell) {
-        m_prefix_sums[cell] = m_prefix_sums[cell-1] + m_points_in_cell[cell-1];
+    {
+        unsigned sum = 0;
+        for(auto& val : m_prefix_sums)  {
+            const auto tmp = val;
+            val = sum;
+            sum += tmp;
+        }
     }
 
-    m_points.resize(m_prefix_sums.back() + m_points_in_cell.back());
+    m_points.resize(m_prefix_sums.back());
 
     // fill point lookup
     auto num_inserted = std::vector<int>(cellsInLevel, 0); // keeps track of bucket size for counting sort
@@ -58,7 +63,7 @@ int RadiusLayer::pointsInCell(unsigned int cell, unsigned int level) const {
     assert(begin + AngleHelper::firstCellOfLevel(level) < AngleHelper::firstCellOfLevel(m_target_level+1));
     assert(end + AngleHelper::firstCellOfLevel(level) < AngleHelper::firstCellOfLevel(m_target_level+1));
 
-    return m_prefix_sums[end] - m_prefix_sums[begin] + m_points_in_cell[end];
+    return m_prefix_sums[end] - m_prefix_sums[begin] + (m_prefix_sums[end + 1] - m_prefix_sums[end]);
 }
 
 const Point& RadiusLayer::kthPoint(unsigned int cell, unsigned int level, int k) const {
