@@ -15,10 +15,4 @@ HYPERGIRGS_API double hyperbolicDistance(double r1, double phi1, double r2, doub
 HYPERGIRGS_API std::vector<double> sampleRadii(int n, double alpha, double R, int seed);
 HYPERGIRGS_API std::vector<double> sampleAngles(int n, int seed);
 
-static double radiusToGirgWeight(double r, double R) { return std::exp((R - r) / 2); }
-static double girgWeightToRadius(double w, double R, double scaling = 1.0) { return R - 2 * std::log(w / scaling); }
-
-static double angleToGirgPosition(double angle) { return angle / 2 / M_PI; }
-static double girgPositionToAngle(double position) { return position * 2 * M_PI; }
-
 } // namespace hypergirgs
