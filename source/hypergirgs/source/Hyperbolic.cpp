@@ -3,6 +3,8 @@
 
 #include <random>
 #include <fstream>
+#include <cmath>
+
 
 namespace hypergirgs {
 
