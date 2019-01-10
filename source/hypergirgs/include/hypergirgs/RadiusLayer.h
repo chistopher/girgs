@@ -3,11 +3,13 @@
 
 #include <vector>
 
+#include <hypergirgs/hypergirgs_api.h>
+
 
 namespace hypergirgs {
 
 
-class RadiusLayer {
+class HYPERGIRGS_API RadiusLayer {
 public:
 
 	RadiusLayer() = delete;

@@ -1,10 +1,9 @@
 
+#include <hypergirgs/AngleHelper.h>
+
 #include <cassert>
 #include <cmath>
 #include <algorithm>
-
-#include <hypergirgs/AngleHelper.h>
-
 
 
 namespace hypergirgs {

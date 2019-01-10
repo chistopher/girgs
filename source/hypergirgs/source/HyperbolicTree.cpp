@@ -13,13 +13,27 @@ HyperbolicTree::HyperbolicTree(std::vector<double> &radii, std::vector<double> &
 : m_result()
 , m_radii(radii)
 , m_angles(angles)
+, m_pre_R((std::cosh(R) - 1) / 2)
+, m_pre_coord(radii.size())
 , m_T(T)
 , m_R(R)
 , m_gen()
 , m_dist()
+#ifndef NDEBUG
 , m_type1_checks(0)
 , m_type2_checks(0)
+#endif // NDEBUG
 {
+    // pre-compute values for distance
+    assert(radii.size() == angles.size());
+    for (int i = 0; i < radii.size(); ++i) {
+        // TODO fix this
+        auto x = radii[i] * std::sin(angles[i]);
+        auto y = radii[i] * std::cos(angles[i]);
+        auto gamma = 1 / (1- radii[i]*radii[i]);
+        m_pre_coord[i] = {{x,y}, gamma};
+    }
+
     // create layer
     m_layers = static_cast<unsigned int>(std::ceil(R));
     auto weightLayerNodes = std::vector<std::vector<int>>(m_layers);
@@ -33,7 +47,8 @@ HyperbolicTree::HyperbolicTree(std::vector<double> &radii, std::vector<double> &
 
     // build spatial structure and find insertion level for each layer based on lower bound on radius for current and smallest layer
     for (auto layer = 0u; layer < m_layers; ++layer)
-        m_radius_layers.emplace_back(R-layer-1, R-layer, partitioningBaseLevel(R-layer-1, R-1), std::move(weightLayerNodes[layer]));
+        m_radius_layers.emplace_back(R - layer - 1, R - layer, partitioningBaseLevel(R - layer - 1, R - 1),
+                                     std::move(weightLayerNodes[layer]), m_angles);
     m_levels = m_radius_layers[0].m_target_level + 1;
 
     // determine which layer pairs to sample in which level
@@ -48,7 +63,7 @@ std::vector<std::pair<int, int>> HyperbolicTree::generate(int seed) {
     m_dist.reset();
     m_result.clear();
     visitCellPair(0,0,0);
-    assert(m_type1_checks == m_type2_checks);
+    assert(m_type1_checks + m_type2_checks == (m_angles.size()-1) * m_angles.size());
     return move(m_result);
 }
 
@@ -56,8 +71,6 @@ void HyperbolicTree::visitCellPair(unsigned int cellA, unsigned int cellB, unsig
 
     if(!AngleHelper::touching(cellA, cellB, level))
     {   // not touching cells
-        if (m_T == 0)
-            return;
         // sample all type 2 occurrences with this cell pair
         for(auto l=level; l<m_levels; ++l)
             for(auto& layer_pair : m_layer_pairs[l])
@@ -114,8 +127,8 @@ void HyperbolicTree::sampleTypeI(unsigned int cellA, unsigned int cellB, unsigne
             assert(nodeInB == m_radius_layers[j].kthPoint(cellB, level, kB));
 
             // points are in correct cells
-            assert(cellA == AngleHelper::cellForPoint(m_angles[nodeInA], level));
-            assert(cellB == AngleHelper::cellForPoint(m_angles[nodeInB], level));
+            assert(cellA - AngleHelper::firstCellOfLevel(level) == AngleHelper::cellForPoint(m_angles[nodeInA], level));
+            assert(cellB - AngleHelper::firstCellOfLevel(level) == AngleHelper::cellForPoint(m_angles[nodeInB], level));
 
             // points are in correct weight layer
             assert(m_radius_layers[i].m_r_min < m_radii[nodeInA] && m_radii[nodeInA] <= m_radius_layers[i].m_r_max);
@@ -123,7 +136,7 @@ void HyperbolicTree::sampleTypeI(unsigned int cellA, unsigned int cellB, unsigne
 
             assert(nodeInA != nodeInB);
             auto dist = hyperbolicDistance(m_radii[nodeInA], m_angles[nodeInA], m_radii[nodeInB], m_angles[nodeInB]);
-            if(dist <= m_R){ // TODO add temperature
+            if(dist <= m_R){ // TODO add temperature, TODO add pre-computation
                 m_result.emplace_back(nodeInA, nodeInB);
             }
         }
@@ -141,12 +154,22 @@ void HyperbolicTree::sampleTypeII(unsigned int cellA, unsigned int cellB, unsign
     m_type2_checks += 2 * sizeV_i_A * sizeV_j_B;
 #endif // NDEBUG
 
+    if (m_T == 0)
+        return;
+
     // TODO add content
 
 }
 
-unsigned int HyperbolicTree::partitioningBaseLevel(double r_1, double r_2) {
-    return 0;
+unsigned int HyperbolicTree::partitioningBaseLevel(double r1, double r2) {
+    auto level = 0u;
+    auto cellDiameter = 2*M_PI;
+    // find deepest level in which points in all non-touching cells are not connected
+    while(hypergirgs::hyperbolicDistance(r1, 0, r2, (cellDiameter/2)) > m_R){
+        level++;
+        cellDiameter /= 2;
+    }
+    return level;
 }
 
 

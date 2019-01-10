@@ -8,12 +8,13 @@
 #include <hypergirgs/AngleHelper.h>
 #include <hypergirgs/RadiusLayer.h>
 
+#include <hypergirgs/hypergirgs_api.h>
+
 
 namespace hypergirgs {
 
 
-
-class HyperbolicTree
+class HYPERGIRGS_API HyperbolicTree
 {
 public:
 
@@ -30,7 +31,7 @@ protected:
 
     void sampleTypeII(unsigned int cellA, unsigned int cellB, unsigned int level, unsigned int i, unsigned int j);
 
-    unsigned int partitioningBaseLevel(double r_1, double r_2); // takes lower bound on radius for two layers
+    unsigned int partitioningBaseLevel(double r1, double r2); // takes lower bound on radius for two layers
 
 
 protected:
@@ -38,6 +39,10 @@ protected:
     std::vector<std::pair<int,int>> m_result;
     const std::vector<double> m_radii;
     const std::vector<double> m_angles;
+
+    double m_pre_R;
+    std::vector<std::pair<std::pair<double, double>,double>> m_pre_coord; ///< pre-computations for distance
+
     const double m_T;
     const double m_R;
 

@@ -3,11 +3,13 @@
 
 #include <utility>
 
+#include <hypergirgs/hypergirgs_api.h>
+
 
 namespace hypergirgs {
 
 
-class AngleHelper
+class HYPERGIRGS_API AngleHelper
 {
 public:
 
