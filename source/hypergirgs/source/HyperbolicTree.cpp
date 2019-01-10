@@ -60,7 +60,7 @@ std::vector<std::pair<int, int>> HyperbolicTree::generate(int seed) {
     m_dist.reset();
     m_result.clear();
     visitCellPair(0,0,0);
-    assert(m_type1_checks + m_type2_checks == (m_angles.size()-1) * m_angles.size());
+    assert(m_type1_checks + m_type2_checks == static_cast<long long>(m_n-1) * m_n);
     return move(m_result);
 }
 
@@ -148,7 +148,7 @@ void HyperbolicTree::sampleTypeII(unsigned int cellA, unsigned int cellB, unsign
         return;
 
 #ifndef NDEBUG
-    m_type2_checks += 2 * sizeV_i_A * sizeV_j_B;
+    m_type2_checks += 2llu * sizeV_i_A * sizeV_j_B;
 #endif // NDEBUG
 
     if (m_T == 0)

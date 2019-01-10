@@ -44,6 +44,11 @@ int main(int argc, char* argv[]) {
     cout << "avg deg:    " << 2.0* graph.size() / n << endl;
     cout << "duplicates: " << duplicates << endl;
 
+    if (n > 1000) {
+        std::clog << "Skip stats as n > 1000";
+        return 0;
+    }
+
     // preliminary tests
     cout << "computing stats ...\t\t" << flush;
     auto t6 = high_resolution_clock::now();
