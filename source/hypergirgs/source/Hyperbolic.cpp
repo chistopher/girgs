@@ -18,7 +18,7 @@ double hyperbolicDistance(double r1, double phi1, double r2, double phi2) {
 
 std::vector<double> sampleRadii(int n, double alpha, double R, int seed) {
     auto result = std::vector<double>(n);
-    auto gen = std::mt19937(seed >= 0 ? seed : std::random_device()());
+    auto gen = hypergirgs::default_random_engine(seed >= 0 ? seed : std::random_device()());
     std::uniform_real_distribution<> dist; // [0..1)
     for(int i = 0; i < n; ++i) {
         auto p = dist(gen);
@@ -30,7 +30,7 @@ std::vector<double> sampleRadii(int n, double alpha, double R, int seed) {
 
 std::vector<double> sampleAngles(int n, int seed) {
     auto result = std::vector<double>(n);
-    auto gen = std::mt19937(seed >= 0 ? seed : std::random_device()());
+    auto gen = hypergirgs::default_random_engine(seed >= 0 ? seed : std::random_device()());
     std::uniform_real_distribution<> dist; // [0..1)
     for(int i = 0; i < n; ++i)
         result[i] = dist(gen) * 2 * M_PI;

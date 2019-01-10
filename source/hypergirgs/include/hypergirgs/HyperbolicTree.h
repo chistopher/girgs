@@ -51,8 +51,8 @@ protected:
 
     std::vector<RadiusLayer> m_radius_layers;
     std::vector<std::vector<std::pair<unsigned int, unsigned int>>> m_layer_pairs;
-   
-    std::mt19937 m_gen; ///< random generator
+
+    hypergirgs::default_random_engine m_gen; ///< random generator
     std::uniform_real_distribution<> m_dist; ///< random distribution
 
 #ifndef NDEBUG
