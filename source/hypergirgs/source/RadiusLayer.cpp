@@ -48,49 +48,4 @@ RadiusLayer::RadiusLayer(double r_min, double r_max, unsigned int targetLevel, c
     }
 }
 
-int RadiusLayer::pointsInCell(unsigned int cell, unsigned int level) const {
-    assert(level <= m_target_level);
-    assert(AngleHelper::firstCellOfLevel(level) <= cell && cell < AngleHelper::firstCellOfLevel(level+1)); // cell is from correct level
-
-    // we want the begin-th and end-th cell in level targetLevel to be the first and last descendant of cell in this level
-    // we could apply the firstChild function to find the first descendant but this is in O(1)
-    auto descendants = AngleHelper::numCellsInLevel(m_target_level - level);
-    auto localIndexCell = cell - AngleHelper::firstCellOfLevel(level);
-    auto localIndexDescendant = localIndexCell * descendants; // each cell before the parent splits in 2^D cells in the next layer that are all before our descendant
-    auto begin = localIndexDescendant;
-    auto end = begin + descendants - 1;
-
-    assert(begin + AngleHelper::firstCellOfLevel(level) < AngleHelper::firstCellOfLevel(m_target_level+1));
-    assert(end + AngleHelper::firstCellOfLevel(level) < AngleHelper::firstCellOfLevel(m_target_level+1));
-
-    return m_prefix_sums[end+1] - m_prefix_sums[begin];
-}
-
-const Point& RadiusLayer::kthPoint(unsigned int cell, unsigned int level, int k) const {
-    assert(level <= m_target_level);
-    assert(AngleHelper::firstCellOfLevel(level) <= cell && cell < AngleHelper::firstCellOfLevel(level+1)); // cell is from fromLevel
-
-    // same as in "pointsInCell"
-    auto descendants = AngleHelper::numCellsInLevel(m_target_level - level);
-    auto localIndexCell = cell - AngleHelper::firstCellOfLevel(level);
-    auto localIndexDescendant = localIndexCell * descendants;
-    auto begin = localIndexDescendant;
-
-    return m_points[m_prefix_sums[begin] + k];
-}
-
-const Point* RadiusLayer::firstPointPointer(unsigned int cell, unsigned int level) const {
-    assert(level <= m_target_level);
-    assert(AngleHelper::firstCellOfLevel(level) <= cell && cell < AngleHelper::firstCellOfLevel(level + 1)); // cell is from fromLevel
-
-    // same as in "pointsInCell"
-    auto descendants = AngleHelper::numCellsInLevel(m_target_level - level);
-    auto localIndexCell = cell - AngleHelper::firstCellOfLevel(level);
-    auto localIndexDescendant = localIndexCell * descendants;
-    auto begin = localIndexDescendant;
-
-    return m_points.data() + m_prefix_sums[begin];
-}
-
-
 } // namespace hypergirgs
