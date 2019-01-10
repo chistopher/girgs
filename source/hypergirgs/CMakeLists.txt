@@ -36,13 +36,13 @@ set(headers
     ${include_path}/AngleHelper.h
     ${include_path}/Hyperbolic.h
     ${include_path}/HyperbolicTree.h
+    ${include_path}/HyperbolicTree.inl
     ${include_path}/RadiusLayer.h
 )
 
 set(sources
     ${source_path}/AngleHelper.cpp
     ${source_path}/Hyperbolic.cpp
-    ${source_path}/HyperbolicTree.cpp
     ${source_path}/RadiusLayer.cpp
 )
 
@@ -162,7 +162,7 @@ target_compile_definitions(${target}
 
 target_compile_options(${target}
     PRIVATE
-#    $<$<BOOL:${OPENMP_FOUND}>:${OpenMP_CXX_FLAGS}>
+    $<$<BOOL:${OPENMP_FOUND}>:${OpenMP_CXX_FLAGS}>
 
     PUBLIC
     ${DEFAULT_COMPILE_OPTIONS}
@@ -177,10 +177,10 @@ target_compile_options(${target}
 
 target_link_libraries(${target}
     PRIVATE
-#    $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:$<$<BOOL:"${OPENMP_FOUND}">:${OpenMP_CXX_FLAGS}>>
 
     PUBLIC
     ${DEFAULT_LINKER_OPTIONS}
+    $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:$<$<BOOL:"${OPENMP_FOUND}">:${OpenMP_CXX_FLAGS}>>
 
     INTERFACE
 )

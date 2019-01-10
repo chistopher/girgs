@@ -1,5 +1,6 @@
 
 #include <hypergirgs/Hyperbolic.h>
+#include <hypergirgs/HyperbolicTree.h>
 
 #include <random>
 #include <fstream>
@@ -17,25 +18,45 @@ double hyperbolicDistance(double r1, double phi1, double r2, double phi2) {
 }
 
 std::vector<double> sampleRadii(int n, double alpha, double R, int seed) {
-    auto result = std::vector<double>(n);
-    auto gen = hypergirgs::default_random_engine(seed >= 0 ? seed : std::random_device()());
+    std::vector<double> result(n);
+    hypergirgs::default_random_engine gen(seed >= 0 ? seed : std::random_device()());
     std::uniform_real_distribution<> dist; // [0..1)
+
+    const auto invalpha = 1.0 / alpha;
+    const auto factor = std::cosh(alpha * R) - 1.0;
+
     for(int i = 0; i < n; ++i) {
         auto p = dist(gen);
         while(p == 0) p = dist(gen);
-        result[i] = acosh(p * (cosh(alpha * R) - 1) + 1) / alpha;
+        result[i] = acosh(p * factor + 1.0) * invalpha;
     }
+
     return result;
 }
 
 std::vector<double> sampleAngles(int n, int seed) {
-    auto result = std::vector<double>(n);
-    auto gen = hypergirgs::default_random_engine(seed >= 0 ? seed : std::random_device()());
-    std::uniform_real_distribution<> dist; // [0..1)
+    std::vector<double> result(n);
+    hypergirgs::default_random_engine gen(seed >= 0 ? seed : std::random_device()());
+    std::uniform_real_distribution<> dist(0.0, std::nextafter(2 * PI, 0.0));
+
     for(int i = 0; i < n; ++i)
-        result[i] = dist(gen) * 2 * M_PI;
+        result[i] = dist(gen);
+
     return result;
 }
 
+std::vector<std::pair<int, int> > generateEdges(std::vector<double>& radii, std::vector<double>& angles, double T, double R, int seed) {
+    std::vector<std::pair<int,int>> graph;
+
+    auto addEdge = [&graph] (int u, int v, int tid) {
+        assert(tid == 0);
+        graph.emplace_back(u,v);
+    };
+
+    auto generator = hypergirgs::makeHyperbolicTree(radii, angles, T, R, addEdge);
+    generator.generate(seed);
+
+    return graph;
+}
 
 } // namespace hypergirgs

@@ -20,14 +20,20 @@ int main(int argc, char* argv[]) {
     const auto angleSeed = 130;
     const auto edgesSeed = 1400;
 
+    std::vector<std::pair<int,int>> graph;
+    auto addEdge = [&graph] (int u, int v, int tid) {
+        assert(tid == 0);
+        graph.emplace_back(u,v);
+    };
+
     auto R = hypergirgs::calculateRadius(n, alpha, T, deg);
     auto radii = hypergirgs::sampleRadii(n, alpha, R, radiiSeed);
     auto angles = hypergirgs::sampleAngles(n, angleSeed);
-    auto generator = hypergirgs::HyperbolicTree(radii, angles, T, R);
+    auto generator = hypergirgs::makeHyperbolicTree(radii, angles, T, R, addEdge);
 
     // measure
     auto start = std::chrono::high_resolution_clock::now();
-    auto graph = generator.generate(edgesSeed);
+    generator.generate(edgesSeed);
     auto end = std::chrono::high_resolution_clock::now();
     std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count() << std::endl;
 

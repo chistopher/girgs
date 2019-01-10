@@ -1,16 +1,14 @@
-
-#include <hypergirgs/HyperbolicTree.h>
-
 #include <cassert>
+#include <omp.h>
 
 #include <hypergirgs/Hyperbolic.h>
-
+#include <hypergirgs/HyperbolicTree.h>
 
 namespace hypergirgs {
 
-
-HyperbolicTree::HyperbolicTree(std::vector<double> &radii, std::vector<double> &angles, double T, double R)
-: m_result()
+template <typename EdgeCallback>
+HyperbolicTree<EdgeCallback>::HyperbolicTree(std::vector<double> &radii, std::vector<double> &angles, double T, double R, EdgeCallback& edgeCallback)
+: m_edgeCallback(edgeCallback)
 , m_n(radii.size())
 , m_coshR(std::cosh(R))
 , m_T(T)
@@ -55,16 +53,16 @@ HyperbolicTree::HyperbolicTree(std::vector<double> &radii, std::vector<double> &
             m_layer_pairs[partitioningBaseLevel(m_radius_layers[i].m_r_min, m_radius_layers[j].m_r_min)].emplace_back(i,j);
 }
 
-std::vector<std::pair<int, int>> HyperbolicTree::generate(int seed) {
+template <typename EdgeCallback>
+void HyperbolicTree<EdgeCallback>::generate(int seed) {
     m_gen.seed(seed >= 0 ? seed : std::random_device{}());
     m_dist.reset();
-    m_result.clear();
     visitCellPair(0,0,0);
     assert(m_type1_checks + m_type2_checks == static_cast<long long>(m_n-1) * m_n);
-    return move(m_result);
 }
 
-void HyperbolicTree::visitCellPair(unsigned int cellA, unsigned int cellB, unsigned int level) {
+template <typename EdgeCallback>
+void HyperbolicTree<EdgeCallback>::visitCellPair(unsigned int cellA, unsigned int cellB, unsigned int level) {
 
     if(!AngleHelper::touching(cellA, cellB, level))
     {   // not touching cells
@@ -98,7 +96,8 @@ void HyperbolicTree::visitCellPair(unsigned int cellA, unsigned int cellB, unsig
         visitCellPair(fA + 1, fB + 0, level+1); // if A==B we already did this call 3 lines above
 }
 
-void HyperbolicTree::sampleTypeI(unsigned int cellA, unsigned int cellB, unsigned int level, unsigned int i, unsigned int j) {
+template <typename EdgeCallback>
+void HyperbolicTree<EdgeCallback>::sampleTypeI(unsigned int cellA, unsigned int cellB, unsigned int level, unsigned int i, unsigned int j) {
 
     auto sizeV_i_A = m_radius_layers[i].pointsInCell(cellA, level);
     auto sizeV_j_B = m_radius_layers[j].pointsInCell(cellB, level);
@@ -113,6 +112,7 @@ void HyperbolicTree::sampleTypeI(unsigned int cellA, unsigned int cellB, unsigne
 
     const auto * firstA = m_radius_layers[i].firstPointPointer(cellA, level);
     const auto * firstB = m_radius_layers[j].firstPointPointer(cellB, level);
+    const auto threadId = omp_get_thread_num();
 
     for(int kA=0; kA<sizeV_i_A; ++kA){
         for (int kB =(cellA == cellB && i==j ? kA+1 : 0); kB<sizeV_j_B; ++kB) {
@@ -134,13 +134,14 @@ void HyperbolicTree::sampleTypeI(unsigned int cellA, unsigned int cellB, unsigne
             assert(nodeInA != nodeInB);
             if (nodeInA.isDistanceBelowR(nodeInB, m_coshR)) {
                 assert(hyperbolicDistance(nodeInA.radius, nodeInA.angle, nodeInB.radius, nodeInB.angle) < m_R);
-                m_result.emplace_back(nodeInA.id, nodeInB.id);
+                m_edgeCallback(nodeInA.id, nodeInB.id, threadId);
             }
         }
     }
 }
 
-void HyperbolicTree::sampleTypeII(unsigned int cellA, unsigned int cellB, unsigned int level, unsigned int i, unsigned int j) {
+template <typename EdgeCallback>
+void HyperbolicTree<EdgeCallback>::sampleTypeII(unsigned int cellA, unsigned int cellB, unsigned int level, unsigned int i, unsigned int j) {
 
     auto sizeV_i_A = m_radius_layers[i].pointsInCell(cellA, level);
     auto sizeV_j_B = m_radius_layers[j].pointsInCell(cellB, level);
@@ -158,7 +159,8 @@ void HyperbolicTree::sampleTypeII(unsigned int cellA, unsigned int cellB, unsign
 
 }
 
-unsigned int HyperbolicTree::partitioningBaseLevel(double r1, double r2) {
+template <typename EdgeCallback>
+unsigned int HyperbolicTree<EdgeCallback>::partitioningBaseLevel(double r1, double r2) {
     auto level = 0u;
     auto cellDiameter = 2*M_PI;
     // find deepest level in which points in all non-touching cells are not connected

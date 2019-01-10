@@ -1,4 +1,3 @@
-
 #pragma once
 
 #include <vector>
@@ -15,13 +14,14 @@
 namespace hypergirgs {
 
 
+template <typename EdgeCallback>
 class HYPERGIRGS_API HyperbolicTree
 {
 public:
 
-    HyperbolicTree(std::vector<double>& radii, std::vector<double>& angles, double T, double R);
+    HyperbolicTree(std::vector<double>& radii, std::vector<double>& angles, double T, double R, EdgeCallback& edgeCallback);
 
-    std::vector<std::pair<int,int>> generate(int seed);
+    void generate(int seed);
 
 protected:
 
@@ -36,8 +36,7 @@ protected:
 
 
 protected:
-
-    std::vector<std::pair<int,int>> m_result;
+    EdgeCallback& m_edgeCallback;
 
     const size_t m_n; ///< number of nodes
 
@@ -61,5 +60,11 @@ protected:
 #endif // NDEBUG
 };
 
+template <typename EdgeCallback>
+inline HyperbolicTree<EdgeCallback> makeHyperbolicTree(std::vector<double>& radii, std::vector<double>& angles, double T, double R, EdgeCallback& edgeCallback) {
+    return {radii, angles, T, R, edgeCallback};
+}
 
 } // namespace hypergirgs
+
+#include <hypergirgs/HyperbolicTree.inl>

@@ -21,7 +21,6 @@ protected:
     const int edgesSeed = 1400;
 };
 
-
 TEST_F(HyperbolicTree_test, testNoDuplicateEdges)
 {
     const auto n = 1000;
@@ -32,8 +31,7 @@ TEST_F(HyperbolicTree_test, testNoDuplicateEdges)
     auto R = hypergirgs::calculateRadius(n, alpha, T, deg);
     auto radii = hypergirgs::sampleRadii(n, alpha, R, radiiSeed);
     auto angles = hypergirgs::sampleAngles(n, angleSeed);
-    auto generator = hypergirgs::HyperbolicTree(radii, angles, T, R);
-    auto graph = generator.generate(edgesSeed);
+    auto graph = hypergirgs::generateEdges(radii, angles, T, R, edgesSeed);
 
     auto duplicates = 0;
     sort(graph.begin(), graph.end());
@@ -57,8 +55,7 @@ TEST_F(HyperbolicTree_test, testThresholdModel)
     auto R = hypergirgs::calculateRadius(n, alpha, T, deg);
     auto radii = hypergirgs::sampleRadii(n, alpha, R, radiiSeed);
     auto angles = hypergirgs::sampleAngles(n, angleSeed);
-    auto generator = hypergirgs::HyperbolicTree(radii, angles, T, R);
-    auto graph = generator.generate(edgesSeed);
+    auto graph = hypergirgs::generateEdges(radii, angles, T, R, edgesSeed);
 
     // convert to adjacency list
     auto adj_list = vector<vector<int>>(n);
@@ -93,9 +90,9 @@ TEST_F(HyperbolicTree_test, testGeneralModel)
     auto R = hypergirgs::calculateRadius(n, alpha, T, deg);
     auto radii = hypergirgs::sampleRadii(n, alpha, R, radiiSeed);
     auto angles = hypergirgs::sampleAngles(n, angleSeed);
-    auto generator = hypergirgs::HyperbolicTree(radii, angles, T, R);
-    auto edges = generator.generate(edgesSeed);
-    auto num_edges = edges.size();
+    auto graph = hypergirgs::generateEdges(radii, angles, T, R, edgesSeed);
+
+    auto num_edges = graph.size();
     auto num_desired = 0.5*deg*n;
     auto rigor = 0.9;
     ASSERT_LE(rigor * num_edges, num_desired);
@@ -114,10 +111,8 @@ TEST_F(HyperbolicTree_test, testReproducible)
         auto R = hypergirgs::calculateRadius(n, alpha, T, deg);
         auto radii = hypergirgs::sampleRadii(n, alpha, R, radiiSeed);
         auto angles = hypergirgs::sampleAngles(n, angleSeed);
-        auto generator1 = hypergirgs::HyperbolicTree(radii, angles, T, R);
-        auto generator2 = hypergirgs::HyperbolicTree(radii, angles, T, R);
-        auto edges1 = generator1.generate(edgesSeed);
-        auto edges2 = generator2.generate(edgesSeed);
+        auto edges1 = hypergirgs::generateEdges(radii, angles, T, R, edgesSeed);
+        auto edges2 = hypergirgs::generateEdges(radii, angles, T, R, edgesSeed);
         sort(edges1.begin(), edges1.end());
         sort(edges2.begin(), edges2.end());
         ASSERT_EQ(edges1, edges2);
