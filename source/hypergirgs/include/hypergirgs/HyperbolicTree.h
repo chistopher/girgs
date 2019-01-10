@@ -7,6 +7,7 @@
 
 #include <hypergirgs/AngleHelper.h>
 #include <hypergirgs/RadiusLayer.h>
+#include <hypergirgs/Point.h>
 
 #include <hypergirgs/hypergirgs_api.h>
 
@@ -37,11 +38,10 @@ protected:
 protected:
 
     std::vector<std::pair<int,int>> m_result;
-    const std::vector<double> m_radii;
-    const std::vector<double> m_angles;
 
-    double m_pre_R;
-    std::vector<std::pair<std::pair<double, double>,double>> m_pre_coord; ///< pre-computations for distance
+    const size_t m_n; ///< number of nodes
+
+    const double m_coshR; ///< = cosh(R)
 
     const double m_T;
     const double m_R;

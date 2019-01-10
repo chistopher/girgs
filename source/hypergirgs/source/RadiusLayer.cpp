@@ -10,7 +10,7 @@ namespace hypergirgs {
 
 
 RadiusLayer::RadiusLayer(double r_min, double r_max, unsigned int targetLevel, const std::vector<int> &nodes,
-                         const std::vector<double> &angles)
+                         const std::vector<double> &angles, const std::vector<Point> &points)
 : m_r_min(r_min)
 , m_r_max(r_max)
 , m_target_level(targetLevel)
@@ -19,7 +19,6 @@ RadiusLayer::RadiusLayer(double r_min, double r_max, unsigned int targetLevel, c
     const auto cellsInLevel = AngleHelper::numCellsInLevel(targetLevel);
     m_points_in_cell.resize(cellsInLevel, 0);
     m_prefix_sums.resize(cellsInLevel, 0);
-    m_A.resize(nodes.size(), -1);
 
     // count num of points in each cell
     for(auto node : nodes) {
@@ -33,11 +32,13 @@ RadiusLayer::RadiusLayer(double r_min, double r_max, unsigned int targetLevel, c
         m_prefix_sums[cell] = m_prefix_sums[cell-1] + m_points_in_cell[cell-1];
     }
 
+    m_points.resize(m_prefix_sums.back() + m_points_in_cell.back());
+
     // fill point lookup
     auto num_inserted = std::vector<int>(cellsInLevel, 0); // keeps track of bucket size for counting sort
     for(auto node : nodes){
         auto targetCell = AngleHelper::cellForPoint(angles[node], targetLevel);
-        m_A[m_prefix_sums[targetCell] + num_inserted[targetCell]] = node;
+        m_points[m_prefix_sums[targetCell] + num_inserted[targetCell]] = points[node];
         ++num_inserted[targetCell];
     }
 }
@@ -60,7 +61,7 @@ int RadiusLayer::pointsInCell(unsigned int cell, unsigned int level) const {
     return m_prefix_sums[end] - m_prefix_sums[begin] + m_points_in_cell[end];
 }
 
-int RadiusLayer::kthPoint(unsigned int cell, unsigned int level, int k) const {
+const Point& RadiusLayer::kthPoint(unsigned int cell, unsigned int level, int k) const {
     assert(level <= m_target_level);
     assert(AngleHelper::firstCellOfLevel(level) <= cell && cell < AngleHelper::firstCellOfLevel(level+1)); // cell is from fromLevel
 
@@ -70,10 +71,10 @@ int RadiusLayer::kthPoint(unsigned int cell, unsigned int level, int k) const {
     auto localIndexDescendant = localIndexCell * descendants;
     auto begin = localIndexDescendant;
 
-    return m_A[m_prefix_sums[begin] + k];
+    return m_points[m_prefix_sums[begin] + k];
 }
 
-const int * RadiusLayer::firstPointPointer(unsigned int cell, unsigned int level) const {
+const Point* RadiusLayer::firstPointPointer(unsigned int cell, unsigned int level) const {
     assert(level <= m_target_level);
     assert(AngleHelper::firstCellOfLevel(level) <= cell && cell < AngleHelper::firstCellOfLevel(level + 1)); // cell is from fromLevel
 
@@ -83,7 +84,7 @@ const int * RadiusLayer::firstPointPointer(unsigned int cell, unsigned int level
     auto localIndexDescendant = localIndexCell * descendants;
     auto begin = localIndexDescendant;
 
-    return m_A.data() + m_prefix_sums[begin];
+    return m_points.data() + m_prefix_sums[begin];
 }
 
 
