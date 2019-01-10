@@ -47,7 +47,6 @@ protected:
     unsigned int m_levels = 0;
 
     std::vector<std::array<int, D>> m_coords;       // cell index to coord
-    std::vector<unsigned int>       m_coords2Index; // packed coord to cell index
 };
 
 

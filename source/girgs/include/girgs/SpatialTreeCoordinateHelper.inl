@@ -6,7 +6,6 @@ template<unsigned int D>
 SpatialTreeCoordinateHelper<D>::SpatialTreeCoordinateHelper(unsigned int levels)
     : m_levels(levels)
     , m_coords(firstCellOfLevel(levels))
-    , m_coords2Index(firstCellOfLevel(levels))
 {
 
     // calculate coords // TODO find implicit way to get from index to coords and back
@@ -20,12 +19,6 @@ SpatialTreeCoordinateHelper<D>::SpatialTreeCoordinateHelper(unsigned int levels)
                 m_coords[cell][d] *= 2; // every level doubles each dimension
                 m_coords[cell][d] += static_cast<bool>(bitmask&(1<<d)); // add 1 if we are "right" of parent in dimension d
             }
-
-            // save inverse mapping
-            auto packedCoord = 0;
-            for(auto d=0u; d<D; ++d)
-                packedCoord += m_coords[cell][d] * (1<<(l*d));
-            m_coords2Index[firstCellOfLevel(l) + packedCoord] = cell;
         }
     }
 }
@@ -43,26 +36,34 @@ std::array<std::pair<double, double>, D> SpatialTreeCoordinateHelper<D>::bounds(
 
 template<unsigned int D>
 unsigned int SpatialTreeCoordinateHelper<D>::cellForPoint(std::vector<double>& point, unsigned int targetLevel) const {
-
     // calculate coords
     assert(point.size() == D);
-    auto diameter = 1.0 / (1<<targetLevel);
-	/*
-    std::array<int, D> coords;
-    for(auto d=0u; d<D; ++d) {
-        coords[d] = static_cast<int>(point[d] / diameter);
-        assert(coords[d] < (1<<targetLevel));
-    }
+    auto diameter = static_cast<double>(1 << targetLevel);
 
-    // get from coords to index
-    auto packedCoord = 0;
-    for(auto d=0u; d<D; ++d)
-        packedCoord += coords[d] * (1<<(targetLevel*d));
-	*/
-	auto packedCoord = 0u;
+    std::array<int, D> coords;
 	for (auto d = 0u; d < D; ++d)
-		packedCoord += static_cast<unsigned int>(point[d] / diameter) * (1u << (targetLevel*d));
-    return m_coords2Index[firstCellOfLevel(targetLevel) + packedCoord];
+        coords[d] = static_cast<unsigned int>(point[d] * diameter);
+
+	/*
+	 * We now interleave the bits of the coordinates, let X[i,j] be the i-th bit (counting from LSB) of coordinate j,
+	 * and let D' = D-1, and t = targetLevel-1. Then return
+	 *  X[t, D'] o X[t, D'-1] o ... o X[t, 0]   o  X[t-1, D'] o ... o X[t-1, 0]   o  ...  o  X[0, D'] o ... o X[0, 0]
+	 *
+	 * The following in a naive implementation of this bit interleaving:
+	 */
+	unsigned int result = 0u;
+	unsigned int bit = 0;
+	for(auto l = 0u; l != targetLevel; l++) {
+	    for(auto d = 0u; d != D; d++) {
+	        result |= ((coords[d] >> l) & 1) << bit++;
+	    }
+	}
+
+    return result + firstCellOfLevel(targetLevel);
+
+	// TODO: We can use shifts and masks to use word-parallelism
+	// TODO: We can use the AVX2 instruction pdep
+	// TODO: Write benchmark what's faster given that we consider at most targetLevel bits per coordinate
 }
 
 template<unsigned int D>
