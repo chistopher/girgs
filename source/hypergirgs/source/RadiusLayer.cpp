@@ -63,7 +63,7 @@ int RadiusLayer::pointsInCell(unsigned int cell, unsigned int level) const {
     assert(begin + AngleHelper::firstCellOfLevel(level) < AngleHelper::firstCellOfLevel(m_target_level+1));
     assert(end + AngleHelper::firstCellOfLevel(level) < AngleHelper::firstCellOfLevel(m_target_level+1));
 
-    return m_prefix_sums[end] - m_prefix_sums[begin] + (m_prefix_sums[end + 1] - m_prefix_sums[end]);
+    return m_prefix_sums[end+1] - m_prefix_sums[begin];
 }
 
 const Point& RadiusLayer::kthPoint(unsigned int cell, unsigned int level, int k) const {
