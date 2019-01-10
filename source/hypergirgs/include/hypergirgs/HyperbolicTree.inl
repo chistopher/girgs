@@ -98,30 +98,33 @@ void HyperbolicTree<EdgeCallback>::visitCellPair(unsigned int cellA, unsigned in
 
 template <typename EdgeCallback>
 void HyperbolicTree<EdgeCallback>::sampleTypeI(unsigned int cellA, unsigned int cellB, unsigned int level, unsigned int i, unsigned int j) {
+    auto rangeA = m_radius_layers[i].cellIterators(cellA, level);
+    auto rangeB = m_radius_layers[j].cellIterators(cellB, level);
 
-    auto sizeV_i_A = m_radius_layers[i].pointsInCell(cellA, level);
-    auto sizeV_j_B = m_radius_layers[j].pointsInCell(cellB, level);
-    if (sizeV_i_A == 0 || sizeV_j_B == 0)
+    if (rangeA.first == rangeA.second || rangeB.first == rangeB.second)
         return;
 
 #ifndef NDEBUG
-    m_type1_checks += (cellA == cellB && i == j)
-        ? sizeV_i_A * (sizeV_i_A-1)  // all pairs in AxA without {v,v}
-        : sizeV_i_A * sizeV_j_B * 2; // all pairs in AxB and BxA
+    {
+        const auto sizeV_i_A = std::distance(rangeA.first, rangeA.second);
+        const auto sizeV_j_B = std::distance(rangeB.first, rangeB.second);
+        m_type1_checks += (cellA == cellB && i == j) ? sizeV_i_A * (sizeV_i_A - 1)  // all pairs in AxA without {v,v}
+                                                     : sizeV_i_A * sizeV_j_B * 2; // all pairs in AxB and BxA
+    }
 #endif // NDEBUG
 
-    const auto * firstA = m_radius_layers[i].firstPointPointer(cellA, level);
-    const auto * firstB = m_radius_layers[j].firstPointPointer(cellB, level);
     const auto threadId = omp_get_thread_num();
 
-    for(int kA=0; kA<sizeV_i_A; ++kA){
-        for (int kB =(cellA == cellB && i==j ? kA+1 : 0); kB<sizeV_j_B; ++kB) {
-            const auto& nodeInA = *(firstA+kA);
-            const auto& nodeInB = *(firstB+kB);
+    int kA = 0;
+    for(auto pointerA = rangeA.first; pointerA != rangeA.second; ++kA, ++pointerA) {
+        auto offset = (cellA == cellB && i==j) ? kA+1 : 0;
+        for (auto pointerB = rangeB.first + offset; pointerB != rangeB.second; ++pointerB) {
+            const auto& nodeInA = *pointerA;
+            const auto& nodeInB = *pointerB;
 
             // pointer magic gives same results
             assert(nodeInA == m_radius_layers[i].kthPoint(cellA, level, kA));
-            assert(nodeInB == m_radius_layers[j].kthPoint(cellB, level, kB));
+            assert(nodeInB == m_radius_layers[j].kthPoint(cellB, level, std::distance(rangeB.first, pointerB) ));
 
             // points are in correct cells
             assert(cellA - AngleHelper::firstCellOfLevel(level) == AngleHelper::cellForPoint(nodeInA.angle, level));

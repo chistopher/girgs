@@ -41,6 +41,13 @@ public:
         return m_points.data() + m_prefix_sums[cellBoundaries.first];
     }
 
+    std::pair<const Point*, const Point*> cellIterators(unsigned int cell, unsigned int level) const {
+        auto cellBoundaries = levelledCell(cell, level);
+        const auto* base = m_points.data();
+        return {base + m_prefix_sums[cellBoundaries.first],
+                base + m_prefix_sums[cellBoundaries.second+1]};
+    }
+
 
 public:
     const double m_r_min;
