@@ -23,7 +23,7 @@ public:
     static constexpr unsigned int numChildren() noexcept { return 2; }
 
     static std::pair<double,double> bounds(unsigned int cell, unsigned int level);
-    static unsigned int cellForPoint(double angle, unsigned int targetLevel);
+    static unsigned int cellForPoint(double angle, unsigned int targetLevel); // returns level local index of cell at angle
 
     static bool touching(unsigned int cellA, unsigned int cellB, unsigned int level);
 

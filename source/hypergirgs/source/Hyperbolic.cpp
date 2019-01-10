@@ -4,12 +4,14 @@
 
 #include <random>
 #include <fstream>
+#include <cmath>
+
 
 namespace hypergirgs {
 
 
 double calculateRadius(int n, double alpha, double T, int deg) {
-    return 2 * log(n * 2 * alpha * alpha * (T == 0 ? 1 / M_PI : T / sin(M_PI * T)) /
+    return 2 * log(n * 2 * alpha * alpha * (T == 0 ? 1 / PI : T / sin(PI * T)) /
                    (deg * (alpha - 0.5) * (alpha - 0.5)));
 }
 

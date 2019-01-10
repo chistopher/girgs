@@ -162,7 +162,7 @@ void HyperbolicTree<EdgeCallback>::sampleTypeII(unsigned int cellA, unsigned int
 template <typename EdgeCallback>
 unsigned int HyperbolicTree<EdgeCallback>::partitioningBaseLevel(double r1, double r2) {
     auto level = 0u;
-    auto cellDiameter = 2*M_PI;
+    auto cellDiameter = 2.0*PI;
     // find deepest level in which points in all non-touching cells are not connected
     while(hypergirgs::hyperbolicDistance(r1, 0, r2, (cellDiameter/2)) > m_R){
         level++;
