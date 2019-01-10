@@ -232,17 +232,11 @@ void SpatialTree<D>::sampleTypeII(
     if(sizeV_i_A == 0 || sizeV_j_B == 0)
         return;
 
-#ifndef NDEBUG
-    m_type2_checks[omp_get_thread_num()] += 2 * sizeV_i_A * sizeV_j_B;
-#endif // NDEBUG
-
     // get upper bound for probability
     auto w_upper_bound = m_w0*(1<<(i+1)) * m_w0*(1<<(j+1)) / m_W;
     auto dist_lower_bound = std::pow(m_helper.dist(cellA, cellB, level), dimension);
     auto max_connection_prob = std::min(std::pow(w_upper_bound/dist_lower_bound, m_alpha), 1.0);
     assert(dist_lower_bound > w_upper_bound); // in threshold model we would not sample anything
-    if(max_connection_prob <= 1e-10)
-        return;
 
     // if we must sample all pairs we treat this as type 1 sampling
     // also, 1.0 is no valid prob for a geometric dist (see c++ std)
@@ -250,6 +244,13 @@ void SpatialTree<D>::sampleTypeII(
         sampleTypeI(cellA, cellB, level, i, j);
         return;
     }
+
+#ifndef NDEBUG
+    m_type2_checks[omp_get_thread_num()] += 2 * sizeV_i_A * sizeV_j_B;
+#endif // NDEBUG
+
+    if(max_connection_prob <= 1e-10)
+        return;
 
     // init geometric distribution
     auto threadID = omp_get_thread_num();
