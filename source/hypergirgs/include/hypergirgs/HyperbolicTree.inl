@@ -31,10 +31,13 @@ HyperbolicTree<EdgeCallback>::HyperbolicTree(std::vector<double> &radii, std::ve
     }
 
     // create layer
-    m_layers = static_cast<unsigned int>(std::ceil(R));
+    auto layer_height = std::log(2.0)/0.75;
+    m_layers = static_cast<unsigned int>(std::ceil(R/layer_height));
     auto weightLayerNodes = std::vector<std::vector<int>>(m_layers);
-    for(auto i = 0u; i < radii.size(); ++i) // layer i has nodes from (R-i-1 to R-i]
-        weightLayerNodes[static_cast<unsigned int>(R-radii[i])].push_back(i);
+    for(auto i = 0u; i < radii.size(); ++i) {
+        auto targetLayer = static_cast<unsigned int>((R - radii[i])/layer_height);
+        weightLayerNodes[targetLayer].push_back(i);
+    }
 
     // ignore empty layers of higher radius
     for(;m_layers>0;m_layers--)
@@ -42,9 +45,13 @@ HyperbolicTree<EdgeCallback>::HyperbolicTree(std::vector<double> &radii, std::ve
             break;
 
     // build spatial structure and find insertion level for each layer based on lower bound on radius for current and smallest layer
-    for (auto layer = 0u; layer < m_layers; ++layer)
-        m_radius_layers.emplace_back(R - layer - 1, R - layer, partitioningBaseLevel(R - layer - 1, R - 1),
+    for (auto layer = 0u; layer < m_layers; ++layer){
+        auto r_max = R - layer*layer_height;
+        auto r_min = R - (layer+1)*layer_height;
+        auto r_min_outer_layer = R - layer_height;
+        m_radius_layers.emplace_back(r_min, r_max, partitioningBaseLevel(r_min, r_min_outer_layer),
                                      std::move(weightLayerNodes[layer]), angles, pre_points);
+    }
     m_levels = m_radius_layers[0].m_target_level + 1;
 
     // determine which layer pairs to sample in which level
