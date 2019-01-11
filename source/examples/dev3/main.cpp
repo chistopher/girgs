@@ -12,7 +12,7 @@ using namespace std;
 using namespace chrono;
 
 int main(int argc, char* argv[]) {
-    const auto n = 1000;
+    const auto n = 1000000;
     const auto alpha = 0.75; // ple = 2*alpha+1
     const auto T = 0;
     const auto deg = 10;
@@ -21,6 +21,7 @@ int main(int argc, char* argv[]) {
     const auto edgesSeed = 1400;
 
     std::vector<std::pair<int,int>> graph;
+    graph.reserve(n*deg/2);
     auto addEdge = [&graph] (int u, int v, int tid) {
         assert(tid == 0);
         graph.emplace_back(u,v);

@@ -1,8 +1,9 @@
+
 #include <cassert>
 #include <omp.h>
 
 #include <hypergirgs/Hyperbolic.h>
-#include <hypergirgs/HyperbolicTree.h>
+
 
 namespace hypergirgs {
 
