@@ -8,14 +8,12 @@
 #include <hypergirgs/RadiusLayer.h>
 #include <hypergirgs/Point.h>
 
-#include <hypergirgs/hypergirgs_api.h>
-
 
 namespace hypergirgs {
 
 
 template <typename EdgeCallback>
-class HYPERGIRGS_API HyperbolicTree
+class HyperbolicTree
 {
 public:
 
