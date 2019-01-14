@@ -21,6 +21,11 @@ RadiusLayer::RadiusLayer(double r_min, double r_max,
 
     m_prefix_sums.resize(cellsInLevel+1, 0);
 
+    // Despite taking three passes through m_prefix_sums,
+    // this algorithm performs faster than scanning through
+    // the points and m_prefix_sums only once and exploiting
+    // that the points are sorted by their cell ids
+
     // count num of points in each cell
     int i = 0;
     for(auto it = begin; it != end; ++it, ++i) {
