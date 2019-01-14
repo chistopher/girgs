@@ -14,10 +14,6 @@ std::pair<double, double> AngleHelper::bounds(unsigned int cell, unsigned int le
     return {localIndex*diameter, (localIndex+1) * diameter};
 }
 
-unsigned int AngleHelper::cellForPoint(double angle, unsigned int targetLevel) {
-    return static_cast<unsigned int>(angle/2/PI * numCellsInLevel(targetLevel));
-}
-
 bool AngleHelper::touching(unsigned int cellA, unsigned int cellB, unsigned int level) {
     auto mm = std::minmax(cellA,cellB);
     auto diff = mm.second - mm.first;

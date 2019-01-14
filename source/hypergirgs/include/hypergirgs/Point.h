@@ -9,8 +9,9 @@ namespace hypergirgs {
 
 struct Point {
     Point() {}; // prevent initialization of members
-    Point(const int id, const double radius, const double angle) :
+    Point(const int id, const double radius, const double angle, int cell_id = 0) :
           id{id}
+        , cell_id{cell_id}
         , invsinh_r{1.0 / std::sinh(radius)}
         , coth_r{std::cosh(radius) / std::sinh(radius)}
         , cos_phi{std::cos(angle)}
@@ -45,6 +46,7 @@ struct Point {
     }
 
     int    id;        ///< node id
+    int    cell_id;   ///< id of cell node will stored
 
     double invsinh_r; ///< = 1.0 / sinh(radius)
     double coth_r;    ///< = coth(radius) = cosh(radius) / sinh(radius)

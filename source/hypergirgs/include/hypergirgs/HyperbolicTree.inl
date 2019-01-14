@@ -1,50 +1,122 @@
-
+#include <algorithm>
 #include <cassert>
 #include <omp.h>
 
 #include <hypergirgs/Hyperbolic.h>
 
-
 namespace hypergirgs {
 
 template <typename EdgeCallback>
 HyperbolicTree<EdgeCallback>::HyperbolicTree(std::vector<double> &radii, std::vector<double> &angles, double T, double R, EdgeCallback& edgeCallback)
-: m_edgeCallback(edgeCallback)
-, m_n(radii.size())
-, m_coshR(std::cosh(R))
-, m_T(T)
-, m_R(R)
-, m_gen()
-, m_dist()
-#ifndef NDEBUG
-, m_type1_checks(0)
-, m_type2_checks(0)
-#endif // NDEBUG
+    : m_edgeCallback(edgeCallback)
+    , m_n(radii.size())
+    , m_coshR(std::cosh(R))
+    , m_T(T)
+    , m_R(R)
+    , m_points(m_n)
+    , m_gen()
+    , m_dist()
+    #ifndef NDEBUG
+    , m_type1_checks(0)
+    , m_type2_checks(0)
+    #endif // NDEBUG
 {
     assert(radii.size() == angles.size());
 
-    // pre-compute values for distance
-    std::vector<Point> pre_points(radii.size());
-    #pragma omp parallel for if (m_n > 10000)
-    for (int i = 0; i < radii.size(); ++i) {
-        pre_points[i] = Point(i, radii[i], angles[i]);
+    // translate radius <-> layer
+    const auto layer_height = 1.0; //std::log(2.0)/0.75;
+    auto radius_to_layer = [R, layer_height] (double radius) {return static_cast<unsigned int>( (R - radius) / layer_height );};
+    auto layer_rad_max   = [R, layer_height] (int l) {return R - l * layer_height;};
+    auto layer_rad_min   = [R, layer_height] (int l) {return R - l * layer_height - layer_height;};
+    const auto r_min_outer = R - layer_height;
+
+    m_layers = static_cast<unsigned int>(std::ceil(R/layer_height));
+
+    // generate look-up to get the level of a layer
+    std::vector<int> level_of_layer(m_layers);
+    {
+        for (int l = 0; l != m_layers; ++l) {
+            level_of_layer[l] = partitioningBaseLevel(layer_rad_min(l), r_min_outer);
+        }
+        assert(std::is_sorted(level_of_layer.crbegin(), level_of_layer.crend()));
     }
 
-    // create layer
-    m_layers = static_cast<unsigned int>(std::ceil(R));
-    auto weightLayerNodes = std::vector<std::vector<int>>(m_layers);
-    for(auto i = 0u; i < radii.size(); ++i) // layer i has nodes from (R-i-1 to R-i]
-        weightLayerNodes[static_cast<unsigned int>(R-radii[i])].push_back(i);
+    // since there can be multiple layers at the same level, we cannot
+    // rely on AngleHelper::firstCellInLevel find a unique first cell
+    // of a layer. Hence we precompute the first cell as a (reverse)
+    // prefix sum
+    std::vector<unsigned int> first_cell_of_layer(m_layers);
+    {
+        unsigned int sum = 0;
+        for (auto l = m_layers; l--;) {
+            first_cell_of_layer[l] = sum;
+            sum += AngleHelper::numCellsInLevel(level_of_layer[l]);
+        }
+    }
 
-    // ignore empty layers of higher radius
-    for(;m_layers>0;m_layers--)
-        if(!weightLayerNodes[m_layers-1].empty())
-            break;
+    // pre-compute values for fast distance computation and also compute
+    // the cell a point belongs to
+    #pragma omp parallel if (m_n > 10000)
+    for (int i = 0; i < m_n; ++i) {
+        const auto layer = radius_to_layer(radii[i]);
+        const auto level = level_of_layer[layer];
+        const auto cell = first_cell_of_layer[layer] + AngleHelper::cellForPoint(angles[i], level);
+
+        auto& pt = m_points[i];
+        pt = Point(i, radii[i], angles[i], cell);
+    }
+
+    // TODO: Use more efficient (int)sort!
+    std::sort(m_points.begin(), m_points.end(), [] (const Point& a, const Point& b) {
+        return a.cell_id < b.cell_id;
+    });
+
+    // position i+1 stores
+    std::vector<unsigned int> first_point_of_layer(m_layers + 1, 0);
+    {
+        first_point_of_layer.front() = m_n;
+
+        for (auto layer = 0; first_cell_of_layer[layer]; ++layer) {
+            const auto first_cell = first_cell_of_layer[layer];
+
+            first_point_of_layer[layer+1] = std::distance(m_points.cbegin(),
+                std::upper_bound(
+                    m_points.cbegin(), m_points.cbegin() + first_point_of_layer[layer],
+                    first_cell - 1, [](int cell_id, const Point &p) { return cell_id < p.cell_id; }
+                )
+            );
+
+#ifndef NDEBUG
+            // assert that points lie within cell-id range and radial range
+            {
+                const auto cid_min = first_cell;
+                const auto cid_max = first_cell + AngleHelper::numCellsInLevel(level_of_layer[layer]);
+
+                const auto r_min = layer_rad_min(layer);
+                const auto r_max = layer_rad_max(layer);
+
+                for (int i = first_point_of_layer[layer+1]; i != first_point_of_layer[layer]; ++i) {
+                    const auto& pt = m_points[i];
+                    assert(cid_min <= pt.cell_id && pt.cell_id < cid_max);
+                    assert(r_min   <= pt.radius  && pt.radius  < r_max);
+                }
+            }
+#endif
+        }
+
+        // prune of empty layers at the back
+        for(m_layers = 0; first_point_of_layer[m_layers]; ++m_layers);
+    }
 
     // build spatial structure and find insertion level for each layer based on lower bound on radius for current and smallest layer
-    for (auto layer = 0u; layer < m_layers; ++layer)
-        m_radius_layers.emplace_back(R - layer - 1, R - layer, partitioningBaseLevel(R - layer - 1, R - 1),
-                                     std::move(weightLayerNodes[layer]), angles, pre_points);
+    for (auto layer = 0u; layer < m_layers; ++layer) {
+        m_radius_layers.emplace_back(
+            layer_rad_min(layer), layer_rad_max(layer),
+            level_of_layer[layer], first_cell_of_layer[layer],
+            m_points.data() + first_point_of_layer[layer + 1],
+            m_points.data() + first_point_of_layer[layer    ]); // [sic!] first_point_of_layer is reversed!
+    }
+
     m_levels = m_radius_layers[0].m_target_level + 1;
 
     // determine which layer pairs to sample in which level

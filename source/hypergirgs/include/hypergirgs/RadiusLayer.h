@@ -18,9 +18,9 @@ public:
 
 	RadiusLayer() = delete;
 
-	RadiusLayer(double r_min, double r_max, unsigned int targetLevel,
-				const std::vector<int> &nodes, const std::vector<double> &angles,
-				const std::vector<Point> &points);
+	RadiusLayer(double r_min, double r_max,
+	            unsigned int targetLevel, unsigned int firstCell,
+				const Point* begin, const Point* end);
 
 
     int pointsInCell(unsigned int cell, unsigned int level) const {
@@ -33,19 +33,18 @@ public:
 
     const Point& kthPoint(unsigned int cell, unsigned int level, int k) const {
         auto cellBoundaries = levelledCell(cell, level);
-        return m_points[m_prefix_sums[cellBoundaries.first] + k];
+        return m_base[m_prefix_sums[cellBoundaries.first] + k];
     }
 
     const Point* firstPointPointer(unsigned int cell, unsigned int level) const {
         auto cellBoundaries = levelledCell(cell, level);
-        return m_points.data() + m_prefix_sums[cellBoundaries.first];
+        return m_base + m_prefix_sums[cellBoundaries.first];
     }
 
     std::pair<const Point*, const Point*> cellIterators(unsigned int cell, unsigned int level) const {
         auto cellBoundaries = levelledCell(cell, level);
-        const auto* base = m_points.data();
-        return {base + m_prefix_sums[cellBoundaries.first],
-                base + m_prefix_sums[cellBoundaries.second+1]};
+        return {m_base + m_prefix_sums[cellBoundaries.first],
+                m_base + m_prefix_sums[cellBoundaries.second+1]};
     }
 
 
@@ -55,8 +54,8 @@ public:
     const unsigned int m_target_level;
 
 protected:
+    const Point* m_base;                    ///< Pointer to the first point stored in this layer
     std::vector<int>   m_prefix_sums;       ///< for each cell c in target level: the sum of points of this layer in all cells <c
-    std::vector<Point> m_points; 			///< vector of points in this layer
 
     std::pair<unsigned int, unsigned int> levelledCell(unsigned int cell, unsigned int level) const {
         assert(level <= m_target_level);

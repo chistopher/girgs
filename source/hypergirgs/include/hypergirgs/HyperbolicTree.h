@@ -40,11 +40,14 @@ protected:
 
     const double m_coshR; ///< = cosh(R)
 
-    const double m_T;
-    const double m_R;
+    const double m_T; ///< temperature
+    const double m_R; ///< radius
 
     unsigned int m_layers; ///< number of layers
     unsigned int m_levels; ///< number of levels
+
+    std::vector<Point> m_points;                    ///< vector of points
+    std::vector<unsigned int> m_first_node_in_cell; ///< prefix sum into m_points
 
     std::vector<RadiusLayer> m_radius_layers;
     std::vector<std::vector<std::pair<unsigned int, unsigned int>>> m_layer_pairs;
