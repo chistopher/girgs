@@ -5,7 +5,7 @@ if(NOT OPTION_BUILD_EXAMPLES)
 endif()
 
 # Example applications
-add_subdirectory(benchmark)
+add_subdirectory(bench)
 add_subdirectory(dev)
 add_subdirectory(dev2)
 add_subdirectory(dev3)

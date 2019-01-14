@@ -15,7 +15,7 @@ std::pair<double, double> AngleHelper::bounds(unsigned int cell, unsigned int le
 }
 
 unsigned int AngleHelper::cellForPoint(double angle, unsigned int targetLevel) {
-    return static_cast<unsigned int>(angle/2/M_PI * numCellsInLevel(targetLevel));
+    return static_cast<unsigned int>(angle/2/PI * numCellsInLevel(targetLevel));
 }
 
 bool AngleHelper::touching(unsigned int cellA, unsigned int cellB, unsigned int level) {
