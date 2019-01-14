@@ -3,6 +3,7 @@
 #include <omp.h>
 
 #include <hypergirgs/Hyperbolic.h>
+#include <ScopedTimer.h>
 
 namespace hypergirgs {
 
@@ -109,12 +110,15 @@ HyperbolicTree<EdgeCallback>::HyperbolicTree(std::vector<double> &radii, std::ve
     }
 
     // build spatial structure and find insertion level for each layer based on lower bound on radius for current and smallest layer
-    for (auto layer = 0u; layer < m_layers; ++layer) {
-        m_radius_layers.emplace_back(
-            layer_rad_min(layer), layer_rad_max(layer),
-            level_of_layer[layer], first_cell_of_layer[layer],
-            m_points.data() + first_point_of_layer[layer + 1],
-            m_points.data() + first_point_of_layer[layer    ]); // [sic!] first_point_of_layer is reversed!
+    {
+        ScopedTimer timer("Build data structure");
+        for (auto layer = 0u; layer < m_layers; ++layer) {
+            m_radius_layers.emplace_back(
+                layer_rad_min(layer), layer_rad_max(layer),
+                level_of_layer[layer], first_cell_of_layer[layer],
+                m_points.data() + first_point_of_layer[layer + 1],
+                m_points.data() + first_point_of_layer[layer    ]); // [sic!] first_point_of_layer is reversed!
+        }
     }
 
     m_levels = m_radius_layers[0].m_target_level + 1;
