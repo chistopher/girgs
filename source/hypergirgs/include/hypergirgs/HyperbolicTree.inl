@@ -4,6 +4,7 @@
 
 #include <hypergirgs/Hyperbolic.h>
 #include <ScopedTimer.h>
+#include <IntSort.h>
 
 namespace hypergirgs {
 
@@ -73,7 +74,8 @@ HyperbolicTree<EdgeCallback>::HyperbolicTree(std::vector<double> &radii, std::ve
     // Sort points by cell-ids
     {
         ScopedTimer timer("Sorting points");
-        std::sort(m_points.begin(), m_points.end(), [] (const Point& a, const Point& b) {return a.cell_id < b.cell_id;});
+        intsort::intsort(m_points, [] (const Point& p) {return p.cell_id;}, max_cell_id + 1);
+        //std::sort(m_points.begin(), m_points.end(), [] (const Point& a, const Point& b) {return a.cell_id < b.cell_id;});
     }
 
     // position i+1 stores
