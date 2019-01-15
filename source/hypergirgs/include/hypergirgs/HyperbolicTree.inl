@@ -34,26 +34,29 @@ HyperbolicTree<EdgeCallback>::HyperbolicTree(std::vector<double> &radii, std::ve
     m_layers = static_cast<unsigned int>(std::ceil(R/layer_height));
 
     // generate look-up to get the level of a layer
-    std::vector<int> level_of_layer(m_layers);
-    {
+    const auto level_of_layer = [&] {
+        std::vector<int> level_of_layer(m_layers);
         for (int l = 0; l != m_layers; ++l) {
             level_of_layer[l] = partitioningBaseLevel(layer_rad_min(l), r_min_outer);
         }
         assert(std::is_sorted(level_of_layer.crbegin(), level_of_layer.crend()));
-    }
+        return level_of_layer;
+    }();
 
     // since there can be multiple layers at the same level, we cannot
     // rely on AngleHelper::firstCellInLevel find a unique first cell
     // of a layer. Hence we precompute the first cell as a (reverse)
     // prefix sum
-    std::vector<unsigned int> first_cell_of_layer(m_layers);
-    {
+    const auto first_cell_of_layer = [&] {
+        std::vector<unsigned int> first_cell_of_layer(m_layers);
         unsigned int sum = 0;
         for (auto l = m_layers; l--;) {
             first_cell_of_layer[l] = sum;
             sum += AngleHelper::numCellsInLevel(level_of_layer[l]);
         }
-    }
+        return first_cell_of_layer;
+    }();
+    const auto max_cell_id = first_cell_of_layer.front() + AngleHelper::numCellsInLevel(level_of_layer[0]);
 
     // pre-compute values for fast distance computation and also compute
     // the cell a point belongs to
@@ -67,14 +70,15 @@ HyperbolicTree<EdgeCallback>::HyperbolicTree(std::vector<double> &radii, std::ve
         pt = Point(i, radii[i], angles[i], cell);
     }
 
-    // TODO: Use more efficient (int)sort!
-    std::sort(m_points.begin(), m_points.end(), [] (const Point& a, const Point& b) {
-        return a.cell_id < b.cell_id;
-    });
+    // Sort points by cell-ids
+    {
+        ScopedTimer timer("Sorting points");
+        std::sort(m_points.begin(), m_points.end(), [] (const Point& a, const Point& b) {return a.cell_id < b.cell_id;});
+    }
 
     // position i+1 stores
-    std::vector<unsigned int> first_point_of_layer(m_layers + 1, 0);
-    {
+    const auto first_point_of_layer = [&] {
+        std::vector<unsigned int> first_point_of_layer(m_layers + 1, 0);
         first_point_of_layer.front() = m_n;
 
         for (auto layer = 0; first_cell_of_layer[layer]; ++layer) {
@@ -105,9 +109,11 @@ HyperbolicTree<EdgeCallback>::HyperbolicTree(std::vector<double> &radii, std::ve
 #endif
         }
 
-        // prune of empty layers at the back
-        for(m_layers = 0; first_point_of_layer[m_layers]; ++m_layers);
-    }
+        return first_point_of_layer;
+    }();
+
+    // prune of empty layers at the back
+    for(m_layers = 0; first_point_of_layer[m_layers]; ++m_layers) {}
 
     // build spatial structure and find insertion level for each layer based on lower bound on radius for current and smallest layer
     {
