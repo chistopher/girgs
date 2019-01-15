@@ -26,6 +26,10 @@ if(OPTION_BUILD_TESTS AND NOT MINGW)
     add_subdirectory(tests)
 endif()
 
+# Benchmarks
+set(IDE_FOLDER "Benchmarks")
+add_subdirectory(benchmarks)
+
 
 #
 # Deployment
