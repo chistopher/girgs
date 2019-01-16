@@ -96,24 +96,49 @@ HyperbolicTree<EdgeCallback>::HyperbolicTree(std::vector<double> &radii, std::ve
         ScopedTimer timer("Find first point in cell", m_profile);
         constexpr auto gap_cell_indicator = std::numeric_limits<unsigned int>::max();
 
+            m_first_point_in_cell.resize(max_cell_id+1, gap_cell_indicator);
+        m_first_point_in_cell.back() = m_n;
 
         // First we mark the begin of cells that actually contain points
         // and repair the gaps (i.e., empty cells) later.
         // In the mean time, gaps will remain at m_n.
         m_first_point_in_cell[m_points.front().cell_id] = 0;
-        for(auto i=1; i != m_n; ++i) {
+        #pragma omp parallel for
+        for(int i=1; i < m_n; ++i) {
             if (m_points[i-1].cell_id != m_points[i].cell_id) {
                 m_first_point_in_cell[m_points[i].cell_id] = i;
             }
         }
 
         // Now repair gaps: since m_first_point_in_cell shell contain
-        // a prefix sum, we simply replace any m_n (but the last)
-        // with its left-most non-m_n successor
-        for(auto i=max_cell_id-1; i--;) {
-            m_first_point_in_cell[i] = std::min(
-                m_first_point_in_cell[i],
-                m_first_point_in_cell[i+1]);
+        // a prefix sum, we simply replace any "gap_cell_indicator"
+        // with its left-most non-gap successor. In the main loop,
+        // this is always the direct successors since we're iterating
+        // from right to left.
+        #pragma omp parallel
+        {
+            const auto threads = omp_get_num_threads();
+            const auto rank    = omp_get_thread_num();
+            const auto chunk_size = (max_cell_id + threads - 1) / threads; // = ceil(max_cell_id / threads)
+
+            const auto begin = std::min(max_cell_id, chunk_size * rank);
+            const auto end   = std::min(max_cell_id, chunk_size * (rank + 1));
+
+            // Fix right-most of thread's elements by looking into chunk of next thread.
+            // We do not need an end of array check, since it's guaranteed that the last
+            // element is m_n. Also, technically, we need to carry out atomic load/stores
+            // here, but there're no torn writes since we're updating word-wise (hopefully)
+            {
+                int first_non_invalid = end - 1;
+                while (m_first_point_in_cell[first_non_invalid] == gap_cell_indicator)
+                    first_non_invalid++;
+                m_first_point_in_cell[end - 1] = m_first_point_in_cell[first_non_invalid];
+            }
+
+            unsigned int i = end;
+            while(i-- > begin) {
+                m_first_point_in_cell[i] = std::min(m_first_point_in_cell[i], m_first_point_in_cell[i + 1]);
+            }
         }
 
 #ifndef NDEBUG
