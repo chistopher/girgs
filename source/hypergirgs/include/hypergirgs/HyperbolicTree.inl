@@ -9,8 +9,9 @@
 namespace hypergirgs {
 
 template <typename EdgeCallback>
-HyperbolicTree<EdgeCallback>::HyperbolicTree(std::vector<double> &radii, std::vector<double> &angles, double T, double R, EdgeCallback& edgeCallback)
+HyperbolicTree<EdgeCallback>::HyperbolicTree(std::vector<double> &radii, std::vector<double> &angles, double T, double R, EdgeCallback& edgeCallback, bool profile)
     : m_edgeCallback(edgeCallback)
+    , m_profile(profile)
     , m_n(radii.size())
     , m_coshR(std::cosh(R))
     , m_T(T)
@@ -61,19 +62,23 @@ HyperbolicTree<EdgeCallback>::HyperbolicTree(std::vector<double> &radii, std::ve
 
     // pre-compute values for fast distance computation and also compute
     // the cell a point belongs to
-    #pragma omp parallel if (m_n > 10000)
-    for (int i = 0; i < m_n; ++i) {
-        const auto layer = radius_to_layer(radii[i]);
-        const auto level = level_of_layer[layer];
-        const auto cell = first_cell_of_layer[layer] + AngleHelper::cellForPoint(angles[i], level);
+    {
+        ScopedTimer timer("Classify points & precompute coordinates", m_profile);
 
-        auto& pt = m_points[i];
-        pt = Point(i, radii[i], angles[i], cell);
+        #pragma omp parallel for
+        for (int i = 0; i < m_n; ++i) {
+            const auto layer = radius_to_layer(radii[i]);
+            const auto level = level_of_layer[layer];
+            const auto cell = first_cell_of_layer[layer] + AngleHelper::cellForPoint(angles[i], level);
+
+            auto &pt = m_points[i];
+            pt = Point(i, radii[i], angles[i], cell);
+        }
     }
 
     // Sort points by cell-ids
     {
-        ScopedTimer timer("Sorting points");
+        ScopedTimer timer("Sort points", m_profile);
 
         auto compare = [] (const Point& a, const Point& b) {return a.cell_id < b.cell_id;};
 
@@ -88,8 +93,8 @@ HyperbolicTree<EdgeCallback>::HyperbolicTree(std::vector<double> &radii, std::ve
 
     // compute pointers into m_points
     {
-        m_first_point_in_cell.resize(max_cell_id+1, std::numeric_limits<unsigned int>::max());
-        m_first_point_in_cell.back() = m_n;
+        ScopedTimer timer("Find first point in cell", m_profile);
+        constexpr auto gap_cell_indicator = std::numeric_limits<unsigned int>::max();
 
 
         // First we mark the begin of cells that actually contain points
@@ -134,7 +139,7 @@ HyperbolicTree<EdgeCallback>::HyperbolicTree(std::vector<double> &radii, std::ve
 
     // build spatial structure and find insertion level for each layer based on lower bound on radius for current and smallest layer
     {
-        ScopedTimer timer("Build data structure");
+        ScopedTimer timer("Build data structure", m_profile);
         for (auto layer = 0u; layer < m_layers; ++layer) {
             m_radius_layers.emplace_back(
                 layer_rad_min(layer), layer_rad_max(layer), level_of_layer[layer],
@@ -145,10 +150,13 @@ HyperbolicTree<EdgeCallback>::HyperbolicTree(std::vector<double> &radii, std::ve
     m_levels = m_radius_layers[0].m_target_level + 1;
 
     // determine which layer pairs to sample in which level
-    m_layer_pairs.resize(m_levels);
-    for (auto i = 0u; i < m_layers; ++i)
-        for (auto j = 0u; j < m_layers; ++j)
-            m_layer_pairs[partitioningBaseLevel(m_radius_layers[i].m_r_min, m_radius_layers[j].m_r_min)].emplace_back(i,j);
+    {
+        ScopedTimer timer("Layer Pairs", m_profile);
+        m_layer_pairs.resize(m_levels);
+        for (auto i = 0u; i < m_layers; ++i)
+            for (auto j = 0u; j < m_layers; ++j)
+                m_layer_pairs[partitioningBaseLevel(m_radius_layers[i].m_r_min, m_radius_layers[j].m_r_min)].emplace_back(i, j);
+    }
 }
 
 template <typename EdgeCallback>

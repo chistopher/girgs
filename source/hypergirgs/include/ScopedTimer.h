@@ -31,61 +31,70 @@
 #include <string>
 #include <sstream>
 #include <chrono>
+#include <cassert>
 
 class ScopedTimer {
     using Clock = std::chrono::high_resolution_clock;
 
-    std::string _prefix;
-    Clock::time_point _begin;
+    Clock::time_point m_begin;
+    bool m_started {false};
 
-    uint64_t _scale;
-    double _offset;
-
-    double* _output;
+    std::string m_prefix;
+    double* m_output {nullptr};
 
 public:
     ScopedTimer()
-          : _begin(Clock::now()), _scale(1), _offset(0), _output(nullptr)
+          : m_begin(Clock::now())
     {}
 
-    ScopedTimer(const std::string& prefix, uint64_t scale=0, double offset=0.0)
-          : _prefix(prefix), _begin(Clock::now()), _scale(scale), _offset(offset), _output(nullptr)
-    {}
+    ScopedTimer(const std::string& prefix, bool autostart = true)
+          : m_prefix(prefix), m_output(nullptr)
+    {
+        if (autostart) start();
+    }
 
-    ScopedTimer(double& output) : _begin(Clock::now()), _scale(1), _offset(0), _output(&output) {}
+    ScopedTimer(double& output, bool autostart = true)
+        : m_output(&output)
+    {
+        if (autostart) start();
+    }
+
+    ScopedTimer(const std::string& prefix, double& output, bool autostart = true)
+        : m_prefix(prefix), m_output(&output)
+    {
+        if (autostart) start();
+    }
+
 
     ~ScopedTimer() {
-        if (!_prefix.empty())
+        if (!m_started)
+            return;
+
+        if (!m_prefix.empty())
             report();
 
-        if (_output)
-            *_output = elapsed();
+        if (m_output)
+            *m_output = elapsed();
     }
 
-    void start() {
-        _begin = Clock::now();
+    void start() noexcept {
+        m_begin = Clock::now();
+        m_started = true;
     }
 
-    double elapsed() const {
+    double elapsed() const noexcept {
         const auto t2 = Clock::now();
-        std::chrono::duration<double> time_span =
-                std::chrono::duration_cast<std::chrono::duration<double>>(t2 - _begin);
-
-        return (time_span.count()*1e3) - _offset;
+        return std::chrono::duration_cast<std::chrono::duration<double, std::milli>>(t2 - m_begin).count();
     }
 
     double report() const {
-        return report(_prefix);
+        return report(m_prefix);
     }
 
     double report(const std::string & prefix) const {
+        assert(m_started);
         const double timeUs = elapsed();
-        
-        if (!_scale) {
-            std::cout << prefix << " Time elapsed: " << timeUs << "ms" << std::endl;
-        } else {
-            std::cout << prefix << " Time elapsed: " << timeUs << "ms / " << _scale << " = " <<  (1e3*timeUs / _scale) << "us" << std::endl;
-        }
+        std::cout << prefix << " Time elapsed: " << timeUs << "ms" << std::endl;
 
         return timeUs;
     }

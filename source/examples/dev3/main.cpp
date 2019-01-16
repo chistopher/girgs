@@ -48,7 +48,7 @@ int main(int argc, char* argv[]) {
     // Preprocess
     auto generator = [&] {
         ScopedTimer timer("Preprocess", time_preprocess);
-        return hypergirgs::makeHyperbolicTree(radii, angles, T, R, addEdge);
+        return hypergirgs::makeHyperbolicTree(radii, angles, T, R, addEdge, true);
     }();
 
     // Generate edges
