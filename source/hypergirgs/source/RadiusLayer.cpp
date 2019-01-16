@@ -8,51 +8,22 @@
 
 namespace hypergirgs {
 
-
-RadiusLayer::RadiusLayer(double r_min, double r_max,
-                         unsigned int targetLevel, unsigned int firstCell,
-                         const Point* begin, const Point* end)
-: m_r_min(r_min)
-, m_r_max(r_max)
-, m_target_level(targetLevel)
-, m_base(begin)
+RadiusLayer::RadiusLayer(double r_min, double r_max, unsigned int targetLevel,
+            const Point* base, const unsigned int* prefix_sum)
+    : m_r_min{r_min}, m_r_max{r_max}, m_target_level{targetLevel},
+      m_base{base}, m_prefix_sums{prefix_sum}
 {
+#ifndef NDEBUG
     const auto cellsInLevel = AngleHelper::numCellsInLevel(targetLevel);
 
-    m_prefix_sums.resize(cellsInLevel+1, 0);
+    const auto begin = m_base + m_prefix_sums[0];
+    const auto end   = m_base + m_prefix_sums[cellsInLevel];
 
-    // Despite taking three passes through m_prefix_sums,
-    // this algorithm performs faster than scanning through
-    // the points and m_prefix_sums only once and exploiting
-    // that the points are sorted by their cell ids
-
-    // count num of points in each cell
-    int i = 0;
-    for(auto it = begin; it != end; ++it, ++i) {
+    for(auto it = begin; it != end; ++it) {
         // check radius lies within layer's radial bound
         assert(m_r_min <= it->radius);
         assert(it->radius <= m_r_max);
-
-        // check cell id lies with layer's bound
-        assert(firstCell <= it->cell_id);
-        assert(it->cell_id < firstCell + cellsInLevel);
-
-        const auto cell = it->cell_id - firstCell;
-        ++m_prefix_sums[cell];
     }
-
-    // compute exclusive prefix sums
-    // prefix_sums[i] is the number of all points in cells j<i of the same level
-    {
-        assert(m_prefix_sums.back() == 0);
-        unsigned sum = 0;
-        for(auto& val : m_prefix_sums)  {
-            const auto tmp = val;
-            val = sum;
-            sum += tmp;
-        }
-        assert(m_prefix_sums.back() == std::distance(begin, end));
-    }
+#endif
 }
-
 } // namespace hypergirgs

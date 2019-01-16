@@ -18,10 +18,8 @@ public:
 
 	RadiusLayer() = delete;
 
-	RadiusLayer(double r_min, double r_max,
-	            unsigned int targetLevel, unsigned int firstCell,
-				const Point* begin, const Point* end);
-
+	RadiusLayer(double r_min, double r_max, unsigned int targetLevel,
+                const Point* base, const unsigned int* prefix_sum);
 
     int pointsInCell(unsigned int cell, unsigned int level) const {
         auto cellBoundaries = levelledCell(cell, level);
@@ -43,8 +41,10 @@ public:
 
     std::pair<const Point*, const Point*> cellIterators(unsigned int cell, unsigned int level) const {
         auto cellBoundaries = levelledCell(cell, level);
-        return {m_base + m_prefix_sums[cellBoundaries.first],
-                m_base + m_prefix_sums[cellBoundaries.second+1]};
+        const auto begin_end = std::make_pair(m_base + m_prefix_sums[cellBoundaries.first],
+                m_base + m_prefix_sums[cellBoundaries.second+1]);
+        assert(begin_end.first <= begin_end.second);
+        return begin_end;
     }
 
 
@@ -54,8 +54,8 @@ public:
     const unsigned int m_target_level;
 
 protected:
-    const Point* m_base;                    ///< Pointer to the first point stored in this layer
-    std::vector<int>   m_prefix_sums;       ///< for each cell c in target level: the sum of points of this layer in all cells <c
+    const Point*  m_base;                ///< Pointer to the first point stored in this layer
+    const unsigned int* m_prefix_sums;   ///< for each cell c in target level: the sum of points of this layer in all cells <c
 
     std::pair<unsigned int, unsigned int> levelledCell(unsigned int cell, unsigned int level) const {
         assert(level <= m_target_level);
@@ -68,6 +68,8 @@ protected:
         auto localIndexDescendant = localIndexCell * descendants; // each cell before the parent splits in 2^D cells in the next layer that are all before our descendant
         auto begin = localIndexDescendant;
         auto end = begin + descendants - 1;
+
+        assert(begin <= end);
 
         return {begin, end};
     }

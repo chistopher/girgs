@@ -74,58 +74,71 @@ HyperbolicTree<EdgeCallback>::HyperbolicTree(std::vector<double> &radii, std::ve
     // Sort points by cell-ids
     {
         ScopedTimer timer("Sorting points");
+
+        auto compare = [] (const Point& a, const Point& b) {return a.cell_id < b.cell_id;};
+
         intsort::intsort(m_points, [] (const Point& p) {return p.cell_id;}, max_cell_id + 1);
-        //std::sort(m_points.begin(), m_points.end(), [] (const Point& a, const Point& b) {return a.cell_id < b.cell_id;});
+        //std::sort(m_points.begin(), m_points.end(), compare);
+
+        assert(std::is_sorted(m_points.begin(), m_points.end(), compare));
     }
 
-    // position i+1 stores
-    const auto first_point_of_layer = [&] {
-        std::vector<unsigned int> first_point_of_layer(m_layers + 1, 0);
-        first_point_of_layer.front() = m_n;
+    // prune of empty layers at the back
+    for(m_layers = 1; first_cell_of_layer[m_layers-1] > m_points.front().cell_id; ++m_layers) {}
 
-        for (auto layer = 0; first_cell_of_layer[layer]; ++layer) {
-            const auto first_cell = first_cell_of_layer[layer];
+    // compute pointers into m_points
+    {
+        m_first_point_in_cell.resize(max_cell_id+1, std::numeric_limits<unsigned int>::max());
+        m_first_point_in_cell.back() = m_n;
 
-            first_point_of_layer[layer+1] = std::distance(m_points.cbegin(),
-                std::upper_bound(
-                    m_points.cbegin(), m_points.cbegin() + first_point_of_layer[layer],
-                    first_cell - 1, [](int cell_id, const Point &p) { return cell_id < p.cell_id; }
-                )
-            );
 
-#ifndef NDEBUG
-            // assert that points lie within cell-id range and radial range
-            {
-                const auto cid_min = first_cell;
-                const auto cid_max = first_cell + AngleHelper::numCellsInLevel(level_of_layer[layer]);
-
-                const auto r_min = layer_rad_min(layer);
-                const auto r_max = layer_rad_max(layer);
-
-                for (int i = first_point_of_layer[layer+1]; i != first_point_of_layer[layer]; ++i) {
-                    const auto& pt = m_points[i];
-                    assert(cid_min <= pt.cell_id && pt.cell_id < cid_max);
-                    assert(r_min   <= pt.radius  && pt.radius  < r_max);
-                }
+        // First we mark the begin of cells that actually contain points
+        // and repair the gaps (i.e., empty cells) later.
+        // In the mean time, gaps will remain at m_n.
+        m_first_point_in_cell[m_points.front().cell_id] = 0;
+        for(auto i=1; i != m_n; ++i) {
+            if (m_points[i-1].cell_id != m_points[i].cell_id) {
+                m_first_point_in_cell[m_points[i].cell_id] = i;
             }
-#endif
         }
 
-        return first_point_of_layer;
-    }();
+        // Now repair gaps: since m_first_point_in_cell shell contain
+        // a prefix sum, we simply replace any m_n (but the last)
+        // with its left-most non-m_n successor
+        for(auto i=max_cell_id-1; i--;) {
+            m_first_point_in_cell[i] = std::min(
+                m_first_point_in_cell[i],
+                m_first_point_in_cell[i+1]);
+        }
 
-    // prune of empty layers at the back
-    for(m_layers = 0; first_point_of_layer[m_layers]; ++m_layers) {}
+#ifndef NDEBUG
+        {
+            assert(m_points.back().cell_id < max_cell_id);
+
+            // assert that we have a prefix sum starting at 0 and ending in m_n
+            assert(m_first_point_in_cell.front() == 0);
+            assert(m_first_point_in_cell.back()  == m_n);
+            assert(std::is_sorted(m_first_point_in_cell.cbegin(), m_first_point_in_cell.cend()));
+
+            // check that each point is in its right cell (and that the cell boundaries are correct)
+            for(auto cid = 0u; cid != max_cell_id; ++cid) {
+                const auto begin = m_points.data() + m_first_point_in_cell[cid];
+                const auto end   = m_points.data() + m_first_point_in_cell[cid+1];
+                for(auto it = begin; it != end; ++it)
+                    assert(it->cell_id == cid);
+            }
+        }
+#endif
+    }
+
 
     // build spatial structure and find insertion level for each layer based on lower bound on radius for current and smallest layer
     {
         ScopedTimer timer("Build data structure");
         for (auto layer = 0u; layer < m_layers; ++layer) {
             m_radius_layers.emplace_back(
-                layer_rad_min(layer), layer_rad_max(layer),
-                level_of_layer[layer], first_cell_of_layer[layer],
-                m_points.data() + first_point_of_layer[layer + 1],
-                m_points.data() + first_point_of_layer[layer    ]); // [sic!] first_point_of_layer is reversed!
+                layer_rad_min(layer), layer_rad_max(layer), level_of_layer[layer],
+                m_points.data(), m_first_point_in_cell.data() + first_cell_of_layer[layer]);
         }
     }
 
