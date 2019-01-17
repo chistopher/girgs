@@ -4,19 +4,18 @@
 
 #include <hypergirgs/Hyperbolic.h>
 #include <ScopedTimer.h>
-#include <IntSort.h>
 
 namespace hypergirgs {
 
 template <typename EdgeCallback>
-HyperbolicTree<EdgeCallback>::HyperbolicTree(std::vector<double> &radii, std::vector<double> &angles, double T, double R, EdgeCallback& edgeCallback, bool profile)
+HyperbolicTree<EdgeCallback>::HyperbolicTree(std::vector<double> &radii, std::vector<double> &angles,
+    double T, double R, EdgeCallback& edgeCallback, bool enable_profiling)
     : m_edgeCallback(edgeCallback)
-    , m_profile(profile)
+    , m_profile(enable_profiling)
     , m_n(radii.size())
     , m_coshR(std::cosh(R))
     , m_T(T)
     , m_R(R)
-    , m_points(m_n)
     , m_gen()
     , m_dist()
     #ifndef NDEBUG
@@ -24,161 +23,18 @@ HyperbolicTree<EdgeCallback>::HyperbolicTree(std::vector<double> &radii, std::ve
     , m_type2_checks(0)
     #endif // NDEBUG
 {
-    assert(radii.size() == angles.size());
+    const auto layer_height = 1.0;
 
-    // translate radius <-> layer
-    const auto layer_height = 1.0; //std::log(2.0)/0.75;
-    auto radius_to_layer = [R, layer_height] (double radius) {return static_cast<unsigned int>( (R - radius) / layer_height );};
-    auto layer_rad_max   = [R, layer_height] (int l) {return R - l * layer_height;};
-    auto layer_rad_min   = [R, layer_height] (int l) {return R - l * layer_height - layer_height;};
-    const auto r_min_outer = R - layer_height;
-
-    m_layers = static_cast<unsigned int>(std::ceil(R/layer_height));
-
-    // generate look-up to get the level of a layer
-    const auto level_of_layer = [&] {
-        std::vector<int> level_of_layer(m_layers);
-        for (int l = 0; l != m_layers; ++l) {
-            level_of_layer[l] = partitioningBaseLevel(layer_rad_min(l), r_min_outer);
-        }
-        assert(std::is_sorted(level_of_layer.crbegin(), level_of_layer.crend()));
-        return level_of_layer;
-    }();
-
-    // since there can be multiple layers at the same level, we cannot
-    // rely on AngleHelper::firstCellInLevel find a unique first cell
-    // of a layer. Hence we precompute the first cell as a (reverse)
-    // prefix sum
-    const auto first_cell_of_layer = [&] {
-        std::vector<unsigned int> first_cell_of_layer(m_layers);
-        unsigned int sum = 0;
-        for (auto l = m_layers; l--;) {
-            first_cell_of_layer[l] = sum;
-            sum += AngleHelper::numCellsInLevel(level_of_layer[l]);
-        }
-        return first_cell_of_layer;
-    }();
-    const auto max_cell_id = first_cell_of_layer.front() + AngleHelper::numCellsInLevel(level_of_layer[0]);
-
-    // pre-compute values for fast distance computation and also compute
-    // the cell a point belongs to
-    {
-        ScopedTimer timer("Classify points & precompute coordinates", m_profile);
-
-        #pragma omp parallel for
-        for (int i = 0; i < m_n; ++i) {
-            const auto layer = radius_to_layer(radii[i]);
-            const auto level = level_of_layer[layer];
-            const auto cell = first_cell_of_layer[layer] + AngleHelper::cellForPoint(angles[i], level);
-
-            auto &pt = m_points[i];
-            pt = Point(i, radii[i], angles[i], cell);
-        }
-    }
-
-    // Sort points by cell-ids
-    {
-        ScopedTimer timer("Sort points", m_profile);
-
-        auto compare = [] (const Point& a, const Point& b) {return a.cell_id < b.cell_id;};
-
-        intsort::intsort(m_points, [] (const Point& p) {return p.cell_id;}, max_cell_id + 1);
-        //std::sort(m_points.begin(), m_points.end(), compare);
-
-        assert(std::is_sorted(m_points.begin(), m_points.end(), compare));
-    }
-
-    // prune of empty layers at the back
-    for(m_layers = 1; first_cell_of_layer[m_layers-1] > m_points.front().cell_id; ++m_layers) {}
-
-    // compute pointers into m_points
-    {
-        ScopedTimer timer("Find first point in cell", m_profile);
-        constexpr auto gap_cell_indicator = std::numeric_limits<unsigned int>::max();
-
-            m_first_point_in_cell.resize(max_cell_id+1, gap_cell_indicator);
-        m_first_point_in_cell.back() = m_n;
-
-        // First we mark the begin of cells that actually contain points
-        // and repair the gaps (i.e., empty cells) later.
-        // In the mean time, gaps will remain at m_n.
-        m_first_point_in_cell[m_points.front().cell_id] = 0;
-        #pragma omp parallel for
-        for(int i=1; i < m_n; ++i) {
-            if (m_points[i-1].cell_id != m_points[i].cell_id) {
-                m_first_point_in_cell[m_points[i].cell_id] = i;
-            }
-        }
-
-        // Now repair gaps: since m_first_point_in_cell shell contain
-        // a prefix sum, we simply replace any "gap_cell_indicator"
-        // with its left-most non-gap successor. In the main loop,
-        // this is always the direct successors since we're iterating
-        // from right to left.
-        #pragma omp parallel
-        {
-            const auto threads = omp_get_num_threads();
-            const auto rank    = omp_get_thread_num();
-            const auto chunk_size = (max_cell_id + threads - 1) / threads; // = ceil(max_cell_id / threads)
-
-            // Fix right-most of thread's elements by looking into chunk of next thread.
-            // We do not need an end of array check, since it's guaranteed that the last
-            // element is m_n. We're using on this very short code block to avoid UB
-            // even if we're only performing word-wise updates.
-            #pragma omp single
-            {
-                for (int r = 0; r < threads; r++){
-                    const auto end   = std::min(max_cell_id, chunk_size * (r + 1));
-                    int first_non_invalid = end - 1;
-                    while (m_first_point_in_cell[first_non_invalid] == gap_cell_indicator)
-                        first_non_invalid++;
-                    m_first_point_in_cell[end - 1] = m_first_point_in_cell[first_non_invalid];
-                }
-            }
-
-            const auto begin = std::min(max_cell_id, chunk_size * rank);
-
-            auto i  = std::min(max_cell_id, begin + chunk_size);
-            while (i-- > begin) {
-                m_first_point_in_cell[i] = std::min(m_first_point_in_cell[i], m_first_point_in_cell[i + 1]);
-            }
-        }
-
-#ifndef NDEBUG
-        {
-            assert(m_points.back().cell_id < max_cell_id);
-
-            // assert that we have a prefix sum starting at 0 and ending in m_n
-            assert(m_first_point_in_cell.front() == 0);
-            assert(m_first_point_in_cell.back()  == m_n);
-            assert(std::is_sorted(m_first_point_in_cell.cbegin(), m_first_point_in_cell.cend()));
-
-            // check that each point is in its right cell (and that the cell boundaries are correct)
-            for(auto cid = 0u; cid != max_cell_id; ++cid) {
-                const auto begin = m_points.data() + m_first_point_in_cell[cid];
-                const auto end   = m_points.data() + m_first_point_in_cell[cid+1];
-                for(auto it = begin; it != end; ++it)
-                    assert(it->cell_id == cid);
-            }
-        }
-#endif
-    }
-
-    // build spatial structure and find insertion level for each layer based on lower bound on radius for current and smallest layer
-    {
-        ScopedTimer timer("Build data structure", m_profile);
-        for (auto layer = 0u; layer < m_layers; ++layer) {
-            m_radius_layers.emplace_back(
-                layer_rad_min(layer), layer_rad_max(layer), level_of_layer[layer],
-                m_points.data(), m_first_point_in_cell.data() + first_cell_of_layer[layer]);
-        }
-    }
-
+    // compute partition and transfer into own object
+    m_radius_layers = RadiusLayer::buildPartition(radii, angles, R, layer_height, enable_profiling);
+    m_points = m_radius_layers.front().getPoints();
+    m_first_point_in_cell = m_radius_layers.front().getPrefixSum();
+    m_layers = m_radius_layers.size();
     m_levels = m_radius_layers[0].m_target_level + 1;
 
     // determine which layer pairs to sample in which level
     {
-        ScopedTimer timer("Layer Pairs", m_profile);
+        ScopedTimer timer("Layer Pairs", enable_profiling);
         m_layer_pairs.resize(m_levels);
         for (auto i = 0u; i < m_layers; ++i)
             for (auto j = 0u; j < m_layers; ++j)
@@ -297,14 +153,7 @@ void HyperbolicTree<EdgeCallback>::sampleTypeII(unsigned int cellA, unsigned int
 
 template <typename EdgeCallback>
 unsigned int HyperbolicTree<EdgeCallback>::partitioningBaseLevel(double r1, double r2) {
-    auto level = 0u;
-    auto cellDiameter = 2.0*PI;
-    // find deepest level in which points in all non-touching cells are not connected
-    while(hypergirgs::hyperbolicDistance(r1, 0, r2, (cellDiameter/2)) > m_R){
-        level++;
-        cellDiameter /= 2;
-    }
-    return level;
+    return RadiusLayer::partitioningBaseLevel(r1, r2, m_R);
 }
 
 

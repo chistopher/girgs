@@ -47,12 +47,11 @@ protected:
     unsigned int m_layers; ///< number of layers
     unsigned int m_levels; ///< number of levels
 
-    // TODO: All of this are of constant size, we might want to replace them by unique_ptr
-    std::vector<Point> m_points;                     ///< vector of points
-    std::vector<unsigned int> m_first_point_in_cell; ///< prefix sum into m_points
+    std::shared_ptr<Point[]> m_points;                     ///< vector of points
+    std::shared_ptr<unsigned int[]> m_first_point_in_cell; ///< prefix sum into m_points
     std::vector<RadiusLayer> m_radius_layers;
 
-    std::vector<std::vector<std::pair<unsigned int, unsigned int>>> m_layer_pairs;
+    std::vector<std::vector<std::pair<unsigned int, unsigned int> > > m_layer_pairs;
 
     hypergirgs::default_random_engine m_gen; ///< random generator
     std::uniform_real_distribution<> m_dist; ///< random distribution

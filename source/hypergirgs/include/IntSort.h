@@ -10,6 +10,7 @@
 #include <limits>
 #include <array>
 #include <vector>
+#include <memory>
 #include <tuple>
 #include <algorithm>
 #include <type_traits>
@@ -68,35 +69,16 @@ public:
     {
     }
 
-    template<typename Iter>
-    bool sort(const Iter begin, std::vector<T>& buffer) {
-        const size_t n = buffer.size();
-
-        //const size_t n = buffer.size();
+    template<typename Iter, typename IterBuf>
+    bool sort(const Iter begin, const IterBuf buf_begin, const size_t n) {
         if (n < 2 || max_key < 1)
             return false; // in these cases the input is trivially sorted
-
 
         const auto max_threads = std::min<int>(omp_get_max_threads(), idiv_ceil(n, 1 << 17));
 
         // compute how many iterations we need to sort numbers [0, ..., max_key], i.e. log(max_key, base=RADIX_WIDTH)
         std::array<size_t, no_queues + 1> splitter;
         splitter[no_queues] = n;
-
-
-        #ifndef NDEBUG
-        {
-            size_t i = 0;
-            for (auto it = begin; it != begin + n; ++it, ++i) {
-                if (key_extract(*it) > max_key) {
-                    std::cerr << "key_extract(*it)=" << key_extract(*it)
-                              << " > max_key=" << max_key
-                              << " at position i=" << i << std::endl;
-                    abort();
-                }
-            }
-        }
-        #endif
 
         // perform the first round as MSB radix sort which will yield indendent
         // chunks which then can be sorted pleasingly parallel. We add some padding
@@ -155,7 +137,7 @@ public:
                     const auto key = key_extract(*it);
                     const auto shifted = key >> msb_shift;
                     const auto index = queue_pointer[shifted]++;
-                    buffer[index] = std::move(*it);
+                    buf_begin[index] = std::move(*it);
                 }
             }
 
@@ -173,7 +155,7 @@ public:
                     if (splitter[i] == splitter[i + 1]) continue;
 
 					const size_t size = splitter[i + 1] - splitter[i];
-                    auto input_base = buffer.begin() + splitter[i];
+                    auto input_base = buf_begin + splitter[i];
                     auto buffer_base = begin + splitter[i];
 
                     // iteration 0
@@ -294,7 +276,7 @@ inline void intsort(const Iter begin, const Iter end, KeyExtract key_extract,
     std::vector<T> buffer(n);
 
 	IntSortInternal::IntSortImpl<T, Key, KeyExtract, RADIX_WIDTH> sorter(key_extract, max_key);
-    bool need_buffer = sorter.sort(begin, buffer);
+    bool need_buffer = sorter.sort(begin, buffer.begin(), n);
 
     if (need_buffer)
         std::copy(buffer.cbegin(), buffer.cend(), begin);
@@ -316,10 +298,51 @@ inline void intsort(std::vector<T> &input, KeyExtract key_extract,
     std::vector<T> buffer(n);
 
 	IntSortInternal::IntSortImpl<T, Key, KeyExtract, RADIX_WIDTH> sorter(key_extract, max_key);
-    bool need_buffer = sorter.sort(begin, buffer);
+    bool need_buffer = sorter.sort(begin, buffer.begin(), n);
 
     if (need_buffer) input.swap(buffer);
 }
+
+/**
+ * If the data to be sorted is stored in a vector, it is beneficial to use this
+ * specialisation, as it avoids (if necessary) copying the data from the temporary
+ * buffer back into the input buffer in the last step.
+ */
+template<typename T, typename KeyExtract, typename Key, size_t RADIX_WIDTH = 8>
+inline void intsort(std::shared_ptr<T[]> &input, const size_t n,
+                    KeyExtract key_extract,
+                    const Key max_key = std::numeric_limits<Key>::max()) {
+    auto begin = input.get();
+    auto end = begin + n;
+
+    std::shared_ptr<T[]> buffer{new T[n]};
+
+    IntSortInternal::IntSortImpl<T, Key, KeyExtract, RADIX_WIDTH> sorter(key_extract, max_key);
+    bool need_buffer = sorter.sort(begin, buffer.get(), n);
+
+    if (need_buffer) input.swap(buffer);
+}
+
+/**
+ * If the data to be sorted is stored in a vector, it is beneficial to use this
+ * specialisation, as it avoids (if necessary) copying the data from the temporary
+ * buffer back into the input buffer in the last step.
+ */
+template<typename T, typename KeyExtract, typename Key, size_t RADIX_WIDTH = 8>
+inline void intsort(std::unique_ptr<T[]> &input, const size_t n,
+                    KeyExtract key_extract,
+                    const Key max_key = std::numeric_limits<Key>::max()) {
+    auto begin = input.get();
+    auto end = begin + n;
+
+    std::unique_ptr<T[]> buffer{new T[n]};
+
+    IntSortInternal::IntSortImpl<T, Key, KeyExtract, RADIX_WIDTH> sorter(key_extract, max_key);
+    bool need_buffer = sorter.sort(begin, buffer.get(), n);
+
+    if (need_buffer) input.swap(buffer);
+}
+
 
 } // namespace: intsort
 
