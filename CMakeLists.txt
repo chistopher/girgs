@@ -29,6 +29,7 @@ include(WriteCompilerDetectionHeader)
 # Include custom cmake modules
 include(cmake/GenerateTemplateExportHeader.cmake)
 include(cmake/GetGitRevisionDescription.cmake)
+include(cmake/DownloadProject.cmake)
 
 
 #
@@ -68,6 +69,7 @@ string(TOUPPER ${META_PROJECT_ID} META_PROJECT_ID)
 option(BUILD_SHARED_LIBS      "Build shared instead of static libraries."              ON)
 option(OPTION_SELF_CONTAINED  "Create a self-contained install with all dependencies." OFF)
 option(OPTION_BUILD_TESTS     "Build tests."                                           ON)
+option(OPTION_BUILD_BENCHMARKS "Build tests."                                          ON)
 option(OPTION_BUILD_EXAMPLES  "Build examples."                                        ON)
 option(OPTION_BUILD_DOCS      "Build documentation."                                   OFF)
 

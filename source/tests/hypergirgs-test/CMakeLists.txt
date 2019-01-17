@@ -1,11 +1,5 @@
 
 #
-# External dependencies
-#
-
-find_package(${META_PROJECT_NAME} REQUIRED HINTS "${CMAKE_CURRENT_SOURCE_DIR}/../../../")
-
-#
 # Executable name and options
 #
 
@@ -69,7 +63,8 @@ target_link_libraries(${target}
     PRIVATE
     ${DEFAULT_LIBRARIES}
     ${META_PROJECT_NAME}::hypergirgs
-    gmock-dev
+    gmock
+    gtest
 )
 
 
