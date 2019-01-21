@@ -27,6 +27,7 @@ bool AngleHelper::touching(unsigned int cellA, unsigned int cellB, unsigned int 
 double AngleHelper::dist(unsigned int cellA, unsigned int cellB, unsigned int level) {
     auto mm = std::minmax(cellA,cellB);
     auto diff = mm.second - mm.first;
+    diff = std::min(diff, numCellsInLevel(level) - diff);
     return (diff <= 1) ? 0 : (diff-1) * 2.0*PI / (1<<level);
 }
 

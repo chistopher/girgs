@@ -131,14 +131,22 @@ void HyperbolicTree<EdgeCallback>::sampleTypeI(unsigned int cellA, unsigned int 
             assert(cellA - AngleHelper::firstCellOfLevel(level) == AngleHelper::cellForPoint(nodeInA.angle, level));
             assert(cellB - AngleHelper::firstCellOfLevel(level) == AngleHelper::cellForPoint(nodeInB.angle, level));
 
-            // points are in correct weight layer
+            // points are in correct radius layer
             assert(m_radius_layers[i].m_r_min < nodeInA.radius && nodeInA.radius <= m_radius_layers[i].m_r_max);
             assert(m_radius_layers[j].m_r_min < nodeInB.radius && nodeInB.radius <= m_radius_layers[j].m_r_max);
 
             assert(nodeInA != nodeInB);
-            if (nodeInA.isDistanceBelowR(nodeInB, m_coshR)) {
-                assert(hyperbolicDistance(nodeInA.radius, nodeInA.angle, nodeInB.radius, nodeInB.angle) < m_R);
-                m_edgeCallback(nodeInA.id, nodeInB.id, threadId);
+            if(m_T==0) {
+                if (nodeInA.isDistanceBelowR(nodeInB, m_coshR)) {
+                    assert(hyperbolicDistance(nodeInA.radius, nodeInA.angle, nodeInB.radius, nodeInB.angle) < m_R);
+                    m_edgeCallback(nodeInA.id, nodeInB.id, threadId);
+                }
+            } else {
+                auto dist = hyperbolicDistance(nodeInA.radius, nodeInA.angle, nodeInB.radius, nodeInB.angle);
+                auto connection_prob = 1.0 / (1.0 + std::exp(0.5/m_T*(dist-m_R)));
+                if(m_dist(m_gen) < connection_prob) {
+                    m_edgeCallback(nodeInA.id, nodeInB.id, threadId);
+                }
             }
         }
     }
@@ -149,17 +157,63 @@ void HyperbolicTree<EdgeCallback>::sampleTypeII(unsigned int cellA, unsigned int
 
     auto sizeV_i_A = m_radius_layers[i].pointsInCell(cellA, level);
     auto sizeV_j_B = m_radius_layers[j].pointsInCell(cellB, level);
-    if (sizeV_i_A == 0 || sizeV_j_B == 0)
+    if (m_T == 0 || sizeV_i_A == 0 || sizeV_j_B == 0) {
+#ifndef NDEBUG
+        m_type2_checks += 2llu * sizeV_i_A * sizeV_j_B;
+#endif // NDEBUG
         return;
+    }
+
+    // get upper bound for probability
+    auto r_boundA = m_radius_layers[i].m_r_min;
+    auto r_boundB = m_radius_layers[j].m_r_min;
+    auto angular_distance_lower_bound = AngleHelper::dist(cellA, cellB, level);
+    auto dist_lower_bound = hyperbolicDistance(r_boundA, 0, r_boundB, angular_distance_lower_bound);
+    auto max_connection_prob = 1.0 / (1.0 + std::exp(0.5/m_T*(dist_lower_bound-m_R))); // TODO make into function
+
+    // if we must sample all pairs we treat this as type 1 sampling
+    // also, 1.0 is no valid prob for a geometric dist (see c++ std)
+    if(max_connection_prob == 1.0){
+        sampleTypeI(cellA, cellB, level, i, j);
+        return;
+    }
 
 #ifndef NDEBUG
     m_type2_checks += 2llu * sizeV_i_A * sizeV_j_B;
 #endif // NDEBUG
 
-    if (m_T == 0)
+    if(max_connection_prob <= 1e-10)
         return;
 
-    // TODO add content
+    // init geometric distribution
+    const auto threadId = omp_get_thread_num();
+    auto geo = std::geometric_distribution<unsigned long long>(max_connection_prob);
+
+    for (auto r = geo(m_gen); r < sizeV_i_A * sizeV_j_B; r += 1 + geo(m_gen)) {
+        // determine the r-th pair
+        auto& nodeInA = m_radius_layers[i].kthPoint(cellA, level, r%sizeV_i_A);
+        auto& nodeInB = m_radius_layers[j].kthPoint(cellB, level, r/sizeV_i_A);
+
+        // points are in correct cells
+        assert(cellA - AngleHelper::firstCellOfLevel(level) == AngleHelper::cellForPoint(nodeInA.angle, level));
+        assert(cellB - AngleHelper::firstCellOfLevel(level) == AngleHelper::cellForPoint(nodeInB.angle, level));
+
+        // points are in correct radius layer
+        assert(m_radius_layers[i].m_r_min < nodeInA.radius && nodeInA.radius <= m_radius_layers[i].m_r_max);
+        assert(m_radius_layers[j].m_r_min < nodeInB.radius && nodeInB.radius <= m_radius_layers[j].m_r_max);
+
+        // get actual connection probability
+        auto real_dist = hyperbolicDistance(nodeInA.radius, nodeInA.angle, nodeInB.radius, nodeInB.angle);
+        auto connection_prob = 1.0 / (1.0 + std::exp(0.5/m_T*(real_dist-m_R)));
+        assert(angular_distance_lower_bound <= std::abs(nodeInA.angle - nodeInB.angle));
+        assert(angular_distance_lower_bound <= std::abs(nodeInB.angle - nodeInA.angle));
+        assert(real_dist >= dist_lower_bound);
+        assert(real_dist > m_R);
+
+        if(m_dist(m_gen) < connection_prob/max_connection_prob) {
+            m_edgeCallback(nodeInA.id, nodeInB.id, threadId);
+        }
+    }
 
 }
 

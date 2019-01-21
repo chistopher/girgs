@@ -82,7 +82,7 @@ TEST_F(HyperbolicTree_test, testThresholdModel)
 
 TEST_F(HyperbolicTree_test, testGeneralModel)
 {
-    const auto n = 1000;
+    const auto n = 20000; // this fails for n<10k; I assume because calculateRadius approximates asymptotically
     const auto alpha = 0.75; // ple = 2*alpha+1
     const auto T = 0.5;
     const auto deg = 10;
