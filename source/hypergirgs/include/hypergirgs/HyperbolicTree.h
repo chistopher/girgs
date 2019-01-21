@@ -32,6 +32,8 @@ protected:
 
     unsigned int partitioningBaseLevel(double r1, double r2); // takes lower bound on radius for two layers
 
+    double connectionProb(double dist); // connection probability with respect to hyperbolic distance
+
 
 protected:
     EdgeCallback& m_edgeCallback;

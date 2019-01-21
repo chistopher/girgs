@@ -143,8 +143,7 @@ void HyperbolicTree<EdgeCallback>::sampleTypeI(unsigned int cellA, unsigned int 
                 }
             } else {
                 auto dist = hyperbolicDistance(nodeInA.radius, nodeInA.angle, nodeInB.radius, nodeInB.angle);
-                auto connection_prob = 1.0 / (1.0 + std::exp(0.5/m_T*(dist-m_R)));
-                if(m_dist(m_gen) < connection_prob) {
+                if(m_dist(m_gen) < connectionProb(dist)) {
                     m_edgeCallback(nodeInA.id, nodeInB.id, threadId);
                 }
             }
@@ -169,7 +168,7 @@ void HyperbolicTree<EdgeCallback>::sampleTypeII(unsigned int cellA, unsigned int
     auto r_boundB = m_radius_layers[j].m_r_min;
     auto angular_distance_lower_bound = AngleHelper::dist(cellA, cellB, level);
     auto dist_lower_bound = hyperbolicDistance(r_boundA, 0, r_boundB, angular_distance_lower_bound);
-    auto max_connection_prob = 1.0 / (1.0 + std::exp(0.5/m_T*(dist_lower_bound-m_R))); // TODO make into function
+    auto max_connection_prob = connectionProb(dist_lower_bound);
 
     // if we must sample all pairs we treat this as type 1 sampling
     // also, 1.0 is no valid prob for a geometric dist (see c++ std)
@@ -204,7 +203,7 @@ void HyperbolicTree<EdgeCallback>::sampleTypeII(unsigned int cellA, unsigned int
 
         // get actual connection probability
         auto real_dist = hyperbolicDistance(nodeInA.radius, nodeInA.angle, nodeInB.radius, nodeInB.angle);
-        auto connection_prob = 1.0 / (1.0 + std::exp(0.5/m_T*(real_dist-m_R)));
+        auto connection_prob = connectionProb(real_dist);
         assert(angular_distance_lower_bound <= std::abs(nodeInA.angle - nodeInB.angle));
         assert(angular_distance_lower_bound <= std::abs(nodeInB.angle - nodeInA.angle));
         assert(real_dist >= dist_lower_bound);
@@ -227,6 +226,11 @@ unsigned int HyperbolicTree<EdgeCallback>::partitioningBaseLevel(double r1, doub
         cellDiameter /= 2;
     }
     return level;
+}
+
+template<typename EdgeCallback>
+double HyperbolicTree<EdgeCallback>::connectionProb(double dist) {
+    return 1.0 / (1.0 + std::exp(0.5/m_T*(dist-m_R))); ;
 }
 
 

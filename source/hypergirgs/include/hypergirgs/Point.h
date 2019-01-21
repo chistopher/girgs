@@ -15,10 +15,8 @@ struct Point {
         , coth_r{std::cosh(radius) / std::sinh(radius)}
         , cos_phi{std::cos(angle)}
         , sin_phi{std::sin(angle)}
-#ifndef NDEBUG
         , radius{radius}
         , angle{angle}
-#endif
     {
         assert(0 <= angle && angle < 2*PI);
         assert(0 <= radius);
@@ -51,10 +49,9 @@ struct Point {
     double cos_phi;   ///< = cos(angle)
     double sin_phi;   ///< = sin(angle)
 
-#ifndef NDEBUG
+    // TODO also use improved distance computations for T>0, thus remove these in release again
     double radius;    ///< = radius
     double angle;     ///< = angle
-#endif
 };
 
 } // namespace hypergirgs
