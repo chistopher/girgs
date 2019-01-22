@@ -3,7 +3,7 @@
 
 #include <cassert>
 #include <vector>
-#include <tuple>
+#include <utility>
 
 #include <hypergirgs/AngleHelper.h>
 #include <hypergirgs/Point.h>
@@ -38,26 +38,12 @@ public:
         return m_base.get()[m_prefix_sums[cellBoundaries.first] + k];
     }
 
-    const Point* firstPointPointer(unsigned int cell, unsigned int level) const {
-        auto cellBoundaries = levelledCell(cell, level);
-        return m_base.get() + m_prefix_sums[cellBoundaries.first];
-    }
-
     std::pair<const Point*, const Point*> cellIterators(unsigned int cell, unsigned int level) const {
         auto cellBoundaries = levelledCell(cell, level);
         const auto begin_end = std::make_pair(m_base.get() + m_prefix_sums[cellBoundaries.first],
                 m_base.get() + m_prefix_sums[cellBoundaries.second+1]);
         assert(begin_end.first <= begin_end.second);
         return begin_end;
-    }
-
-// observers
-    std::shared_ptr<Point[]>& getPoints() {
-        return m_base;
-    }
-
-    std::shared_ptr<unsigned int[]>& getPrefixSum() {
-        return m_prefix_sum_ownership;
     }
 
 // generation and helper
