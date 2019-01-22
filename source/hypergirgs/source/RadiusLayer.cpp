@@ -127,7 +127,7 @@ std::vector<RadiusLayer> RadiusLayer::buildPartition(const std::vector<double>& 
 
         // Now repair gaps: since first_point_in_cell shell contain
         // a prefix sum, we simply replace any "gap_cell_indicator"
-        // with its left-most non-gap successor. In the main loop,
+        // with its nearest non-gap successor. In the main loop,
         // this is always the direct successors since we're iterating
         // from right to left.
         #pragma omp parallel
@@ -136,10 +136,9 @@ std::vector<RadiusLayer> RadiusLayer::buildPartition(const std::vector<double>& 
             const auto rank = omp_get_thread_num();
             const auto chunk_size = (max_cell_id + threads - 1) / threads; // = ceil(max_cell_id / threads)
 
-            // Fix right-most of each thread's elements by looking into chunk of next thread.
-            // We do not need an end of array check, since it's guaranteed that the last
-            // element is n. We're using on this very short code block to avoid UB
-            // even if we're only performing word-wise updates.
+            // Fix right-most element (if gap) of each thread's elements by looking into chunk of next thread.
+            // We do not need an end of array check, since it's guaranteed that the last element is n.
+            // We're using on this very short code block to avoid UB even if we're only performing word-wise updates.
             #pragma omp single
             {
                 for (int r = 0; r < threads; r++) {
