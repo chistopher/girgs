@@ -47,9 +47,7 @@ protected:
     unsigned int m_layers; ///< number of layers
     unsigned int m_levels; ///< number of levels
 
-    std::shared_ptr<Point[]> m_points;                     ///< vector of points
-    std::shared_ptr<unsigned int[]> m_first_point_in_cell; ///< prefix sum into m_points
-    std::vector<RadiusLayer> m_radius_layers;
+    std::vector<RadiusLayer> m_radius_layers; ///< data structure holding the points
 
     std::vector<std::vector<std::pair<unsigned int, unsigned int> > > m_layer_pairs;
 

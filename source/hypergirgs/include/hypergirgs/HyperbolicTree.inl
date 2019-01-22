@@ -27,8 +27,6 @@ HyperbolicTree<EdgeCallback>::HyperbolicTree(std::vector<double> &radii, std::ve
 
     // compute partition and transfer into own object
     m_radius_layers = RadiusLayer::buildPartition(radii, angles, R, layer_height, enable_profiling);
-    m_points = m_radius_layers.front().getPoints();
-    m_first_point_in_cell = m_radius_layers.front().getPrefixSum();
     m_layers = m_radius_layers.size();
     m_levels = m_radius_layers[0].m_target_level + 1;
 
