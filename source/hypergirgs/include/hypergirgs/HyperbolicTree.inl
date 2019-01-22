@@ -3,7 +3,7 @@
 #include <omp.h>
 
 #include <hypergirgs/Hyperbolic.h>
-#include <ScopedTimer.h>
+#include <hypergirgs/ScopedTimer.h>
 
 namespace hypergirgs {
 

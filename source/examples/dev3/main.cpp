@@ -6,9 +6,9 @@
 
 #include <hypergirgs/HyperbolicTree.h>
 #include <hypergirgs/Hyperbolic.h>
+#include <hypergirgs/ScopedTimer.h>
 
-#include <CounterPerThread.h>
-#include <ScopedTimer.h>
+#include "CounterPerThread.h"
 
 #define COUNT_EDGES_ONLY
 

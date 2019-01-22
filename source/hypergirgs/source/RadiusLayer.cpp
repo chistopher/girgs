@@ -5,8 +5,8 @@
 #include <omp.h>
 
 #include <hypergirgs/AngleHelper.h>
-#include <ScopedTimer.h>
-#include <IntSort.h>
+#include <hypergirgs/ScopedTimer.h>
+#include <hypergirgs/IntSort.h>
 
 
 namespace hypergirgs {
