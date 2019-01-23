@@ -1,57 +1,43 @@
-
+#include <algorithm>
 #include <cassert>
 #include <omp.h>
 
 #include <hypergirgs/Hyperbolic.h>
-
+#include <hypergirgs/ScopedTimer.h>
 
 namespace hypergirgs {
 
 template <typename EdgeCallback>
-HyperbolicTree<EdgeCallback>::HyperbolicTree(std::vector<double> &radii, std::vector<double> &angles, double T, double R, EdgeCallback& edgeCallback)
-: m_edgeCallback(edgeCallback)
-, m_n(radii.size())
-, m_coshR(std::cosh(R))
-, m_T(T)
-, m_R(R)
-, m_gen()
-, m_dist()
-#ifndef NDEBUG
-, m_type1_checks(0)
-, m_type2_checks(0)
-#endif // NDEBUG
+HyperbolicTree<EdgeCallback>::HyperbolicTree(std::vector<double> &radii, std::vector<double> &angles,
+    double T, double R, EdgeCallback& edgeCallback, bool enable_profiling)
+    : m_edgeCallback(edgeCallback)
+    , m_profile(enable_profiling)
+    , m_n(radii.size())
+    , m_coshR(std::cosh(R))
+    , m_T(T)
+    , m_R(R)
+    , m_gen()
+    , m_dist()
+    #ifndef NDEBUG
+    , m_type1_checks(0)
+    , m_type2_checks(0)
+    #endif // NDEBUG
 {
-    assert(radii.size() == angles.size());
+    const auto layer_height = 1.0;
 
-    // pre-compute values for distance
-    std::vector<Point> pre_points(radii.size());
-    #pragma omp parallel for if (m_n > 10000)
-    for (int i = 0; i < radii.size(); ++i) {
-        pre_points[i] = Point(i, radii[i], angles[i]);
-    }
-
-    // create layer
-    m_layers = static_cast<unsigned int>(std::ceil(R));
-    auto weightLayerNodes = std::vector<std::vector<int>>(m_layers);
-    for(auto i = 0u; i < radii.size(); ++i) // layer i has nodes from (R-i-1 to R-i]
-        weightLayerNodes[static_cast<unsigned int>(R-radii[i])].push_back(i);
-
-    // ignore empty layers of higher radius
-    for(;m_layers>0;m_layers--)
-        if(!weightLayerNodes[m_layers-1].empty())
-            break;
-
-    // build spatial structure and find insertion level for each layer based on lower bound on radius for current and smallest layer
-    for (auto layer = 0u; layer < m_layers; ++layer)
-        m_radius_layers.emplace_back(R - layer - 1, R - layer, partitioningBaseLevel(R - layer - 1, R - 1),
-                                     std::move(weightLayerNodes[layer]), angles, pre_points);
+    // compute partition and transfer into own object
+    m_radius_layers = RadiusLayer::buildPartition(radii, angles, R, layer_height, enable_profiling);
+    m_layers = m_radius_layers.size();
     m_levels = m_radius_layers[0].m_target_level + 1;
 
     // determine which layer pairs to sample in which level
-    m_layer_pairs.resize(m_levels);
-    for (auto i = 0u; i < m_layers; ++i)
-        for (auto j = 0u; j < m_layers; ++j)
-            m_layer_pairs[partitioningBaseLevel(m_radius_layers[i].m_r_min, m_radius_layers[j].m_r_min)].emplace_back(i,j);
+    {
+        ScopedTimer timer("Layer Pairs", enable_profiling);
+        m_layer_pairs.resize(m_levels);
+        for (auto i = 0u; i < m_layers; ++i)
+            for (auto j = 0u; j < m_layers; ++j)
+                m_layer_pairs[partitioningBaseLevel(m_radius_layers[i].m_r_min, m_radius_layers[j].m_r_min)].emplace_back(i, j);
+    }
 }
 
 template <typename EdgeCallback>
@@ -218,14 +204,7 @@ void HyperbolicTree<EdgeCallback>::sampleTypeII(unsigned int cellA, unsigned int
 
 template <typename EdgeCallback>
 unsigned int HyperbolicTree<EdgeCallback>::partitioningBaseLevel(double r1, double r2) {
-    auto level = 0u;
-    auto cellDiameter = 2.0*PI;
-    // find deepest level in which points in all non-touching cells are not connected
-    while(hypergirgs::hyperbolicDistance(r1, 0, r2, (cellDiameter/2)) > m_R){
-        level++;
-        cellDiameter /= 2;
-    }
-    return level;
+    return RadiusLayer::partitioningBaseLevel(r1, r2, m_R);
 }
 
 template<typename EdgeCallback>

@@ -17,7 +17,7 @@ class HyperbolicTree
 {
 public:
 
-    HyperbolicTree(std::vector<double>& radii, std::vector<double>& angles, double T, double R, EdgeCallback& edgeCallback);
+    HyperbolicTree(std::vector<double>& radii, std::vector<double>& angles, double T, double R, EdgeCallback& edgeCallback, bool profile = false);
 
     void generate(int seed);
 
@@ -37,19 +37,21 @@ protected:
 
 protected:
     EdgeCallback& m_edgeCallback;
+    const bool m_profile;
 
     const size_t m_n; ///< number of nodes
 
     const double m_coshR; ///< = cosh(R)
 
-    const double m_T;
-    const double m_R;
+    const double m_T; ///< temperature
+    const double m_R; ///< radius
 
     unsigned int m_layers; ///< number of layers
     unsigned int m_levels; ///< number of levels
 
-    std::vector<RadiusLayer> m_radius_layers;
-    std::vector<std::vector<std::pair<unsigned int, unsigned int>>> m_layer_pairs;
+    std::vector<RadiusLayer> m_radius_layers; ///< data structure holding the points
+
+    std::vector<std::vector<std::pair<unsigned int, unsigned int> > > m_layer_pairs;
 
     hypergirgs::default_random_engine m_gen; ///< random generator
     std::uniform_real_distribution<> m_dist; ///< random distribution
@@ -61,8 +63,8 @@ protected:
 };
 
 template <typename EdgeCallback>
-inline HyperbolicTree<EdgeCallback> makeHyperbolicTree(std::vector<double>& radii, std::vector<double>& angles, double T, double R, EdgeCallback& edgeCallback) {
-    return {radii, angles, T, R, edgeCallback};
+inline HyperbolicTree<EdgeCallback> makeHyperbolicTree(std::vector<double>& radii, std::vector<double>& angles, double T, double R, EdgeCallback& edgeCallback, bool profile = false) {
+    return {radii, angles, T, R, edgeCallback, profile};
 }
 
 } // namespace hypergirgs

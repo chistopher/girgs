@@ -3,11 +3,13 @@
 
 #include <cassert>
 #include <vector>
+#include <utility>
 
 #include <hypergirgs/AngleHelper.h>
 #include <hypergirgs/Point.h>
 
 #include <hypergirgs/hypergirgs_api.h>
+#include <memory>
 
 
 namespace hypergirgs {
@@ -19,9 +21,9 @@ public:
 	RadiusLayer() = delete;
 
 	RadiusLayer(double r_min, double r_max, unsigned int targetLevel,
-				const std::vector<int> &nodes, const std::vector<double> &angles,
-				const std::vector<Point> &points);
-
+                std::shared_ptr<Point[]>& base,
+                std::shared_ptr<unsigned int[]>& prefix_sum_ownership,
+                const unsigned int* prefix_sum);
 
     int pointsInCell(unsigned int cell, unsigned int level) const {
         auto cellBoundaries = levelledCell(cell, level);
@@ -33,19 +35,35 @@ public:
 
     const Point& kthPoint(unsigned int cell, unsigned int level, int k) const {
         auto cellBoundaries = levelledCell(cell, level);
-        return m_points[m_prefix_sums[cellBoundaries.first] + k];
-    }
-
-    const Point* firstPointPointer(unsigned int cell, unsigned int level) const {
-        auto cellBoundaries = levelledCell(cell, level);
-        return m_points.data() + m_prefix_sums[cellBoundaries.first];
+        return m_base.get()[m_prefix_sums[cellBoundaries.first] + k];
     }
 
     std::pair<const Point*, const Point*> cellIterators(unsigned int cell, unsigned int level) const {
         auto cellBoundaries = levelledCell(cell, level);
-        const auto* base = m_points.data();
-        return {base + m_prefix_sums[cellBoundaries.first],
-                base + m_prefix_sums[cellBoundaries.second+1]};
+        const auto begin_end = std::make_pair(m_base.get() + m_prefix_sums[cellBoundaries.first],
+                m_base.get() + m_prefix_sums[cellBoundaries.second+1]);
+        assert(begin_end.first <= begin_end.second);
+        return begin_end;
+    }
+
+// generation and helper
+    static std::vector<RadiusLayer>
+    buildPartition(const std::vector<double>& radii, const std::vector<double>& angles,
+                   const double R, const double layer_height, bool enable_profiling);
+
+
+    // takes lower bound on radius for two layers
+    static unsigned int partitioningBaseLevel(double r1, double r2, double R) noexcept {
+        assert(r1 < R && r2 < R);
+
+        auto level = 0u;
+        auto cellDiameter = 2.0*PI;
+        // find deepest level in which points in all non-touching cells are not connected
+        while(hypergirgs::hyperbolicDistance(r1, 0, r2, (cellDiameter/2)) > R){
+            level++;
+            cellDiameter /= 2;
+        }
+        return level;
     }
 
 
@@ -55,8 +73,9 @@ public:
     const unsigned int m_target_level;
 
 protected:
-    std::vector<int>   m_prefix_sums;       ///< for each cell c in target level: the sum of points of this layer in all cells <c
-    std::vector<Point> m_points; 			///< vector of points in this layer
+    std::shared_ptr<Point[]> m_base;                        ///< Pointer to the first point stored in this layer
+    std::shared_ptr<unsigned int[]> m_prefix_sum_ownership; ///< not used directly, simply keep memory pointed into by m_prefix_sums alive
+    const unsigned int* m_prefix_sums;                      ///< for each cell c in target level: the sum of points of this layer in all cells <c
 
     std::pair<unsigned int, unsigned int> levelledCell(unsigned int cell, unsigned int level) const {
         assert(level <= m_target_level);
@@ -69,6 +88,8 @@ protected:
         auto localIndexDescendant = localIndexCell * descendants; // each cell before the parent splits in 2^D cells in the next layer that are all before our descendant
         auto begin = localIndexDescendant;
         auto end = begin + descendants - 1;
+
+        assert(begin <= end);
 
         return {begin, end};
     }

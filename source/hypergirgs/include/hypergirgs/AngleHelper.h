@@ -4,6 +4,7 @@
 #include <utility>
 
 #include <hypergirgs/hypergirgs_api.h>
+#include <hypergirgs/Hyperbolic.h>
 
 
 namespace hypergirgs {
@@ -23,7 +24,11 @@ public:
     static constexpr unsigned int numChildren() noexcept { return 2; }
 
     static std::pair<double,double> bounds(unsigned int cell, unsigned int level);
-    static unsigned int cellForPoint(double angle, unsigned int targetLevel); // returns level local index of cell at angle
+
+    //! returns level local index of cell at angle
+    static unsigned int cellForPoint(double angle, unsigned int targetLevel) {
+        return static_cast<unsigned int>(angle / 2 / PI * numCellsInLevel(targetLevel));
+    }
 
     static bool touching(unsigned int cellA, unsigned int cellB, unsigned int level);
 
