@@ -15,6 +15,7 @@
 #include <algorithm>
 #include <type_traits>
 #include <cassert>
+#include <numeric>
 #include <omp.h>
 
 namespace intsort {
@@ -151,7 +152,7 @@ public:
 
                 // Now solve parts independently
                 #pragma omp for nowait
-                for (size_t i = 0; i < msb_radix; ++i) {
+                for (int i = 0; i < msb_radix; ++i) {
                     if (splitter[i] == splitter[i + 1]) continue;
 
 					const size_t size = splitter[i + 1] - splitter[i];

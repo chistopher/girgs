@@ -16,8 +16,10 @@ struct Point {
         , coth_r{std::cosh(radius) / std::sinh(radius)}
         , cos_phi{std::cos(angle)}
         , sin_phi{std::sin(angle)}
+#ifndef NDEBUG
         , radius{radius}
         , angle{angle}
+#endif // NDEBUG
     {
         assert(0 <= angle && angle < 2*PI);
         assert(0 <= radius);
@@ -31,6 +33,17 @@ struct Point {
         assert(coshR > 1.0 / invsinh_r); // should fire eventually if R rather than cosh(R) is passed
         return cos_phi * pt.cos_phi + sin_phi * pt.sin_phi >
             coth_r * pt.coth_r - coshR * invsinh_r * pt.invsinh_r;
+    }
+
+    double hyperbolicDistance(const Point& pt) const noexcept {
+        // dist =
+        // acosh( cosh(r1)cosh(r2) - sinh(r1)sinh(r2)*cos(p1-p2) )
+        // acosh( cosh(r1)cosh(r2) - sinh(r1)sinh(r2)*(sin(p1)sin(p2)+cos(p1)cos(p2)) )
+        // acosh( cosh(r1)/sinh(r1)cosh(r2)/sinh(r2) * sinh(r1)sinh(r2) - sinh(r1)sinh(r2)*(sin(p1)sin(p2)+cos(p1)cos(p2)) )
+        // acosh( sinh(r1)sinh(r2) * (cosh(r1)/sinh(r1)cosh(r2)/sinh(r2) - (sin(p1)sin(p2)+cos(p1)cos(p2))) )
+        return std::acosh(std::max(1.0,
+                (coth_r * pt.coth_r - cos_phi * pt.cos_phi - sin_phi * pt.sin_phi) / (invsinh_r * pt.invsinh_r)
+        ));
     }
 
     /// Check whether node ids match
@@ -51,9 +64,10 @@ struct Point {
     double cos_phi;   ///< = cos(angle)
     double sin_phi;   ///< = sin(angle)
 
-    // TODO also use improved distance computations for T>0, thus remove these in release again
+#ifndef NDEBUG
     double radius;    ///< = radius
     double angle;     ///< = angle
+#endif // NDEBUG
 };
 
 } // namespace hypergirgs

@@ -16,6 +16,7 @@ set(sources
     main.cpp
     AngleHelper_test.cpp
     HyperbolicTree_test.cpp
+    Point_test.cpp
     RadiusLayer_test.cpp
 )
 

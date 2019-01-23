@@ -7,9 +7,10 @@
 
 #include <hypergirgs/HyperbolicTree.h>
 #include <hypergirgs/Hyperbolic.h>
+#include <hypergirgs/ScopedTimer.h>
 
-#include <CounterPerThread.h>
-#include <ScopedTimer.h>
+#include "../dev3/CounterPerThread.h" // TODO don't!
+
 
 void benchmark(std::ostream& os, unsigned int n, unsigned int avgDeg, double alpha, double T, unsigned int seed = 0) {
     CounterPerThread<uint64_t> counter_num_edges;

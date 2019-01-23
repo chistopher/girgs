@@ -128,7 +128,7 @@ void HyperbolicTree<EdgeCallback>::sampleTypeI(unsigned int cellA, unsigned int 
                     m_edgeCallback(nodeInA.id, nodeInB.id, threadId);
                 }
             } else {
-                auto dist = hyperbolicDistance(nodeInA.radius, nodeInA.angle, nodeInB.radius, nodeInB.angle);
+                auto dist = nodeInA.hyperbolicDistance(nodeInB);
                 if(m_dist(m_gen) < connectionProb(dist)) {
                     m_edgeCallback(nodeInA.id, nodeInB.id, threadId);
                 }
@@ -188,7 +188,7 @@ void HyperbolicTree<EdgeCallback>::sampleTypeII(unsigned int cellA, unsigned int
         assert(m_radius_layers[j].m_r_min < nodeInB.radius && nodeInB.radius <= m_radius_layers[j].m_r_max);
 
         // get actual connection probability
-        auto real_dist = hyperbolicDistance(nodeInA.radius, nodeInA.angle, nodeInB.radius, nodeInB.angle);
+        auto real_dist = nodeInA.hyperbolicDistance(nodeInB);
         auto connection_prob = connectionProb(real_dist);
         assert(angular_distance_lower_bound <= std::abs(nodeInA.angle - nodeInB.angle));
         assert(angular_distance_lower_bound <= std::abs(nodeInB.angle - nodeInA.angle));
