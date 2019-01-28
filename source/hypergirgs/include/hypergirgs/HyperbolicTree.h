@@ -25,6 +25,8 @@ protected:
 
 
     void visitCellPair(unsigned int cellA, unsigned int cellB, unsigned int level);
+    void visitCellPair_sequentialStart(unsigned int cellA, unsigned int cellB, unsigned int level,
+                                       unsigned int first_parallel_level, std::vector<std::vector<unsigned int>>& parallel_calls);
 
     void sampleTypeI(unsigned int cellA, unsigned int cellB, unsigned int level, unsigned int i, unsigned int j);
 
@@ -53,8 +55,8 @@ protected:
 
     std::vector<std::vector<std::pair<unsigned int, unsigned int> > > m_layer_pairs;
 
-    hypergirgs::default_random_engine m_gen; ///< random generator
-    std::uniform_real_distribution<> m_dist; ///< random distribution
+    std::vector<hypergirgs::default_random_engine> m_gens; ///< random generators for each thread
+    std::vector<std::uniform_real_distribution<>> m_dists; ///< random distributions for each thread
 
 #ifndef NDEBUG
     long long m_type1_checks; ///< number of node pairs per thread that are checked via a type 1 check
