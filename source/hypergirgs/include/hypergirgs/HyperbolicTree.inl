@@ -16,8 +16,8 @@ HyperbolicTree<EdgeCallback>::HyperbolicTree(std::vector<double> &radii, std::ve
     , m_coshR(std::cosh(R))
     , m_T(T)
     , m_R(R)
-    , m_gen()
-    , m_dist()
+    , m_gens(1)
+    , m_dists(1)
     #ifndef NDEBUG
     , m_type1_checks(0)
     , m_type2_checks(0)
@@ -42,9 +42,42 @@ HyperbolicTree<EdgeCallback>::HyperbolicTree(std::vector<double> &radii, std::ve
 
 template <typename EdgeCallback>
 void HyperbolicTree<EdgeCallback>::generate(int seed) {
-    m_gen.seed(seed >= 0 ? seed : std::random_device{}());
-    m_dist.reset();
-    visitCellPair(0,0,0);
+
+    const auto num_threads = omp_get_max_threads();
+    if(num_threads == 1) {
+        m_gens[0].seed(seed >= 0 ? seed : std::random_device{}());
+        m_dists[0].reset();
+        visitCellPair(0,0,0);
+        assert(m_type1_checks + m_type2_checks == static_cast<long long>(m_n-1) * m_n);
+        return;
+    }
+
+
+    // one random generator and distribution for each thread
+    m_gens.resize(num_threads);
+    m_dists.resize(num_threads);
+    for (int thread = 0; thread < num_threads; thread++) {
+        m_gens[thread].seed(seed >= 0 ? seed+thread : std::random_device()());
+        m_dists[thread].reset();
+    }
+
+    // parallel start
+    const auto first_parallel_level = 5u;
+    const auto parallel_cells = AngleHelper::numCellsInLevel(first_parallel_level); // 32
+    const auto first_parallel_cell = AngleHelper::firstCellOfLevel(first_parallel_level);
+
+    // saw off recursion before "first_parallel_level" and save all calls that would be made
+    auto parallel_calls = std::vector<std::vector<unsigned int>>(parallel_cells);
+    visitCellPair_sequentialStart(0, 0, 0, first_parallel_level, parallel_calls);
+
+    // do the collected calls in parallel
+    #pragma omp parallel for schedule(static), num_threads(num_threads) // dynamic scheduling would be better but not reproducible
+    for (int i = 0; i < parallel_cells; ++i) {
+        auto current_cell = first_parallel_cell + i;
+        for (auto each : parallel_calls[i])
+            visitCellPair(current_cell, each, first_parallel_level);
+    }
+
     assert(m_type1_checks + m_type2_checks == static_cast<long long>(m_n-1) * m_n);
 }
 
@@ -83,6 +116,52 @@ void HyperbolicTree<EdgeCallback>::visitCellPair(unsigned int cellA, unsigned in
         visitCellPair(fA + 1, fB + 0, level+1); // if A==B we already did this call 3 lines above
 }
 
+template<typename EdgeCallback>
+void HyperbolicTree<EdgeCallback>::visitCellPair_sequentialStart(unsigned int cellA, unsigned int cellB,
+                                                                 unsigned int level,
+                                                                 unsigned int first_parallel_level,
+                                                                 std::vector<std::vector<unsigned int>> &parallel_calls) {
+    if(!AngleHelper::touching(cellA, cellB, level))
+    {   // not touching cells
+        // sample all type 2 occurrences with this cell pair
+        for(auto l=level; l<m_levels; ++l)
+            for(auto& layer_pair : m_layer_pairs[l])
+                sampleTypeII(cellA, cellB, level, layer_pair.first, layer_pair.second);
+        return;
+    }
+
+    // touching cells
+
+    // sample all type 1 occurrences with this cell pair
+    for(auto& layer_pair : m_layer_pairs[level]){
+        if(cellA != cellB || layer_pair.first <= layer_pair.second)
+            sampleTypeI(cellA, cellB, level, layer_pair.first, layer_pair.second);
+    }
+
+    // break if last level reached
+    if(level == m_levels-1) // if we are at the last level we don't need recursive calls
+        return;
+
+    // recursive call for all children pairs (a,b) where a in A and b in B
+    // these will be type 1 if a and b touch or type 2 if they don't
+    auto fA = AngleHelper::firstChild(cellA);
+    auto fB = AngleHelper::firstChild(cellB);
+    if(level+1 != first_parallel_level) {
+        visitCellPair_sequentialStart(fA + 0, fB + 0, level + 1, first_parallel_level, parallel_calls);
+        visitCellPair_sequentialStart(fA + 0, fB + 1, level + 1, first_parallel_level, parallel_calls);
+        visitCellPair_sequentialStart(fA + 1, fB + 1, level + 1, first_parallel_level, parallel_calls);
+        if (cellA != cellB)
+            visitCellPair(fA + 1, fB + 0, level + 1); // if A==B we already did this call 3 lines above
+    } else {
+        auto offset = AngleHelper::firstCellOfLevel(first_parallel_level);
+        parallel_calls[fA+0-offset].push_back(fB+0);
+        parallel_calls[fA+0-offset].push_back(fB+1);
+        parallel_calls[fA+1-offset].push_back(fB+1);
+        if (cellA != cellB)
+            parallel_calls[fA+1-offset].push_back(fB);
+    }
+}
+
 template <typename EdgeCallback>
 void HyperbolicTree<EdgeCallback>::sampleTypeI(unsigned int cellA, unsigned int cellB, unsigned int level, unsigned int i, unsigned int j) {
     auto rangeA = m_radius_layers[i].cellIterators(cellA, level);
@@ -95,6 +174,7 @@ void HyperbolicTree<EdgeCallback>::sampleTypeI(unsigned int cellA, unsigned int 
     {
         const auto sizeV_i_A = std::distance(rangeA.first, rangeA.second);
         const auto sizeV_j_B = std::distance(rangeB.first, rangeB.second);
+        #pragma omp atomic
         m_type1_checks += (cellA == cellB && i == j) ? sizeV_i_A * (sizeV_i_A - 1)  // all pairs in AxA without {v,v}
                                                      : sizeV_i_A * sizeV_j_B * 2; // all pairs in AxB and BxA
     }
@@ -103,6 +183,8 @@ void HyperbolicTree<EdgeCallback>::sampleTypeI(unsigned int cellA, unsigned int 
     const auto threadId = omp_get_thread_num();
 
     int kA = 0;
+    auto& gen = m_gens[threadId];
+    auto& dist = m_dists[threadId];
     for(auto pointerA = rangeA.first; pointerA != rangeA.second; ++kA, ++pointerA) {
         auto offset = (cellA == cellB && i==j) ? kA+1 : 0;
         for (auto pointerB = rangeB.first + offset; pointerB != rangeB.second; ++pointerB) {
@@ -128,8 +210,8 @@ void HyperbolicTree<EdgeCallback>::sampleTypeI(unsigned int cellA, unsigned int 
                     m_edgeCallback(nodeInA.id, nodeInB.id, threadId);
                 }
             } else {
-                auto dist = nodeInA.hyperbolicDistance(nodeInB);
-                if(m_dist(m_gen) < connectionProb(dist)) {
+                auto distance = nodeInA.hyperbolicDistance(nodeInB);
+                if(dist(gen) < connectionProb(distance)) {
                     m_edgeCallback(nodeInA.id, nodeInB.id, threadId);
                 }
             }
@@ -140,11 +222,13 @@ void HyperbolicTree<EdgeCallback>::sampleTypeI(unsigned int cellA, unsigned int 
 template <typename EdgeCallback>
 void HyperbolicTree<EdgeCallback>::sampleTypeII(unsigned int cellA, unsigned int cellB, unsigned int level, unsigned int i, unsigned int j) {
 
-    auto sizeV_i_A = m_radius_layers[i].pointsInCell(cellA, level);
-    auto sizeV_j_B = m_radius_layers[j].pointsInCell(cellB, level);
+    // TODO use cell iterators
+    const auto sizeV_i_A = static_cast<long long>(m_radius_layers[i].pointsInCell(cellA, level));
+    const auto sizeV_j_B = static_cast<long long>(m_radius_layers[j].pointsInCell(cellB, level));
     if (m_T == 0 || sizeV_i_A == 0 || sizeV_j_B == 0) {
 #ifndef NDEBUG
-        m_type2_checks += 2llu * sizeV_i_A * sizeV_j_B;
+        #pragma omp atomic
+        m_type2_checks += 2ll * sizeV_i_A * sizeV_j_B;
 #endif // NDEBUG
         return;
     }
@@ -164,7 +248,8 @@ void HyperbolicTree<EdgeCallback>::sampleTypeII(unsigned int cellA, unsigned int
     }
 
 #ifndef NDEBUG
-    m_type2_checks += 2llu * sizeV_i_A * sizeV_j_B;
+    #pragma omp atomic
+    m_type2_checks += 2ll * sizeV_i_A * sizeV_j_B;
 #endif // NDEBUG
 
     if(max_connection_prob <= 1e-10)
@@ -173,8 +258,9 @@ void HyperbolicTree<EdgeCallback>::sampleTypeII(unsigned int cellA, unsigned int
     // init geometric distribution
     const auto threadId = omp_get_thread_num();
     auto geo = std::geometric_distribution<unsigned long long>(max_connection_prob);
-
-    for (auto r = geo(m_gen); r < sizeV_i_A * sizeV_j_B; r += 1 + geo(m_gen)) {
+    auto& gen = m_gens[threadId];
+    auto& dist = m_dists[threadId];
+    for (auto r = geo(gen); r < sizeV_i_A * sizeV_j_B; r += 1 + geo(gen)) {
         // determine the r-th pair
         auto& nodeInA = m_radius_layers[i].kthPoint(cellA, level, r%sizeV_i_A);
         auto& nodeInB = m_radius_layers[j].kthPoint(cellB, level, r/sizeV_i_A);
@@ -195,7 +281,7 @@ void HyperbolicTree<EdgeCallback>::sampleTypeII(unsigned int cellA, unsigned int
         assert(real_dist >= dist_lower_bound);
         assert(real_dist > m_R);
 
-        if(m_dist(m_gen) < connection_prob/max_connection_prob) {
+        if(dist(gen) < connection_prob/max_connection_prob) {
             m_edgeCallback(nodeInA.id, nodeInB.id, threadId);
         }
     }
