@@ -39,7 +39,7 @@ std::vector<double> sampleRadii(int n, double alpha, double R, int seed, bool pa
     {
         auto& gen = gens[omp_get_thread_num()];
         auto& dist = dists[omp_get_thread_num()];
-        #pragma omp for
+        #pragma omp for schedule(static)
         for (int i = 0; i < n; ++i) {
             auto p = dist(gen);
             while (p == 0) p = dist(gen);
@@ -65,7 +65,7 @@ std::vector<double> sampleAngles(int n, int seed, bool parallel) {
     {
         auto& gen = gens[omp_get_thread_num()];
         auto& dist = dists[omp_get_thread_num()];
-        #pragma omp for
+        #pragma omp for schedule(static)
         for (int i = 0; i < n; ++i)
             result[i] = dist(gen);
     }
@@ -74,18 +74,43 @@ std::vector<double> sampleAngles(int n, int seed, bool parallel) {
 }
 
 std::vector<std::pair<int, int> > generateEdges(std::vector<double>& radii, std::vector<double>& angles, double T, double R, int seed) {
-    std::vector<std::pair<int,int>> graph;
-    std::mutex m;
 
-    auto addEdge = [&graph, &m] (int u, int v, int tid) {
+    using edge_vector = std::vector<std::pair<int, int>>;
+    edge_vector result;
+
+    std::vector<std::pair<
+            edge_vector,
+            uint64_t[31] /* avoid false sharing */
+    > > local_edges(omp_get_max_threads());
+
+    constexpr auto block_size = size_t{1} << 20;
+
+    for(auto& v : local_edges)
+        v.first.reserve(block_size);
+
+    std::mutex m;
+    auto flush = [&] (const edge_vector& local) {
         std::lock_guard<std::mutex> lock(m);
-        graph.emplace_back(u,v);
+        result.insert(result.end(), local.cbegin(), local.cend());
+    };
+
+    auto addEdge = [&](int u, int v, int tid) {
+        auto& local = local_edges[tid].first;
+        local.emplace_back(u,v);
+        if (local.size() == block_size) {
+            flush(local);
+            local.clear();
+            local.reserve(block_size); // just in case
+        }
     };
 
     auto generator = hypergirgs::makeHyperbolicTree(radii, angles, T, R, addEdge);
     generator.generate(seed);
 
-    return graph;
+    for(const auto& v : local_edges)
+        flush(v.first);
+
+    return result;
 }
 
 } // namespace hypergirgs

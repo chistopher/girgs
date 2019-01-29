@@ -223,12 +223,12 @@ template <typename EdgeCallback>
 void HyperbolicTree<EdgeCallback>::sampleTypeII(unsigned int cellA, unsigned int cellB, unsigned int level, unsigned int i, unsigned int j) {
 
     // TODO use cell iterators
-    long long sizeV_i_A = m_radius_layers[i].pointsInCell(cellA, level);
-    long long sizeV_j_B = m_radius_layers[j].pointsInCell(cellB, level);
+    const auto sizeV_i_A = static_cast<long long>(m_radius_layers[i].pointsInCell(cellA, level));
+    const auto sizeV_j_B = static_cast<long long>(m_radius_layers[j].pointsInCell(cellB, level));
     if (m_T == 0 || sizeV_i_A == 0 || sizeV_j_B == 0) {
 #ifndef NDEBUG
         #pragma omp atomic
-        m_type2_checks += 2llu * sizeV_i_A * sizeV_j_B;
+        m_type2_checks += 2ll * sizeV_i_A * sizeV_j_B;
 #endif // NDEBUG
         return;
     }
@@ -249,7 +249,7 @@ void HyperbolicTree<EdgeCallback>::sampleTypeII(unsigned int cellA, unsigned int
 
 #ifndef NDEBUG
     #pragma omp atomic
-    m_type2_checks += 2llu * sizeV_i_A * sizeV_j_B;
+    m_type2_checks += 2ll * sizeV_i_A * sizeV_j_B;
 #endif // NDEBUG
 
     if(max_connection_prob <= 1e-10)
