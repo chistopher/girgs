@@ -5,6 +5,10 @@
 
 #include <hypergirgs/Hyperbolic.h>
 
+#ifndef NDEBUG
+#define POINT_WITH_ORIGINAL
+#endif
+
 namespace hypergirgs {
 
 struct Point {
@@ -16,10 +20,10 @@ struct Point {
         , coth_r{std::cosh(radius) / std::sinh(radius)}
         , cos_phi{std::cos(angle)}
         , sin_phi{std::sin(angle)}
-#ifndef NDEBUG
+#ifdef POINT_WITH_ORIGINAL
         , radius{radius}
         , angle{angle}
-#endif // NDEBUG
+#endif // POINT_WITH_ORIGINAL
     {
         assert(0 <= angle && angle < 2*PI);
         assert(0 <= radius);
@@ -35,15 +39,19 @@ struct Point {
             coth_r * pt.coth_r - coshR * invsinh_r * pt.invsinh_r;
     }
 
+    /// Returns cosh(hyperbolicDistance to pt)
+    double hyperbolicDistanceCosh(const Point& pt) const noexcept {
+        // cosh(dist)
+        // = cosh(r1)cosh(r2) - sinh(r1)sinh(r2)*cos(p1-p2)
+        // = cosh(r1)cosh(r2) - sinh(r1)sinh(r2)*(sin(p1)sin(p2)+cos(p1)cos(p2))
+        // = cosh(r1)/sinh(r1)cosh(r2)/sinh(r2) * sinh(r1)sinh(r2) - sinh(r1)sinh(r2)*(sin(p1)sin(p2)+cos(p1)cos(p2))
+        // = sinh(r1)sinh(r2) * (cosh(r1)/sinh(r1)cosh(r2)/sinh(r2) - (sin(p1)sin(p2)+cos(p1)cos(p2)))
+        return std::max(1.0, (coth_r * pt.coth_r - cos_phi * pt.cos_phi - sin_phi * pt.sin_phi) / (invsinh_r * pt.invsinh_r));
+    }
+
+    /// Returns hyperbolic distance to pt
     double hyperbolicDistance(const Point& pt) const noexcept {
-        // dist =
-        // acosh( cosh(r1)cosh(r2) - sinh(r1)sinh(r2)*cos(p1-p2) )
-        // acosh( cosh(r1)cosh(r2) - sinh(r1)sinh(r2)*(sin(p1)sin(p2)+cos(p1)cos(p2)) )
-        // acosh( cosh(r1)/sinh(r1)cosh(r2)/sinh(r2) * sinh(r1)sinh(r2) - sinh(r1)sinh(r2)*(sin(p1)sin(p2)+cos(p1)cos(p2)) )
-        // acosh( sinh(r1)sinh(r2) * (cosh(r1)/sinh(r1)cosh(r2)/sinh(r2) - (sin(p1)sin(p2)+cos(p1)cos(p2))) )
-        return std::acosh(std::max(1.0,
-                (coth_r * pt.coth_r - cos_phi * pt.cos_phi - sin_phi * pt.sin_phi) / (invsinh_r * pt.invsinh_r)
-        ));
+        return std::acosh(hyperbolicDistanceCosh(pt));
     }
 
     /// Check whether node ids match
@@ -64,10 +72,10 @@ struct Point {
     double cos_phi;   ///< = cos(angle)
     double sin_phi;   ///< = sin(angle)
 
-#ifndef NDEBUG
+#ifdef POINT_WITH_ORIGINAL
     double radius;    ///< = radius
     double angle;     ///< = angle
-#endif // NDEBUG
+#endif // POINT_WITH_ORIGINAL
 };
 
 } // namespace hypergirgs
