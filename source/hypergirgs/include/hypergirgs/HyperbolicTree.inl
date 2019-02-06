@@ -39,7 +39,6 @@ void HyperbolicTree<EdgeCallback>::generate(int seed) {
     const auto num_threads = omp_get_max_threads();
     if(num_threads == 1) {
         default_random_engine master_gen(seed >= 0 ? seed : std::random_device{}());
-        std::uniform_real_distribution<> dist;
         visitCellPair(0,0,0, master_gen);
         assert(m_type1_checks + m_type2_checks == static_cast<long long>(m_n-1) * m_n);
         return;
