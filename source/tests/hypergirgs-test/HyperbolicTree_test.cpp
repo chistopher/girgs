@@ -1,4 +1,3 @@
-
 #include <algorithm>
 #include <cmath>
 #include <numeric>
@@ -117,15 +116,4 @@ TEST_F(HyperbolicTree_test, testReproducible)
         sort(edges2.begin(), edges2.end());
         ASSERT_EQ(edges1, edges2);
     }
-}
-
-TEST_F(HyperbolicTree_test, testSeedSeq)
-{
-    // assert that SeedSeq changes state between two invokations of generate
-    hypergirgs::SeedSeq seq(1);
-    mt19937_64 gen[2];
-    gen[0] = mt19937_64{seq};
-    gen[1] = mt19937_64{seq};
-    ASSERT_NE(gen[0], gen[1]);
-
 }

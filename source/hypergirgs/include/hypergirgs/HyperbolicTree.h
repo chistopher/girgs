@@ -7,18 +7,14 @@
 #include <hypergirgs/AngleHelper.h>
 #include <hypergirgs/RadiusLayer.h>
 #include <hypergirgs/Point.h>
-#include <hypergirgs/SeedSeq.h>
 
 namespace hypergirgs {
 
 struct TaskDescription {
     unsigned int cellA;
     unsigned int cellB;
-    default_random_engine prng;
-    size_t work; ///< Estimation of required work
-
-    TaskDescription(unsigned int cellA, unsigned int cellB, std::seed_seq& seed_seq, size_t work = 0)
-        : cellA(cellA), cellB(cellB), prng(seed_seq)
+    TaskDescription(unsigned int A, unsigned int B)
+        : cellA(A), cellB(B)
     {}
 };
 
@@ -35,7 +31,7 @@ public:
 protected:
     /// Create a set of tasks to be executed in parallel; We'll skip all sampling steps during recursion (call visitCellPairSample!)
     void visitCellPairCreateTasks(unsigned int cellA, unsigned int cellB, unsigned int level, unsigned int first_parallel_level,
-                                  std::vector<TaskDescription>& parallel_calls, SeedSeq& seed_seq);
+                                  std::vector<TaskDescription>& parallel_calls);
 
     /// Performs same recursion as visitCellPairCreateTasks, but samples for cells skipp by visitCellPairCreateTasks.
     int visitCellPairSample(unsigned int cellA, unsigned int cellB, unsigned int level, unsigned int first_parallel_level,
@@ -71,6 +67,9 @@ protected:
     std::vector<RadiusLayer> m_radius_layers; ///< data structure holding the points
 
     std::vector<std::vector<std::pair<unsigned int, unsigned int> > > m_layer_pairs;
+
+    std::vector<default_random_engine> initialize_prngs(size_t n, unsigned seed) const;
+
 
 #ifndef NDEBUG
     long long m_type1_checks{0}; ///< number of node pairs per thread that are checked via a type 1 check
