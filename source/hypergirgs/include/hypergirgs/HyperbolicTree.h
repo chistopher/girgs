@@ -7,6 +7,7 @@
 #include <hypergirgs/AngleHelper.h>
 #include <hypergirgs/RadiusLayer.h>
 #include <hypergirgs/Point.h>
+#include <hypergirgs/SeedSeq.h>
 
 namespace hypergirgs {
 
@@ -34,7 +35,7 @@ public:
 protected:
     /// Create a set of tasks to be executed in parallel; We'll skip all sampling steps during recursion (call visitCellPairSample!)
     void visitCellPairCreateTasks(unsigned int cellA, unsigned int cellB, unsigned int level, unsigned int first_parallel_level,
-                                  std::vector<TaskDescription>& parallel_calls, std::seed_seq& seed_seq);
+                                  std::vector<TaskDescription>& parallel_calls, SeedSeq& seed_seq);
 
     /// Performs same recursion as visitCellPairCreateTasks, but samples for cells skipp by visitCellPairCreateTasks.
     int visitCellPairSample(unsigned int cellA, unsigned int cellB, unsigned int level, unsigned int first_parallel_level,

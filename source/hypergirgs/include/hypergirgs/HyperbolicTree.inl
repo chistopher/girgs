@@ -46,19 +46,14 @@ void HyperbolicTree<EdgeCallback>::generate(int seed) {
     }
 
     // prepare seed_seq and initialize a gen per thread for initial sampling
-    std::vector<int> seeds(default_random_engine::state_size);
-    {
-        default_random_engine master_gen(seed >= 0 ? seed : std::random_device{}());
-        std::uniform_int_distribution<int> distr;
-        std::generate(seeds.begin(), seeds.end(), [&] {return distr(master_gen);});
-    }
-    std::seed_seq seed_seq(seeds.begin(), seeds.end());
+    SeedSeq seed_seq(seed >= 0 ? seed : std::random_device{}());
 
     // init a generator per thread
     std::vector< default_random_engine > gens;
     gens.reserve(num_threads-1);
-    for(int i=0; i < num_threads-1; ++i)
+    for(int i=0; i < num_threads-1; ++i) {
         gens.emplace_back(seed_seq);
+    }
 
     // parallel start
     const auto first_parallel_level = static_cast<int>(ceil(log(2*num_threads) / log(3)));
@@ -143,11 +138,10 @@ void HyperbolicTree<EdgeCallback>::visitCellPairCreateTasks(unsigned int cellA, 
                                                              unsigned int level,
                                                              unsigned int first_parallel_level,
                                                              std::vector<TaskDescription>& parallel_calls,
-                                                             std::seed_seq& seed_seq) {
+                                                             SeedSeq& seed_seq) {
 
     if(!AngleHelper::touching(cellA, cellB, level))
         return;
-
 
         // recursive call for all children pairs (a,b) where a in A and b in B
     // these will be type 1 if a and b touch or type 2 if they don't
