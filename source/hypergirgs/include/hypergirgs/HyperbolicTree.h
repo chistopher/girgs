@@ -49,9 +49,14 @@ protected:
     /// takes lower bound on radius for two layers
     unsigned int partitioningBaseLevel(double r1, double r2);
 
-    /// connection probability with respect to hyperbolic distance
-    double connectionProb(double dist);
+    /// 1.0 / connection probability with respect to hyperbolic distance
+    double connectionProbRec(double dist) const;
 
+    /// invConnectionProb(1.0/connectionProbRec(x)) = x
+    double invConnectionProb(double p) const;
+
+    template<size_t kFilterStages>
+    std::pair<std::array<double, kFilterStages+1>, double> computeFilterStages(double maxProb) const;
 
 protected:
     EdgeCallback& m_edgeCallback;

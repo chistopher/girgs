@@ -247,6 +247,7 @@ void HyperbolicTree<EdgeCallback>::sampleTypeI(unsigned int cellA, unsigned int 
 
     int kA = 0;
     std::uniform_real_distribution<> dist;
+    const auto filters = computeFilterStages<3>(1.0);
 
     for(auto pointerA = rangeA.first; pointerA != rangeA.second; ++kA, ++pointerA) {
         auto offset = (cellA == cellB && i==j) ? kA+1 : 0;
@@ -273,8 +274,14 @@ void HyperbolicTree<EdgeCallback>::sampleTypeI(unsigned int cellA, unsigned int 
                     m_edgeCallback(nodeInA.id, nodeInB.id, threadId);
                 }
             } else {
-                auto distance = nodeInA.hyperbolicDistance(nodeInB);
-                if(dist(gen) < connectionProb(distance)) {
+                const auto rnd = dist(gen);
+
+                auto real_dist_cosh = nodeInA.hyperbolicDistanceCosh(nodeInB);
+                if (real_dist_cosh > filters.first[static_cast<int>(filters.second * rnd)]) {
+                    continue;
+                }
+
+                if(rnd * connectionProbRec(std::acosh(real_dist_cosh)) < 1.0) {
                     m_edgeCallback(nodeInA.id, nodeInB.id, threadId);
                 }
             }
@@ -301,7 +308,7 @@ void HyperbolicTree<EdgeCallback>::sampleTypeII(unsigned int cellA, unsigned int
     auto r_boundB = m_radius_layers[j].m_r_min;
     auto angular_distance_lower_bound = AngleHelper::dist(cellA, cellB, level);
     auto dist_lower_bound = hyperbolicDistance(r_boundA, 0, r_boundB, angular_distance_lower_bound);
-    auto max_connection_prob = connectionProb(dist_lower_bound);
+    auto max_connection_prob = 1.0 / connectionProbRec(dist_lower_bound);
 
     // if we must sample all pairs we treat this as type 1 sampling
     // also, 1.0 is no valid prob for a geometric dist (see c++ std)
@@ -310,45 +317,83 @@ void HyperbolicTree<EdgeCallback>::sampleTypeII(unsigned int cellA, unsigned int
         return;
     }
 
+    const auto num_pairs = 2ll * sizeV_i_A * sizeV_j_B;
+    const auto expected_samples = num_pairs * max_connection_prob;
+
 #ifndef NDEBUG
     #pragma omp atomic
-    m_type2_checks += 2ll * sizeV_i_A * sizeV_j_B;
+    m_type2_checks += num_pairs;
 #endif // NDEBUG
 
-    if(max_connection_prob <= 1e-10)
+    if(expected_samples < 1e-6)
         return;
 
     // init geometric distribution
     const auto threadId = omp_get_thread_num();
     auto geo = std::geometric_distribution<unsigned long long>(max_connection_prob);
+    std::uniform_real_distribution<> dist(0.0, max_connection_prob);
 
-    std::uniform_real_distribution<> dist;
-    for (auto r = geo(gen); r < sizeV_i_A * sizeV_j_B; r += 1 + geo(gen)) {
-        // determine the r-th pair
-        auto& nodeInA = m_radius_layers[i].kthPoint(cellA, level, r%sizeV_i_A);
-        auto& nodeInB = m_radius_layers[j].kthPoint(cellB, level, r/sizeV_i_A);
+    if (expected_samples > 10.) {
+        const auto filters = computeFilterStages<3>(max_connection_prob);
 
-        // points are in correct cells
-        assert(cellA - AngleHelper::firstCellOfLevel(level) == AngleHelper::cellForPoint(nodeInA.angle, level));
-        assert(cellB - AngleHelper::firstCellOfLevel(level) == AngleHelper::cellForPoint(nodeInB.angle, level));
+        for (auto r = geo(gen); r < sizeV_i_A * sizeV_j_B; r += 1 + geo(gen)) {
+            // determine the r-th pair
+            const auto& nodeInA = m_radius_layers[i].kthPoint(cellA, level, r%sizeV_i_A);
+            const auto& nodeInB = m_radius_layers[j].kthPoint(cellB, level, r/sizeV_i_A);
 
-        // points are in correct radius layer
-        assert(m_radius_layers[i].m_r_min < nodeInA.radius && nodeInA.radius <= m_radius_layers[i].m_r_max);
-        assert(m_radius_layers[j].m_r_min < nodeInB.radius && nodeInB.radius <= m_radius_layers[j].m_r_max);
+            // points are in correct cells
+            assert(cellA - AngleHelper::firstCellOfLevel(level) == AngleHelper::cellForPoint(nodeInA.angle, level));
+            assert(cellB - AngleHelper::firstCellOfLevel(level) == AngleHelper::cellForPoint(nodeInB.angle, level));
 
-        // get actual connection probability
-        auto real_dist = nodeInA.hyperbolicDistance(nodeInB);
-        auto connection_prob = connectionProb(real_dist);
-        assert(angular_distance_lower_bound <= std::abs(nodeInA.angle - nodeInB.angle));
-        assert(angular_distance_lower_bound <= std::abs(nodeInB.angle - nodeInA.angle));
-        assert(real_dist >= dist_lower_bound);
-        assert(real_dist > m_R);
+            // points are in correct radius layer
+            assert(m_radius_layers[i].m_r_min < nodeInA.radius && nodeInA.radius <= m_radius_layers[i].m_r_max);
+            assert(m_radius_layers[j].m_r_min < nodeInB.radius && nodeInB.radius <= m_radius_layers[j].m_r_max);
 
-        if(dist(gen) < connection_prob/max_connection_prob) {
-            m_edgeCallback(nodeInA.id, nodeInB.id, threadId);
+            // get actual connection probability
+            const auto real_dist_cosh = nodeInA.hyperbolicDistanceCosh(nodeInB);
+            assert(angular_distance_lower_bound <= std::abs(nodeInA.angle - nodeInB.angle));
+            assert(angular_distance_lower_bound <= std::abs(nodeInB.angle - nodeInA.angle));
+            assert(std::acosh(real_dist_cosh) >= dist_lower_bound);
+            assert(std::acosh(real_dist_cosh) > m_R);
+
+            const auto rnd = dist(gen);
+            if (real_dist_cosh > filters.first[static_cast<int>(filters.second * rnd)]) {
+                continue;
+            }
+
+            auto connection_prob = connectionProbRec(std::acosh(real_dist_cosh));
+            if(rnd * connection_prob < 1.0) {
+                m_edgeCallback(nodeInA.id, nodeInB.id, threadId);
+            }
+        }
+
+    } else {
+        for (auto r = geo(gen); r < sizeV_i_A * sizeV_j_B; r += 1 + geo(gen)) {
+            // determine the r-th pair
+            const auto& nodeInA = m_radius_layers[i].kthPoint(cellA, level, r%sizeV_i_A);
+            const auto& nodeInB = m_radius_layers[j].kthPoint(cellB, level, r/sizeV_i_A);
+
+            // points are in correct cells
+            assert(cellA - AngleHelper::firstCellOfLevel(level) == AngleHelper::cellForPoint(nodeInA.angle, level));
+            assert(cellB - AngleHelper::firstCellOfLevel(level) == AngleHelper::cellForPoint(nodeInB.angle, level));
+
+            // points are in correct radius layer
+            assert(m_radius_layers[i].m_r_min < nodeInA.radius && nodeInA.radius <= m_radius_layers[i].m_r_max);
+            assert(m_radius_layers[j].m_r_min < nodeInB.radius && nodeInB.radius <= m_radius_layers[j].m_r_max);
+
+            // get actual connection probability
+            const auto real_dist = nodeInA.hyperbolicDistance(nodeInB);
+            assert(angular_distance_lower_bound <= std::abs(nodeInA.angle - nodeInB.angle));
+            assert(angular_distance_lower_bound <= std::abs(nodeInB.angle - nodeInA.angle));
+            assert(real_dist >= dist_lower_bound);
+            assert(real_dist > m_R);
+
+            const auto connection_prob = connectionProbRec(real_dist);
+            if(dist(gen) * connection_prob < 1.0) {
+                m_edgeCallback(nodeInA.id, nodeInB.id, threadId);
+            }
         }
     }
-
 }
 
 template <typename EdgeCallback>
@@ -357,8 +402,23 @@ unsigned int HyperbolicTree<EdgeCallback>::partitioningBaseLevel(double r1, doub
 }
 
 template<typename EdgeCallback>
-double HyperbolicTree<EdgeCallback>::connectionProb(double dist) {
-    return 1.0 / (1.0 + std::exp(0.5/m_T*(dist-m_R))); ;
+double HyperbolicTree<EdgeCallback>::connectionProbRec(double dist) const {
+    return 1.0 + std::exp(0.5/m_T*(dist-m_R));
+}
+
+template<typename EdgeCallback>
+double HyperbolicTree<EdgeCallback>::invConnectionProb(double p) const {
+    return m_R + 2*m_T*std::log(1.0 / p - 1);
+}
+
+template<typename EdgeCallback>
+template<size_t kFilterStages>
+std::pair<std::array<double, kFilterStages+1>, double> HyperbolicTree<EdgeCallback>::computeFilterStages(double max_connection_prob) const {
+    std::array<double, kFilterStages+1> filters;
+    for(int i=0; i <= kFilterStages; i++)
+        filters[i] = cosh(invConnectionProb(max_connection_prob / kFilterStages * i));
+    const double filter_width = kFilterStages / max_connection_prob;
+    return {filters, filter_width};
 }
 
 
