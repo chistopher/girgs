@@ -51,7 +51,10 @@ void HyperbolicTree<EdgeCallback>::generate(int seed) {
     // We select the first parallel level, s.t. each thread gets on average two tasks
     // with matching cellA==cellB. Those tasks are much more expensive than tasks with cellA != cellB.
     const auto first_parallel_level = static_cast<int>(ceil(log2(2*num_threads)));
-    const auto num_tasks = (2 << first_parallel_level) + (3 << (first_parallel_level - 1));
+    assert(first_parallel_level >= 2);
+    const auto num_tasks = (first_parallel_level == 2)
+        ? 10
+        : ((2 << first_parallel_level) + (3 << (first_parallel_level - 1)));
     std::cout << "First Parallel Level: " << first_parallel_level << "\n";
 
     // prepare seed_seq and initialize a gen per thread for initial sampling
@@ -89,11 +92,8 @@ void HyperbolicTree<EdgeCallback>::generate(int seed) {
             assert(num_tasks == tasks.size());
 
             // inform consumers that tasks are ready
-            {
-                std::unique_lock<std::mutex> lock(mutex);
-                tasks_generated = true;
-                cv.notify_all();
-            }
+            tasks_generated = true;
+            cv.notify_all();
         }
 
         // all others will sample the cells in the first levels of the recursion tree
