@@ -8,8 +8,15 @@
 #include <hypergirgs/RadiusLayer.h>
 #include <hypergirgs/Point.h>
 
-
 namespace hypergirgs {
+
+struct TaskDescription {
+    unsigned int cellA;
+    unsigned int cellB;
+    TaskDescription(unsigned int A, unsigned int B)
+        : cellA(A), cellB(B)
+    {}
+};
 
 
 template <typename EdgeCallback>
@@ -22,19 +29,25 @@ public:
     void generate(int seed);
 
 protected:
+    /// Create a set of tasks to be executed in parallel; We'll skip all sampling steps during recursion (call visitCellPairSample!)
+    void visitCellPairCreateTasks(unsigned int cellA, unsigned int cellB, unsigned int level, unsigned int first_parallel_level,
+                                  std::vector<TaskDescription>& parallel_calls);
 
+    /// Performs same recursion as visitCellPairCreateTasks, but samples for cells skipp by visitCellPairCreateTasks.
+    int visitCellPairSample(unsigned int cellA, unsigned int cellB, unsigned int level, unsigned int first_parallel_level,
+                                  int num_threads, int thread_shift, default_random_engine& gen);
 
-    void visitCellPair(unsigned int cellA, unsigned int cellB, unsigned int level);
-    void visitCellPair_sequentialStart(unsigned int cellA, unsigned int cellB, unsigned int level,
-                                       unsigned int first_parallel_level, std::vector<std::vector<unsigned int>>& parallel_calls);
+    /// Recursively sample cellA and cellB for level and higher
+    void visitCellPair(unsigned int cellA, unsigned int cellB, unsigned int level, default_random_engine& gen);
 
-    void sampleTypeI(unsigned int cellA, unsigned int cellB, unsigned int level, unsigned int i, unsigned int j);
+    void sampleTypeI(unsigned int cellA, unsigned int cellB, unsigned int level, unsigned int i, unsigned int j, default_random_engine& gen);
+    void sampleTypeII(unsigned int cellA, unsigned int cellB, unsigned int level, unsigned int i, unsigned int j, default_random_engine& gen);
 
-    void sampleTypeII(unsigned int cellA, unsigned int cellB, unsigned int level, unsigned int i, unsigned int j);
+    /// takes lower bound on radius for two layers
+    unsigned int partitioningBaseLevel(double r1, double r2);
 
-    unsigned int partitioningBaseLevel(double r1, double r2); // takes lower bound on radius for two layers
-
-    double connectionProb(double dist); // connection probability with respect to hyperbolic distance
+    /// connection probability with respect to hyperbolic distance
+    double connectionProb(double dist);
 
 
 protected:
@@ -55,12 +68,12 @@ protected:
 
     std::vector<std::vector<std::pair<unsigned int, unsigned int> > > m_layer_pairs;
 
-    std::vector<hypergirgs::default_random_engine> m_gens; ///< random generators for each thread
-    std::vector<std::uniform_real_distribution<>> m_dists; ///< random distributions for each thread
+    std::vector<default_random_engine> initialize_prngs(size_t n, unsigned seed) const;
+
 
 #ifndef NDEBUG
-    long long m_type1_checks; ///< number of node pairs per thread that are checked via a type 1 check
-    long long m_type2_checks; ///< number of node pairs per thread that are checked via a type 2 check
+    long long m_type1_checks{0}; ///< number of node pairs per thread that are checked via a type 1 check
+    long long m_type2_checks{0}; ///< number of node pairs per thread that are checked via a type 2 check
 #endif // NDEBUG
 };
 
