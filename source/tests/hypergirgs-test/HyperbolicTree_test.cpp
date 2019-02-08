@@ -85,17 +85,23 @@ TEST_F(HyperbolicTree_test, testGeneralModel)
     const auto alpha = 0.75; // ple = 2*alpha+1
     const auto T = 0.5;
     const auto deg = 10;
+    const auto runs = 5;
 
-    auto R = hypergirgs::calculateRadius(n, alpha, T, deg);
-    auto radii = hypergirgs::sampleRadii(n, alpha, R, radiiSeed);
-    auto angles = hypergirgs::sampleAngles(n, angleSeed);
-    auto graph = hypergirgs::generateEdges(radii, angles, T, R, edgesSeed);
+    auto run_avg = 0.0;
+    for (int i = 0; i < runs; ++i) {
 
-    auto num_edges = graph.size();
+        auto R = hypergirgs::calculateRadius(n, alpha, T, deg);
+        auto radii = hypergirgs::sampleRadii(n, alpha, R, radiiSeed+i);
+        auto angles = hypergirgs::sampleAngles(n, angleSeed+2*i);
+        auto graph = hypergirgs::generateEdges(radii, angles, T, R, edgesSeed+3*i);
+        run_avg += graph.size();
+    }
+    run_avg /= runs;
+
     auto num_desired = 0.5*deg*n;
     auto rigor = 0.9;
-    ASSERT_LE(rigor * num_edges, num_desired);
-    ASSERT_LE(rigor * num_desired, num_edges);
+    ASSERT_LE(rigor * run_avg, num_desired);
+    ASSERT_LE(rigor * num_desired, run_avg);
 }
 
 
