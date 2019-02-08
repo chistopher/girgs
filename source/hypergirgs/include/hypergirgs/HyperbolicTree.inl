@@ -1,6 +1,10 @@
+#include <atomic>
 #include <algorithm>
 #include <cassert>
+#include <condition_variable>
+#include <mutex>
 #include <omp.h>
+
 
 #include <hypergirgs/Hyperbolic.h>
 #include <hypergirgs/ScopedTimer.h>
@@ -39,64 +43,78 @@ void HyperbolicTree<EdgeCallback>::generate(int seed) {
     const auto num_threads = omp_get_max_threads();
     if(num_threads == 1) {
         default_random_engine master_gen(seed >= 0 ? seed : std::random_device{}());
-        std::uniform_real_distribution<> dist;
         visitCellPair(0,0,0, master_gen);
         assert(m_type1_checks + m_type2_checks == static_cast<long long>(m_n-1) * m_n);
         return;
     }
 
-    // prepare seed_seq and initialize a gen per thread for initial sampling
-    std::vector<int> seeds(default_random_engine::state_size);
-    {
-        default_random_engine master_gen(seed >= 0 ? seed : std::random_device{}());
-        std::uniform_int_distribution<int> distr;
-        std::generate(seeds.begin(), seeds.end(), [&] {return distr(master_gen);});
-    }
-    std::seed_seq seed_seq(seeds.begin(), seeds.end());
-
-    // init a generator per thread
-    std::vector< default_random_engine > gens;
-    gens.reserve(num_threads-1);
-    for(int i=0; i < num_threads-1; ++i)
-        gens.emplace_back(seed_seq);
-
-    // parallel start
-    const auto first_parallel_level = static_cast<int>(ceil(log(2*num_threads) / log(3)));
+    // We select the first parallel level, s.t. each thread gets on average two tasks
+    // with matching cellA==cellB. Those tasks are much more expensive than tasks with cellA != cellB.
+    const auto first_parallel_level = static_cast<int>(ceil(log2(2*num_threads)));
+    assert(first_parallel_level >= 2);
+    const auto num_tasks = (first_parallel_level == 2)
+        ? 10
+        : ((2 << first_parallel_level) + (3 << (first_parallel_level - 1)));
     std::cout << "First Parallel Level: " << first_parallel_level << "\n";
 
-    // saw off recursion before "first_parallel_level" and save all calls that would be made
+    // prepare seed_seq and initialize a gen per thread for initial sampling
+    auto gens = initialize_prngs(num_threads - 1 + num_tasks,
+        seed >= 0 ? seed : std::random_device{}());
+
+    // We have to implement our own task queue, here's the state:
     std::vector<TaskDescription> tasks;
-    ScopedTimer gtimer("Initial stage sampling");
+
+    // allow processing of pq
+    std::atomic<bool> tasks_generated{false};
+    std::mutex mutex;
+    std::condition_variable cv;
+
+    std::atomic<unsigned int> next_task_to_process{0};
+
     #pragma omp parallel num_threads(num_threads)
     {
 
         const auto tid = omp_get_thread_num();
 
+    // 1. Phase
+        // one thread will generate the task list
         if (tid + 1 == num_threads && first_parallel_level < m_levels) {
             ScopedTimer timer("Gen Tasks");
-            tasks.reserve(8*num_threads);
+            tasks.reserve(num_tasks);
 
-            visitCellPairCreateTasks(0, 0, 0, first_parallel_level, tasks, seed_seq);
+            visitCellPairCreateTasks(0, 0, 0, first_parallel_level, tasks);
+
+            // In spirit of the LPT scheduling, we place expensive tasks to be processed first
+            std::partition(tasks.begin(), tasks.end(), [] (const TaskDescription& t) {
+                return t.cellA == t.cellB;});
 
             std::cout << "Num Parallel Tasks: " << tasks.size() << "\n";
+            assert(num_tasks == tasks.size());
+
+            // inform consumers that tasks are ready
+            tasks_generated = true;
+            cv.notify_all();
         }
 
+        // all others will sample the cells in the first levels of the recursion tree
         if (tid + 1 < num_threads) {
             visitCellPairSample(0, 0, 0, first_parallel_level, num_threads - 1, tid, gens[tid]);
+
+            // wait until tasks are ready
+            if (!tasks_generated) {
+                std::unique_lock<std::mutex> lock(mutex);
+                cv.wait(lock, [&] {return tasks_generated.load();});
+            }
         }
 
+    // 2. Phase
+        // we're not using omp for to ensure that the first tasks are processed first
+        while(true) {
+            const auto i = next_task_to_process.fetch_add(1);
+            if (i >= tasks.size()) break;
 
-        #pragma omp barrier
-
-        if (!tid) {
-            gtimer.report();
-        }
-
-        // do the collected calls in parallel
-        #pragma omp for schedule(dynamic)
-        for (int i = 0; i < tasks.size(); ++i) {
-            auto& task = tasks[i];
-            visitCellPair(task.cellA, task.cellB, first_parallel_level, task.prng);
+            auto &task = tasks[i];
+            visitCellPair(task.cellA, task.cellB, first_parallel_level, gens[num_threads - 1 + i]);
         }
     }
 
@@ -142,34 +160,29 @@ template<typename EdgeCallback>
 void HyperbolicTree<EdgeCallback>::visitCellPairCreateTasks(unsigned int cellA, unsigned int cellB,
                                                              unsigned int level,
                                                              unsigned int first_parallel_level,
-                                                             std::vector<TaskDescription>& parallel_calls,
-                                                             std::seed_seq& seed_seq) {
+                                                             std::vector<TaskDescription>& parallel_calls) {
 
     if(!AngleHelper::touching(cellA, cellB, level))
         return;
 
-
-        // recursive call for all children pairs (a,b) where a in A and b in B
+    // recursive call for all children pairs (a,b) where a in A and b in B
     // these will be type 1 if a and b touch or type 2 if they don't
     auto fA = AngleHelper::firstChild(cellA);
     auto fB = AngleHelper::firstChild(cellB);
 
     if(level+1 != first_parallel_level) {
-        visitCellPairCreateTasks(fA + 0, fB + 0, level + 1, first_parallel_level, parallel_calls, seed_seq);
-        visitCellPairCreateTasks(fA + 0, fB + 1, level + 1, first_parallel_level, parallel_calls, seed_seq);
-        visitCellPairCreateTasks(fA + 1, fB + 1, level + 1, first_parallel_level, parallel_calls, seed_seq);
+        visitCellPairCreateTasks(fA + 0, fB + 0, level + 1, first_parallel_level, parallel_calls);
+        visitCellPairCreateTasks(fA + 0, fB + 1, level + 1, first_parallel_level, parallel_calls);
+        visitCellPairCreateTasks(fA + 1, fB + 1, level + 1, first_parallel_level, parallel_calls);
         if (cellA != cellB)
-            visitCellPairCreateTasks(fA + 1, fB + 0, level + 1, first_parallel_level, parallel_calls, seed_seq); // if A==B we already did this call 3 lines above
+            visitCellPairCreateTasks(fA + 1, fB + 0, level + 1, first_parallel_level, parallel_calls); // if A==B we already did this call 3 lines above
     } else {
-        auto addTask = [&] (unsigned int cellA, unsigned int cellB) {
-            parallel_calls.emplace_back(cellA, cellB, seed_seq);
-        };
-
-        addTask(fA+0, fB+0);
-        addTask(fA+0, fB+1);
-        addTask(fA+1, fB+1);
+        // store tasks
+        parallel_calls.emplace_back(fA+0, fB+0);
+        parallel_calls.emplace_back(fA+0, fB+1);
+        parallel_calls.emplace_back(fA+1, fB+1);
         if (cellA != cellB)
-            addTask(fA+1, fB);
+            parallel_calls.emplace_back(fA+1, fB);
     }
 }
 
@@ -396,6 +409,34 @@ void HyperbolicTree<EdgeCallback>::sampleTypeII(unsigned int cellA, unsigned int
             }
         }
     }
+}
+
+
+template <typename EdgeCallback>
+std::vector<default_random_engine> HyperbolicTree<EdgeCallback>::initialize_prngs(size_t n, unsigned seed) const {
+    std::vector<default_random_engine> gens;
+
+    // we need a generator for each tasks and also for each but one threads
+    constexpr auto state_size = default_random_engine::state_size;
+
+    // get high quality seed values from one PRNG
+    std::vector<uint32_t> seeds(n * state_size);
+    {
+        default_random_engine master_gen(seed);
+        std::uniform_int_distribution<std::uint32_t> dist;
+        std::generate(seeds.begin(), seeds.end(), [&] {return dist(master_gen);});
+    }
+
+    // use a seed_seq to initialize all prngs
+    gens.reserve(n);
+    for(int i=0; i < n; ++i) {
+        auto begin = std::next(seeds.begin(), i * state_size);
+        auto end = std::next(begin, state_size);
+        std::seed_seq ss(begin, end);
+        gens.emplace_back(ss);
+    }
+
+    return gens;
 }
 
 template <typename EdgeCallback>
