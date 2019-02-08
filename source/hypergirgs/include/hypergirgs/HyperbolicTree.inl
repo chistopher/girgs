@@ -278,6 +278,7 @@ void HyperbolicTree<EdgeCallback>::sampleTypeI(unsigned int cellA, unsigned int 
 
                 auto real_dist_cosh = nodeInA.hyperbolicDistanceCosh(nodeInB);
                 if (real_dist_cosh > filters.first[static_cast<int>(filters.second * rnd)]) {
+                    assert(rnd * connectionProbRec(std::acosh(real_dist_cosh)) >= 1.0);
                     continue;
                 }
 
@@ -358,6 +359,7 @@ void HyperbolicTree<EdgeCallback>::sampleTypeII(unsigned int cellA, unsigned int
 
             const auto rnd = dist(gen);
             if (real_dist_cosh > filters.first[static_cast<int>(filters.second * rnd)]) {
+                assert(rnd * connectionProbRec(std::acosh(real_dist_cosh)) >= 1.0);
                 continue;
             }
 
