@@ -331,12 +331,12 @@ void HyperbolicTree<EdgeCallback>::sampleTypeII(unsigned int cellA, unsigned int
         return;
     }
 
-    const auto num_pairs = 2ll * sizeV_i_A * sizeV_j_B;
+    const auto num_pairs = sizeV_i_A * sizeV_j_B;
     const auto expected_samples = num_pairs * max_connection_prob;
 
 #ifndef NDEBUG
     #pragma omp atomic
-    m_type2_checks += num_pairs;
+    m_type2_checks += 2llu * num_pairs;
 #endif // NDEBUG
 
     if(expected_samples < 1e-6)
@@ -350,7 +350,7 @@ void HyperbolicTree<EdgeCallback>::sampleTypeII(unsigned int cellA, unsigned int
     if (expected_samples > 10.) {
         const auto filters = computeFilterStages<3>(max_connection_prob);
 
-        for (auto r = geo(gen); r < sizeV_i_A * sizeV_j_B; r += 1 + geo(gen)) {
+        for (auto r = geo(gen); r < num_pairs; r += 1 + geo(gen)) {
             // determine the r-th pair
             const auto& nodeInA = m_radius_layers[i].kthPoint(cellA, level, r%sizeV_i_A);
             const auto& nodeInB = m_radius_layers[j].kthPoint(cellB, level, r/sizeV_i_A);
@@ -383,7 +383,7 @@ void HyperbolicTree<EdgeCallback>::sampleTypeII(unsigned int cellA, unsigned int
         }
 
     } else {
-        for (auto r = geo(gen); r < sizeV_i_A * sizeV_j_B; r += 1 + geo(gen)) {
+        for (auto r = geo(gen); r < num_pairs; r += 1 + geo(gen)) {
             // determine the r-th pair
             const auto& nodeInA = m_radius_layers[i].kthPoint(cellA, level, r%sizeV_i_A);
             const auto& nodeInB = m_radius_layers[j].kthPoint(cellB, level, r/sizeV_i_A);
