@@ -262,6 +262,11 @@ void HyperbolicTree<EdgeCallback>::sampleTypeI(unsigned int cellA, unsigned int 
     int kA = 0;
     std::uniform_real_distribution<> dist;
 
+    // we evalutate T == 0 and store the result in a const LOCAL variable
+    // to allow the compiler to assume it's constness and hence pull out the
+    // if in the for loop
+    const bool inThresholdMode = (m_T <= std::numeric_limits<double_t>::epsilon());
+
     for(auto pointerA = rangeA.first; pointerA != rangeA.second; ++kA, ++pointerA) {
         auto offset = (cellA == cellB && i==j) ? kA+1 : 0;
         for (auto pointerB = rangeB.first + offset; pointerB != rangeB.second; ++pointerB) {
@@ -281,7 +286,7 @@ void HyperbolicTree<EdgeCallback>::sampleTypeI(unsigned int cellA, unsigned int 
             assert(m_radius_layers[j].m_r_min < nodeInB.radius && nodeInB.radius <= m_radius_layers[j].m_r_max);
 
             assert(nodeInA != nodeInB);
-            if(m_T==0) {
+            if(inThresholdMode) {
                 if (nodeInA.isDistanceBelowR(nodeInB, m_coshR)) {
                     assert(hyperbolicDistance(nodeInA.radius, nodeInA.angle, nodeInB.radius, nodeInB.angle) < m_R);
                     m_edgeCallback(nodeInA.id, nodeInB.id, threadId);
