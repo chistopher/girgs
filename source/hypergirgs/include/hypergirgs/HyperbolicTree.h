@@ -53,7 +53,9 @@ protected:
     double invConnectionProb(double p) const;
 
     template<size_t kFilterStages>
-    std::pair<std::array<double, kFilterStages+1>, double> computeFilterStages(double maxProb) const;
+    std::pair<std::array<double, kFilterStages>, double> computeFilterStages(double maxProb) const;
+
+    constexpr static size_t kTypeIFilterStages = 8;
 
 protected:
     EdgeCallback& m_edgeCallback;
@@ -75,6 +77,7 @@ protected:
 
     std::vector<default_random_engine> initialize_prngs(size_t n, unsigned seed) const;
 
+    std::pair<std::array<double, kTypeIFilterStages>, double> m_typeI_filter;
 
 #ifndef NDEBUG
     long long m_type1_checks{0}; ///< number of node pairs per thread that are checked via a type 1 check

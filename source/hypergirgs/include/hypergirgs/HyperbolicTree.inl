@@ -20,6 +20,7 @@ HyperbolicTree<EdgeCallback>::HyperbolicTree(std::vector<double> &radii, std::ve
     , m_coshR(std::cosh(R))
     , m_T(T)
     , m_R(R)
+    , m_typeI_filter(computeFilterStages<kTypeIFilterStages>(1.0))
 {
     const auto layer_height = 1.0;
 
@@ -260,7 +261,6 @@ void HyperbolicTree<EdgeCallback>::sampleTypeI(unsigned int cellA, unsigned int 
 
     int kA = 0;
     std::uniform_real_distribution<> dist;
-    const auto filters = computeFilterStages<3>(1.0);
 
     for(auto pointerA = rangeA.first; pointerA != rangeA.second; ++kA, ++pointerA) {
         auto offset = (cellA == cellB && i==j) ? kA+1 : 0;
@@ -290,7 +290,7 @@ void HyperbolicTree<EdgeCallback>::sampleTypeI(unsigned int cellA, unsigned int 
                 const auto rnd = dist(gen);
 
                 auto real_dist_cosh = nodeInA.hyperbolicDistanceCosh(nodeInB);
-                if (real_dist_cosh > filters.first[static_cast<int>(filters.second * rnd)]) {
+                if (real_dist_cosh > m_typeI_filter.first[static_cast<int>(m_typeI_filter.second * rnd)]) {
                     assert(rnd * connectionProbRec(std::acosh(real_dist_cosh)) >= 1.0);
                     continue;
                 }
@@ -456,9 +456,9 @@ double HyperbolicTree<EdgeCallback>::invConnectionProb(double p) const {
 
 template<typename EdgeCallback>
 template<size_t kFilterStages>
-std::pair<std::array<double, kFilterStages+1>, double> HyperbolicTree<EdgeCallback>::computeFilterStages(double max_connection_prob) const {
-    std::array<double, kFilterStages+1> filters;
-    for(int i=0; i <= kFilterStages; i++)
+std::pair<std::array<double, kFilterStages>, double> HyperbolicTree<EdgeCallback>::computeFilterStages(double max_connection_prob) const {
+    std::array<double, kFilterStages> filters;
+    for(int i=0; i < kFilterStages; i++)
         filters[i] = cosh(invConnectionProb(max_connection_prob / kFilterStages * i));
     const double filter_width = kFilterStages / max_connection_prob;
     return {filters, filter_width};
