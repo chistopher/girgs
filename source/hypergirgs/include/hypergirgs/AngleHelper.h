@@ -34,6 +34,8 @@ public:
 
     // returns a lower bound for the angular difference of two points in these cells
     static double dist(unsigned int cellA, unsigned int cellB, unsigned int level);
+
+    static int cellsBetween(unsigned int cellA, unsigned int cellB, unsigned int level);
 };
 
 

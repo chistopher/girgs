@@ -28,8 +28,9 @@ public:
      * @param T
      *  The temperature of the graph.
      */
-    explicit DistanceFilter(double max_prob, double R, double T)
+    DistanceFilter(double max_prob, double R, double T)
     : max_connection_prob(max_prob)
+    , stage_width(stages/max_prob)
     {
         for(int i=1; i < stages; i++)
             filter_stages[i] = cosh(invConnectionProb(max_connection_prob / stages * i, R, T));
@@ -55,6 +56,7 @@ public:
     }
 
 
+    const double max_connection_prob;     ///< range of the filter. See c'tor
 private:
 
     /// inverse of the edge probability function
@@ -64,8 +66,7 @@ private:
     }
 
     std::array<double, stages+1> filter_stages; ///< pos i holds the cosh(distance) at which to points would have a connection prob of (i/stages)
-    const double max_connection_prob = 1.0;     ///< range of the filter. See c'tor
-    const double stage_width = stages / max_connection_prob;
+    const double stage_width;
 };
 
 

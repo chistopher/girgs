@@ -70,8 +70,10 @@ protected:
 
     std::vector<std::vector<std::pair<unsigned int, unsigned int> > > m_layer_pairs;
 
-    constexpr static size_t kTypeIFilterStages = 100;
-    DistanceFilter<kTypeIFilterStages> m_typeI_filter;
+    constexpr static size_t filter_size = 100;
+    DistanceFilter<filter_size> m_typeI_filter;
+    /// filter for layer ij on level l is in  m_typeII_filter[i*m_layers+j][l-2]; -2 because level 0 and 1 have no type 2 cell pairs
+    std::vector<std::vector<std::pair<DistanceFilter<filter_size>,DistanceFilter<filter_size>>>> m_typeII_filter;
 
 #ifndef NDEBUG
     long long m_type1_checks{0}; ///< number of node pairs per thread that are checked via a type 1 check
