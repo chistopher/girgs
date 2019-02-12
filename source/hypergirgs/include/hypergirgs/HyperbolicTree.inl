@@ -20,7 +20,7 @@ HyperbolicTree<EdgeCallback>::HyperbolicTree(std::vector<double> &radii, std::ve
     , m_coshR(std::cosh(R))
     , m_T(T)
     , m_R(R)
-    , m_typeI_filter(computeFilterStages<kTypeIFilterStages>(1.0))
+    , m_typeI_filter(1.0, R, T)
 {
     const auto layer_height = 1.0;
 
@@ -293,13 +293,22 @@ void HyperbolicTree<EdgeCallback>::sampleTypeI(unsigned int cellA, unsigned int 
                 }
             } else {
                 const auto rnd = dist(gen);
+                const auto real_dist_cosh = nodeInA.hyperbolicDistanceCosh(nodeInB);
 
-                auto real_dist_cosh = nodeInA.hyperbolicDistanceCosh(nodeInB);
-                if (real_dist_cosh > m_typeI_filter.first[static_cast<int>(m_typeI_filter.second * rnd)]) {
+                // check if we wouldn't make it even if rnd was a little smaller
+                if (real_dist_cosh > m_typeI_filter.coshDistForProb_upperBound(rnd)) {
                     assert(rnd * connectionProbRec(std::acosh(real_dist_cosh)) >= 1.0);
                     continue;
                 }
 
+                // check if we would make it even if rnd was a little higher
+                if (real_dist_cosh < m_typeI_filter.coshDistForProb_lowerBound(rnd)) {
+                    assert(rnd * connectionProbRec(std::acosh(real_dist_cosh)) < 1.0);
+                    m_edgeCallback(nodeInA.id, nodeInB.id, threadId);
+                    continue;
+                }
+
+                // rnd is very close to the prob at which we we connect this pair
                 if(rnd * connectionProbRec(std::acosh(real_dist_cosh)) < 1.0) {
                     m_edgeCallback(nodeInA.id, nodeInB.id, threadId);
                 }
@@ -314,13 +323,14 @@ void HyperbolicTree<EdgeCallback>::sampleTypeII(unsigned int cellA, unsigned int
     // TODO use cell iterators
     const auto sizeV_i_A = static_cast<long long>(m_radius_layers[i].pointsInCell(cellA, level));
     const auto sizeV_j_B = static_cast<long long>(m_radius_layers[j].pointsInCell(cellB, level));
-    if (m_T == 0 || sizeV_i_A == 0 || sizeV_j_B == 0) {
+
 #ifndef NDEBUG
-        #pragma omp atomic
-        m_type2_checks += 2ll * sizeV_i_A * sizeV_j_B;
+    #pragma omp atomic
+    m_type2_checks += 2ll * sizeV_i_A * sizeV_j_B;
 #endif // NDEBUG
+
+    if (m_T == 0 || sizeV_i_A == 0 || sizeV_j_B == 0)
         return;
-    }
 
     // get upper bound for probability
     auto r_boundA = m_radius_layers[i].m_r_min;
@@ -329,20 +339,8 @@ void HyperbolicTree<EdgeCallback>::sampleTypeII(unsigned int cellA, unsigned int
     auto dist_lower_bound = hyperbolicDistance(r_boundA, 0, r_boundB, angular_distance_lower_bound);
     auto max_connection_prob = 1.0 / connectionProbRec(dist_lower_bound);
 
-    // if we must sample all pairs we treat this as type 1 sampling
-    // also, 1.0 is no valid prob for a geometric dist (see c++ std)
-    if(max_connection_prob == 1.0){
-        sampleTypeI(cellA, cellB, level, i, j, gen);
-        return;
-    }
-
     const auto num_pairs = sizeV_i_A * sizeV_j_B;
     const auto expected_samples = num_pairs * max_connection_prob;
-
-#ifndef NDEBUG
-    #pragma omp atomic
-    m_type2_checks += 2llu * num_pairs;
-#endif // NDEBUG
 
     if(expected_samples < 1e-6)
         return;
@@ -353,7 +351,7 @@ void HyperbolicTree<EdgeCallback>::sampleTypeII(unsigned int cellA, unsigned int
     std::uniform_real_distribution<> dist(0.0, max_connection_prob);
 
     if (expected_samples > 10.) {
-        const auto filters = computeFilterStages<3>(max_connection_prob);
+        const auto filters = DistanceFilter<3>(max_connection_prob, m_R, m_T);
 
         for (auto r = geo(gen); r < num_pairs; r += 1 + geo(gen)) {
             // determine the r-th pair
@@ -376,13 +374,22 @@ void HyperbolicTree<EdgeCallback>::sampleTypeII(unsigned int cellA, unsigned int
             assert(std::acosh(real_dist_cosh) > m_R);
 
             const auto rnd = dist(gen);
-            if (real_dist_cosh > filters.first[static_cast<int>(filters.second * rnd)]) {
+
+            // check if we wouldn't make it even if rnd was a little smaller
+            if (real_dist_cosh > m_typeI_filter.coshDistForProb_upperBound(rnd)) {
                 assert(rnd * connectionProbRec(std::acosh(real_dist_cosh)) >= 1.0);
                 continue;
             }
 
-            auto connection_prob = connectionProbRec(std::acosh(real_dist_cosh));
-            if(rnd * connection_prob < 1.0) {
+            // check if we would make it even if rnd was a little higher
+            if (real_dist_cosh < m_typeI_filter.coshDistForProb_lowerBound(rnd)) {
+                assert(rnd * connectionProbRec(std::acosh(real_dist_cosh)) < 1.0);
+                m_edgeCallback(nodeInA.id, nodeInB.id, threadId);
+                continue;
+            }
+
+            // rnd is very close to the prob at which we we connect this pair
+            if(rnd * connectionProbRec(std::acosh(real_dist_cosh)) < 1.0) {
                 m_edgeCallback(nodeInA.id, nodeInB.id, threadId);
             }
         }
@@ -452,21 +459,6 @@ unsigned int HyperbolicTree<EdgeCallback>::partitioningBaseLevel(double r1, doub
 template<typename EdgeCallback>
 double HyperbolicTree<EdgeCallback>::connectionProbRec(double dist) const {
     return 1.0 + std::exp(0.5/m_T*(dist-m_R));
-}
-
-template<typename EdgeCallback>
-double HyperbolicTree<EdgeCallback>::invConnectionProb(double p) const {
-    return m_R + 2*m_T*std::log(1.0 / p - 1);
-}
-
-template<typename EdgeCallback>
-template<size_t kFilterStages>
-std::pair<std::array<double, kFilterStages>, double> HyperbolicTree<EdgeCallback>::computeFilterStages(double max_connection_prob) const {
-    std::array<double, kFilterStages> filters;
-    for(int i=0; i < kFilterStages; i++)
-        filters[i] = cosh(invConnectionProb(max_connection_prob / kFilterStages * i));
-    const double filter_width = kFilterStages / max_connection_prob;
-    return {filters, filter_width};
 }
 
 

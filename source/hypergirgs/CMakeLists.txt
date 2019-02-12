@@ -34,10 +34,14 @@ set(source_path  "${CMAKE_CURRENT_SOURCE_DIR}/source")
 
 set(headers
     ${include_path}/AngleHelper.h
+    ${include_path}/DistanceFilter.h
     ${include_path}/Hyperbolic.h
     ${include_path}/HyperbolicTree.h
     ${include_path}/HyperbolicTree.inl
+    ${include_path}/IntSort.h
+    ${include_path}/Point.h
     ${include_path}/RadiusLayer.h
+    ${include_path}/ScopedTimer.h
 )
 
 set(sources
