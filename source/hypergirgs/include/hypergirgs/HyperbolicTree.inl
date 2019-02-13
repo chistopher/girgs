@@ -385,10 +385,13 @@ void HyperbolicTree<EdgeCallback>::sampleTypeII(unsigned int cellA, unsigned int
     auto geo = std::geometric_distribution<unsigned long long>(max_connection_prob);
     std::uniform_real_distribution<> dist(0.0, max_connection_prob);
 
+    const auto* pointsA = &m_radius_layers[i].kthPoint(cellA, level, 0);
+    const auto* pointsB = &m_radius_layers[j].kthPoint(cellB, level, 0);
+
     for (auto r = geo(gen); r < num_pairs; r += 1 + geo(gen)) {
         // determine the r-th pair
-        const auto& nodeInA = m_radius_layers[i].kthPoint(cellA, level, r%sizeV_i_A);
-        const auto& nodeInB = m_radius_layers[j].kthPoint(cellB, level, r/sizeV_i_A);
+        const auto& nodeInA = pointsA[r%sizeV_i_A];
+        const auto& nodeInB = pointsB[r/sizeV_i_A];
 
         // points are in correct cells
         assert(cellA - AngleHelper::firstCellOfLevel(level) == AngleHelper::cellForPoint(nodeInA.angle, level));
