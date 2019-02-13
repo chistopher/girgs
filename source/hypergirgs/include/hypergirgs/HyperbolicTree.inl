@@ -358,10 +358,21 @@ void HyperbolicTree<EdgeCallback>::sampleTypeII(unsigned int cellA, unsigned int
     if (m_T == 0 || sizeV_i_A == 0 || sizeV_j_B == 0)
         return;
 
-    auto& filters = m_typeII_filter[i*m_layers+j][level-2];
+    const auto& filters = m_typeII_filter[i*m_layers+j][level-2];
     assert(AngleHelper::cellsBetween(cellA, cellB, level) == 1 || AngleHelper::cellsBetween(cellA, cellB, level) == 2);
-    auto& filter = (AngleHelper::cellsBetween(cellA, cellB, level) == 1 ? filters.first : filters.second);
-    auto& max_connection_prob = filter.max_connection_prob;
+    const auto& filter = (AngleHelper::cellsBetween(cellA, cellB, level) == 1 ? filters.first : filters.second);
+    const auto max_connection_prob = filter.max_connection_prob;
+
+    // skipping over points is actually quite expensive as it messes up
+    // branch predictions and prefetching. Hence low expected skip distances
+    // it's cheapter to throw a coin each time!
+    if (max_connection_prob > 0.2) {
+        #ifndef NDEBUG
+            #pragma omp atomic
+            m_type2_checks -= 2ll * sizeV_i_A * sizeV_j_B;
+        #endif // NDEBUG
+        return sampleTypeI(cellA, cellB, level, i, j, gen);
+    }
 
 #ifndef NDEBUG
     // get upper bound for probability
