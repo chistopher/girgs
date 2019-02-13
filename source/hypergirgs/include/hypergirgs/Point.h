@@ -72,9 +72,24 @@ struct Point {
     double cos_phi;   ///< = cos(angle)
     double sin_phi;   ///< = sin(angle)
 
-#ifdef POINT_WITH_ORIGINAL
+#ifndef POINT_WITH_ORIGINAL
+    void prefetch() const noexcept {
+        #if defined(__GNUC__) || defined(__clang__)
+        __builtin_prefetch(&id, 0);
+        __builtin_prefetch(&sin_phi, 0);
+        #endif
+    }
+
+#else // POINT_WITH_ORIGINAL
     double radius;    ///< = radius
     double angle;     ///< = angle
+
+    void prefetch() const noexcept {
+        #if defined(__GNUC__) || defined(__clang__)
+        __builtin_prefetch(&id, 0);
+        __builtin_prefetch(&angle, 0);
+        #endif
+    }
 #endif // POINT_WITH_ORIGINAL
 };
 
