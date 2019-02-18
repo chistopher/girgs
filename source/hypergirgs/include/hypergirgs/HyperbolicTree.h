@@ -7,6 +7,7 @@
 #include <hypergirgs/AngleHelper.h>
 #include <hypergirgs/RadiusLayer.h>
 #include <hypergirgs/Point.h>
+#include <hypergirgs/DistanceFilter.h>
 
 namespace hypergirgs {
 
@@ -46,9 +47,10 @@ protected:
     /// takes lower bound on radius for two layers
     unsigned int partitioningBaseLevel(double r1, double r2);
 
-    /// connection probability with respect to hyperbolic distance
-    double connectionProb(double dist);
+    /// 1.0 / connection probability with respect to hyperbolic distance
+    double connectionProbRec(double dist) const;
 
+    std::vector<default_random_engine> initialize_prngs(size_t n, unsigned seed) const;
 
 protected:
     EdgeCallback& m_edgeCallback;
@@ -68,8 +70,10 @@ protected:
 
     std::vector<std::vector<std::pair<unsigned int, unsigned int> > > m_layer_pairs;
 
-    std::vector<default_random_engine> initialize_prngs(size_t n, unsigned seed) const;
-
+    constexpr static size_t filter_size = 100;
+    DistanceFilter<filter_size> m_typeI_filter;
+    /// filter for layer ij on level l is in  m_typeII_filter[i*m_layers+j][l-2]; -2 because level 0 and 1 have no type 2 cell pairs
+    std::vector<std::vector<std::pair<DistanceFilter<filter_size>,DistanceFilter<filter_size>>>> m_typeII_filter;
 
 #ifndef NDEBUG
     long long m_type1_checks{0}; ///< number of node pairs per thread that are checked via a type 1 check
