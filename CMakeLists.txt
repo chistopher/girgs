@@ -68,8 +68,8 @@ string(TOUPPER ${META_PROJECT_ID} META_PROJECT_ID)
 # Project options
 option(BUILD_SHARED_LIBS      "Build shared instead of static libraries."              ON)
 option(OPTION_SELF_CONTAINED  "Create a self-contained install with all dependencies." OFF)
-option(OPTION_BUILD_TESTS     "Build tests."                                           ON)
-option(OPTION_BUILD_BENCHMARKS "Build tests."                                          ON)
+option(OPTION_BUILD_TESTS     "Build tests."                                           OFF)
+option(OPTION_BUILD_BENCHMARKS "Build benchmarks."                                     OFF)
 option(OPTION_BUILD_EXAMPLES  "Build examples."                                        ON)
 option(OPTION_BUILD_DOCS      "Build documentation."                                   OFF)
 
