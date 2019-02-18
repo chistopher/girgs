@@ -1,66 +1,135 @@
 
-#include <chrono>
 #include <iostream>
+#include <cassert>
+#include <limits>
+
+#include <omp.h>
 
 #include <girgs/Generator.h>
+#include <girgs/ScopedTimer.h>
 
 
 using namespace std;
 using namespace girgs;
 
-// GIRG parameter
-const auto ple = -2.5;
-const auto alpha = 1.1;
-//const auto alpha = std::numeric_limits<double>::infinity();
-const auto avgDeg = 10;
-
-// measuring parameter
-const auto SEED = 13;
-const auto RUNS = 10;
-const auto N_1 = 12500  * (alpha == std::numeric_limits<double>::infinity() ? 10 : 1);
-const auto N_2 = 100100 * (alpha == std::numeric_limits<double>::infinity() ? 10 : 1);
-const auto D_MAX = 4;
-using resolution = chrono::milliseconds;
 
 
-int measure(int dimension, int n, int run, Generator& g) {
+void measure(int dimension, int n, int avgDeg, double alpha, double ple, int threads, int seed, int plot) {
 
-    auto positionSeed = SEED+run;
-    auto samplingSeed = SEED+run+n;
+    ple = -ple; // TODO remove
+    omp_set_num_threads(threads);
+    assert(threads == omp_get_max_threads());
 
-    g.setPositions(n, dimension, positionSeed);
-    
-    // measure
-    auto start = chrono::high_resolution_clock::now();
-    g.generate(alpha, samplingSeed);
-    auto end = chrono::high_resolution_clock::now();
+    Generator g;
+    auto weightSeed = seed + 1000;
+    auto positionSeed = seed+ 10000;
+    auto samplingSeed = seed+ 100000;
 
-    return chrono::duration_cast<resolution>(end-start).count();
-}
+    double time_weights, time_positions, time_binary, time_edges;
+    {
+        {
+            ScopedTimer timer("", time_weights);
+            g.setWeights(n, ple, weightSeed);
+        }
 
-int avg(int dimension, int n){
+        {
+            ScopedTimer timer("", time_positions);
+            g.setPositions(n, dimension, positionSeed);
+        }
 
-	// do scaling outside of measurement loop
-	Generator g;
-	g.setWeights(n, ple, SEED);
-	g.scaleWeights(avgDeg, dimension, alpha);
+        {
+            ScopedTimer timer("", time_binary);
+            g.scaleWeights(avgDeg, dimension, alpha);
+        }
 
-    auto sum = 0;
-    for (int i = 0; i < RUNS; ++i)
-        sum = sum + measure(dimension, n, i, g);
-    return sum / RUNS;
+        {
+            ScopedTimer timer("", time_edges);
+            g.generate(alpha, samplingSeed);
+        }
+    }
+
+    auto edges = g.edges();
+    auto degree = 2.0 * edges / n;
+    ple = -ple; // TODO remove
+
+    cout << dimension << ','
+         << n << ','
+         << avgDeg << ','
+         << alpha << ','
+         << ple << ','
+         << threads << ','
+         << seed << ','
+         << plot << ','
+         << time_weights << ','
+         << time_positions << ','
+         << time_binary << ','
+         << time_edges << ','
+         << edges << ','
+         << degree << '\n';
 }
 
 
 int main(int argc, char* argv[]) {
 
-    for(auto d = 1; d<D_MAX; ++d){
-        cout << "d=" << d << '\n';
-        for(auto n = N_1; n<N_2; n*=2){
-            auto ggg =  avg(d,n);
-            cout << n << '\t' << ggg << endl;
+    cout << "dimension,n,avgDeg,alpha,ple,threads,seed,plot,TimeWeights,TimePositions,TimeBinary,TimeEdges,GenNumEdge,GenAvgDeg\n";
+
+    int seed = 0;
+
+    auto d = 1;
+    auto n = 1<<15;
+    auto alpha = std::numeric_limits<double>::infinity();
+    auto alpha_binomial = 2.0;
+    auto ple = 2.5;
+    auto deg=10;
+    auto threads = 1;
+    auto reps = 10;
+
+    for(int rep=0; rep<reps; ++rep) {
+        clog << "rep " << rep << endl;
+
+        clog << "growing n" << endl;
+        for(int i = 1<<10; i<= (1<<20); i <<= 1) {
+            clog << i << endl;
+            for(auto deg : {10,100,1000})
+		if(deg*4 < i) 
+		    measure(d, i, deg, alpha, ple, threads, ++seed, 0);
         }
-        cout << endl;
+
+
+        clog << "growing deg" << endl;
+        for(int i = 2; i<= 1<<12; i <<= 1) {
+            clog << i << endl;
+            measure(d, n, i, alpha, ple, threads, ++seed, 1);
+        }
+
+        clog << "shrinking alpha" << endl;
+        for(auto i : {alpha, 5.0, 4.5, 4.0, 3.5, 3.0, 2.5, 2.0}) {
+            clog << i << endl;
+            measure(d, n, deg, i, ple, threads, ++seed, 2);
+        }
+
+        clog << "growing dimension" << endl;
+        for(auto i : {1,2,3,4,5}) {
+            clog << i << endl;
+            measure(i, n, deg, alpha, ple, threads, ++seed, 3);
+        }
+
+        clog << "strong scaling threshold" << endl;
+        for(auto i : {1,2,3,4,5,6}) {
+            clog << i << endl;
+            for(auto d : {1,2,3,4,5}) {
+                measure(d, n, deg, alpha, ple, i, ++seed, 4);
+            }
+        }
+
+        clog << "strong scaling binomial" << endl;
+        for(auto i : {1,2,3,4,5,6}) {
+            clog << i << endl;
+            for(auto d : {1,2,3,4,5}) {
+                measure(d, n, deg, alpha_binomial, ple, i, ++seed, 5);
+            }
+        }
     }
+
     return 0;
 }

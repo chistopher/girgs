@@ -89,7 +89,7 @@ void HyperbolicTree<EdgeCallback>::generate(int seed) {
     std::vector<TaskDescription> tasks;
 
     // allow processing of pq
-    std::atomic<bool> tasks_generated{false};
+    auto tasks_generated = false;
     std::mutex mutex;
     std::condition_variable cv;
 
@@ -116,7 +116,10 @@ void HyperbolicTree<EdgeCallback>::generate(int seed) {
             assert(num_tasks == tasks.size());
 
             // inform consumers that tasks are ready
-            tasks_generated = true;
+            {
+                std::lock_guard<std::mutex> lock(mutex);
+                tasks_generated = true;
+            }
             cv.notify_all();
         }
 
@@ -127,7 +130,7 @@ void HyperbolicTree<EdgeCallback>::generate(int seed) {
             // wait until tasks are ready
             if (!tasks_generated) {
                 std::unique_lock<std::mutex> lock(mutex);
-                cv.wait(lock, [&] {return tasks_generated.load();});
+                cv.wait(lock, [&] {return tasks_generated;});
             }
         }
 

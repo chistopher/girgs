@@ -27,8 +27,10 @@ if(OPTION_BUILD_TESTS AND NOT MINGW)
 endif()
 
 # Benchmarks
-set(IDE_FOLDER "Benchmarks")
-add_subdirectory(benchmarks)
+if(OPTION_BUILD_BENCHMARKS)
+    set(IDE_FOLDER "Benchmarks")
+    add_subdirectory(benchmarks)
+endif()
 
 
 #
