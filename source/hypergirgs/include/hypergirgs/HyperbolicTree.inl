@@ -407,6 +407,9 @@ void HyperbolicTree<EdgeCallback>::sampleTypeII(unsigned int cellA, unsigned int
         const auto& nodeInA = pointsA[r%sizeV_i_A];
         const auto& nodeInB = pointsB[r/sizeV_i_A];
 
+        nodeInB.prefetch();
+        nodeInA.prefetch();
+
         // points are in correct cells
         assert(cellA - AngleHelper::firstCellOfLevel(level) == AngleHelper::cellForPoint(nodeInA.angle, level));
         assert(cellB - AngleHelper::firstCellOfLevel(level) == AngleHelper::cellForPoint(nodeInB.angle, level));
@@ -415,14 +418,14 @@ void HyperbolicTree<EdgeCallback>::sampleTypeII(unsigned int cellA, unsigned int
         assert(m_radius_layers[i].m_r_min < nodeInA.radius && nodeInA.radius <= m_radius_layers[i].m_r_max);
         assert(m_radius_layers[j].m_r_min < nodeInB.radius && nodeInB.radius <= m_radius_layers[j].m_r_max);
 
+        const auto rnd = dist(gen);
+
         // get actual connection probability
         const auto real_dist_cosh = nodeInA.hyperbolicDistanceCosh(nodeInB);
         assert(angular_distance_lower_bound <= std::abs(nodeInA.angle - nodeInB.angle));
         assert(angular_distance_lower_bound <= std::abs(nodeInB.angle - nodeInA.angle));
         assert(std::acosh(real_dist_cosh) >= dist_lower_bound);
         assert(std::acosh(real_dist_cosh) > m_R);
-
-        const auto rnd = dist(gen);
 
         // check if we wouldn't make it even if rnd was a little smaller
         if (real_dist_cosh > filter.coshDistForProb_upperBound(rnd)) {
