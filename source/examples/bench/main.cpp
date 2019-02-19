@@ -6,12 +6,31 @@
 #include <omp.h>
 
 #include <girgs/Generator.h>
+#include <girgs/SpatialTree.h>
 #include <girgs/ScopedTimer.h>
+
+#include "../dev3/CounterPerThread.h"
 
 
 using namespace std;
 using namespace girgs;
 
+// returns number of edges
+template<unsigned int D>
+void measure_edge_generation(const std::vector<double>& weights, const std::vector<std::vector<double>>& positions, double alpha, int samplingSeed,
+        CounterPerThread<uint64_t>& counter, double& time_pre, double& time_edges) {
+    // Preprocess
+    auto addEdge = [&counter] (int, int, int tid) {counter.add(tid);};
+    auto generator = [&] {
+        ScopedTimer timer("", time_pre);
+        return makeSpatialTree<D>(weights, positions, alpha, addEdge);
+    }();
+    // generate
+    {
+        ScopedTimer timer("", time_edges);
+        generator.generateEdges(samplingSeed);
+    }
+}
 
 
 void measure(int dimension, int n, int avgDeg, double alpha, double ple, int threads, int seed, int plot) {
@@ -23,9 +42,10 @@ void measure(int dimension, int n, int avgDeg, double alpha, double ple, int thr
     auto positionSeed = seed+ 10000;
     auto samplingSeed = seed+ 100000;
 
-    double time_weights, time_positions, time_binary, time_edges, time_total;
+    double time_weights, time_positions, time_binary, time_pre, time_edges, time_total;
 
-    auto edges = [&] {
+    CounterPerThread<uint64_t> counter_num_edges;
+    {
         ScopedTimer total_timer("", time_total);
 
         auto weights = [&]{
@@ -44,12 +64,19 @@ void measure(int dimension, int n, int avgDeg, double alpha, double ple, int thr
         }
 
         {
-            ScopedTimer timer("", time_edges);
-            return generateEdges(weights, positions, alpha, samplingSeed);
+            switch(dimension) {
+                case 1: measure_edge_generation<1>(weights, positions, alpha, samplingSeed, counter_num_edges, time_pre, time_edges); break;
+                case 2: measure_edge_generation<2>(weights, positions, alpha, samplingSeed, counter_num_edges, time_pre, time_edges); break;
+                case 3: measure_edge_generation<3>(weights, positions, alpha, samplingSeed, counter_num_edges, time_pre, time_edges); break;
+                case 4: measure_edge_generation<4>(weights, positions, alpha, samplingSeed, counter_num_edges, time_pre, time_edges); break;
+                case 5: measure_edge_generation<5>(weights, positions, alpha, samplingSeed, counter_num_edges, time_pre, time_edges); break;
+                default: measure_edge_generation<1>(weights, positions, alpha, samplingSeed, counter_num_edges, time_pre, time_edges); break;
+            }
         }
-    }();
+    }
 
-    auto degree = 2.0 * edges.size() / n;
+    auto edges = counter_num_edges.total();
+    auto degree = 2.0 * edges / n;
 
     cout << dimension << ','
          << n << ','
@@ -62,16 +89,17 @@ void measure(int dimension, int n, int avgDeg, double alpha, double ple, int thr
          << time_weights << ','
          << time_positions << ','
          << time_binary << ','
+         << time_pre << ','
          << time_edges << ','
          << time_total << ','
-         << edges.size() << ','
+         << edges << ','
          << degree << '\n';
 }
 
 
 int main(int argc, char* argv[]) {
 
-    cout << "dimension,n,avgDeg,alpha,ple,threads,seed,plot,TimeWeights,TimePositions,TimeBinary,TimeEdges,TimeTotal,GenNumEdge,GenAvgDeg\n";
+    cout << "dimension,n,avgDeg,alpha,ple,threads,seed,plot,TimeWeights,TimePositions,TimeBinary,TimePre,TimeEdges,TimeTotal,GenNumEdge,GenAvgDeg\n";
 
     int seed = 0;
 
