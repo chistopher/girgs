@@ -65,7 +65,7 @@ int main(int argc, char* argv[]) {
 
     {
         ScopedTimer timer("Generate edges");
-        girgs::makeSpatialTree<dimensions>(weights, positions, alpha, addEdge).generateEdges(samplingSeed);
+        girgs::makeSpatialTree<dimensions>(weights, positions, alpha, addEdge, true).generateEdges(samplingSeed);
     }
 
     const auto total_edges =

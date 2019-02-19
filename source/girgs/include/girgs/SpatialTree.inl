@@ -1,11 +1,12 @@
-
 #include <girgs/ScopedTimer.h>
+
 namespace girgs {
 
 
 template<unsigned int D, typename EdgeCallback>
-SpatialTree<D, EdgeCallback>::SpatialTree(const std::vector<double>& weights, const std::vector<std::vector<double>>& positions, double alpha, EdgeCallback& edgeCallback)
+SpatialTree<D, EdgeCallback>::SpatialTree(const std::vector<double>& weights, const std::vector<std::vector<double>>& positions, double alpha, EdgeCallback& edgeCallback, bool profile)
 : m_EdgeCallback(edgeCallback)
+, m_profile(profile)
 , m_alpha(alpha)
 , m_n(weights.size())
 , m_w0(*std::min_element(weights.begin(), weights.end()))
@@ -18,6 +19,8 @@ SpatialTree<D, EdgeCallback>::SpatialTree(const std::vector<double>& weights, co
 {
     assert(weights.size() == positions.size());
     assert(positions.size() > 0 && positions.front().size() == D);
+
+    ScopedTimer timer("Preprocessing", profile);
 
     // determine which layer pairs to sample in which level
     m_layer_pairs.resize(m_levels);
