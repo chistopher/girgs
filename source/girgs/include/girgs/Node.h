@@ -1,27 +1,37 @@
 
 #pragma once
 
+#include <array>
 #include <vector>
-
-#include <girgs/girgs_api.h>
+#include <cassert>
 
 
 namespace girgs {
 
-/**
- * @brief
- *  data container for nodes of a graph
- */
-struct GIRGS_API Node {
-    std::vector<double> coord;
-    double              weight;
-    int                 index;
-    std::vector<Node*>  edges;
+template<unsigned int D>
+struct Node {
+    std::array<double, D>   coord;
+    double                  weight;
+    int                     index;
+
+    Node() = default;
+    Node(std::vector<double> _coord, double _weight, int _index)
+    : weight(_weight), index(_index) {
+        assert(_coord.size()==D);
+        for(auto d=0u; d<D; ++d)
+            coord[d] = _coord[d];
+    }
+
+    double distance(const Node& other) const {
+        auto result = 0.0;
+        for(auto d=0u; d<D; ++d){
+            auto dist = std::abs(coord[d] - other.coord[d]);
+            dist = std::min(dist, 1.0-dist);
+            result = std::max(result, dist);
+        }
+        return result;
+    }
 };
-
-
-// max over the torus distance in all dimensions TODO find place for this function
-GIRGS_API double distance(const std::vector<double>& a, const std::vector<double>& b);
 
 
 } // namespace girgs

@@ -16,41 +16,40 @@ using namespace girgs;
 
 void measure(int dimension, int n, int avgDeg, double alpha, double ple, int threads, int seed, int plot) {
 
-    ple = -ple; // TODO remove
     omp_set_num_threads(threads);
     assert(threads == omp_get_max_threads());
 
-    Generator g;
     auto weightSeed = seed + 1000;
     auto positionSeed = seed+ 10000;
     auto samplingSeed = seed+ 100000;
 
-    double time_weights, time_positions, time_binary, time_edges;
-    {
-        {
-            ScopedTimer timer("", time_weights);
-            g.setWeights(n, ple, weightSeed);
-        }
+    double time_weights, time_positions, time_binary, time_edges, time_total;
 
-        {
+    auto edges = [&] {
+        ScopedTimer total_timer("", time_total);
+
+        auto weights = [&]{
+            ScopedTimer timer("", time_weights);
+            return generateWeights(n, ple, weightSeed);
+        }();
+
+        auto positions = [&] {
             ScopedTimer timer("", time_positions);
-            g.setPositions(n, dimension, positionSeed);
-        }
+            return generatePositions(n, dimension, positionSeed);
+        }();
 
         {
             ScopedTimer timer("", time_binary);
-            g.scaleWeights(avgDeg, dimension, alpha);
+            scaleWeights(weights, avgDeg, dimension, alpha);
         }
 
         {
             ScopedTimer timer("", time_edges);
-            g.generate(alpha, samplingSeed);
+            return generateEdges(weights, positions, alpha, samplingSeed);
         }
-    }
+    }();
 
-    auto edges = g.edges();
-    auto degree = 2.0 * edges / n;
-    ple = -ple; // TODO remove
+    auto degree = 2.0 * edges.size() / n;
 
     cout << dimension << ','
          << n << ','
@@ -64,14 +63,15 @@ void measure(int dimension, int n, int avgDeg, double alpha, double ple, int thr
          << time_positions << ','
          << time_binary << ','
          << time_edges << ','
-         << edges << ','
+         << time_total << ','
+         << edges.size() << ','
          << degree << '\n';
 }
 
 
 int main(int argc, char* argv[]) {
 
-    cout << "dimension,n,avgDeg,alpha,ple,threads,seed,plot,TimeWeights,TimePositions,TimeBinary,TimeEdges,GenNumEdge,GenAvgDeg\n";
+    cout << "dimension,n,avgDeg,alpha,ple,threads,seed,plot,TimeWeights,TimePositions,TimeBinary,TimeEdges,TimeTotal,GenNumEdge,GenAvgDeg\n";
 
     int seed = 0;
 

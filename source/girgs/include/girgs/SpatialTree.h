@@ -12,7 +12,6 @@
 
 #include <girgs/SpatialTreeCoordinateHelper.h>
 #include <girgs/WeightLayer.h>
-#include <girgs/Node.h>
 
 
 namespace girgs {
@@ -26,17 +25,16 @@ namespace girgs {
  * @tparam D
  *  Dimension of the underlying geometry.
  */
-template<unsigned int D>
+template<unsigned int D, typename EdgeCallback>
 class SpatialTree
 {
 public:
-    static const auto dimension = D;
 
-    SpatialTree() = default;
+    SpatialTree(const std::vector<double>& weights, const std::vector<std::vector<double>>& positions, double alpha, EdgeCallback& edgeCallback);
 
     /**
      * @brief
-     *  Entry point for the algorithm. Samples edges for given positions and weights.
+     *  Samples edges for given positions and weights.
      *
      * @param graph
      *  A graph with reasonable positions and weights.
@@ -50,7 +48,7 @@ public:
      *  If OpenMP is given more than one thread, thread i uses seed+i.
      *  This means that results are only reproducible for a combination of seed and thread number.
      */
-    void generateEdges(std::vector<Node>& graph, double alpha, int seed);
+    void generateEdges(int seed);
 
 protected:
 
@@ -169,18 +167,25 @@ protected:
      *
      * @param layer1
      *  The index of a weight layer. This is the \f$i\f$ in \f$v(i,j)\f$.
-     *  Note that our layers are offset by 1, i.e. layer i in the paper is layer i+1 for us.
+     *  Note that our layers are offset by 1, i.e. layer i in the paper is layer i-1 for us.
      * @param layer2
      *  The index of a second weight layer. This is the \f$j\f$ in \f$v(i,j)\f$.
-     *  Note that our layers are offset by 1, i.e. layer i in the paper is layer i+1 for us.
+     *  Note that our layers are offset by 1, i.e. layer i in the paper is layer i-1 for us.
      * @return
      *  The partitioning base level of the two given layers.
      */
     unsigned int partitioningBaseLevel(int layer1, int layer2) const;
 
-    bool checkEdgeExplicit(double dist, double w1, double w2);
+private:
+    EdgeCallback& m_EdgeCallback; ///< called for every produced edge
 
-protected:
+    double m_alpha;             ///< girg model parameter, with higher alpha, long edges become less likely
+    long long m_n;              ///< number of nodes in the graph
+
+    double m_w0;                ///< minimum weight
+    double m_wn;                ///< maximum weight
+    double m_W;                 ///< sum of weights
+    int    m_baseLevelConstant; ///< \f$\log_2(W/w_0^2)\f$ see partitioningBaseLevel(int, int) const
 
     unsigned int m_layers; ///< number of layers
     unsigned int m_levels; ///< number of levels
@@ -189,21 +194,22 @@ protected:
     std::vector<WeightLayer<D>> m_weight_layers;    ///< stores all nodes of one weight layer and provides the data structure described in paper
     std::vector<std::vector<std::pair<unsigned int, unsigned int>>> m_layer_pairs; ///< which pairs of weight layers to check in each level
 
-    double m_w0;                ///< minimum weight
-    double m_wn;                ///< maximum weight
-    double m_W;                 ///< sum of weights
-    int    m_baseLevelConstant; ///< \f$\log_2(W/w_0^2)\f$ see partitioningBaseLevel(int, int) const
 
-    double m_alpha;             ///< girg model parameter, with higher alpha, long edges become less likely
-   
     std::vector<std::mt19937> m_gens; ///< random generators for each thread
-    std::vector<std::uniform_real_distribution<>> m_dists; ///< random distributions for each thread
 
 #ifndef NDEBUG
-    std::vector<long long> m_type1_checks; ///< number of node pairs per thread that are checked via a type 1 check
-    std::vector<long long> m_type2_checks; ///< number of node pairs per thread that are checked via a type 2 check
+    long long m_type1_checks = 0; ///< number of node pairs that are checked via a type 1 check
+    long long m_type2_checks = 0; ///< number of node pairs that are checked via a type 2 check
 #endif // NDEBUG
 };
+
+
+/// provide automatic type deduction for constructor
+template <unsigned int D, typename EdgeCallback>
+SpatialTree<D,EdgeCallback> makeSpatialTree(const std::vector<double>& weights, const std::vector<std::vector<double>>& positions,
+        double alpha, EdgeCallback& edgeCallback) {
+    return {weights, positions, alpha, edgeCallback};
+}
 
 
 } // namespace girgs

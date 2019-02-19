@@ -47,7 +47,6 @@ set(headers
 
 set(sources
     ${source_path}/Generator.cpp
-    ${source_path}/Node.cpp
     ${source_path}/Hyperbolic.cpp
 )
 

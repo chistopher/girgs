@@ -68,7 +68,7 @@ void testCoordMapping(SpatialTreeCoordinateHelper<D>& helper) {
         auto containingCells = vector<unsigned int>(helper.levels());
         containingCells[0] = 0;
         for(auto l=1u; l<helper.levels(); ++l){
-            containingCells[l] = helper.cellForPoint(point, l);
+            containingCells[l] = helper.cellForPoint(point, l) + helper.firstCellOfLevel(l);
             auto cell = containingCells[l];
             auto bounds = helper.bounds(cell, l);
             for(auto d=0u; d<D; ++d){

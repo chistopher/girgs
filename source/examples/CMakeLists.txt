@@ -7,8 +7,6 @@ endif()
 # Example applications
 add_subdirectory(bench)
 add_subdirectory(bench_hyper)
-add_subdirectory(dev)
-add_subdirectory(dev2)
 add_subdirectory(dev3)
 add_subdirectory(girggen)
 add_subdirectory(hyper)

@@ -5,189 +5,47 @@
 #include <iostream>
 #include <iomanip>
 #include <random>
+#include <functional>
+#include <mutex>
+
+#include <omp.h>
 
 #include <girgs/SpatialTree.h>
 
 
-using namespace girgs;
+namespace girgs {
 
+// helper for scale weights
+double exponentialSearch(const std::function<double(double)>& f, double desiredValue, double accuracy = 0.02, double lower = 1.0, double upper = 2.0) {
 
-void Generator::setWeights(const std::vector<double>& weights) {
-    auto n = weights.size();
-    assert(m_graph.empty() || m_graph.size() == n);
-    if(m_graph.empty()) m_graph.resize(n);
-    for(auto i=0u; i<n; ++i)
-        m_graph[i].weight = weights[i];
-}
-
-
-void Generator::setWeights(int n, double ple, int weightSeed) {
-    assert(m_graph.empty() || m_graph.size() == n);
-    assert(ple <= -2);
-    if(m_graph.empty()) m_graph.resize(n);
-
-    auto gen = std::mt19937(weightSeed >= 0 ?  weightSeed : std::random_device()());
-    std::uniform_real_distribution<> dist; // [0..1)
-    for(int i=0; i<n; ++i)
-        m_graph[i].weight = std::pow((std::pow(n,ple+1)-1)*dist(gen) + 1, 1/(ple+1));
-}
-
-
-void Generator::setPositions(const std::vector<std::vector<double>>& positions) {
-    auto n = positions.size();
-    assert(m_graph.empty() || m_graph.size() == n);
-    if(m_graph.empty()) m_graph.resize(n);
-    for(int i=0; i<n; ++i) {
-        assert(positions[i].size() == positions.front().size()); // all same dimension
-        m_graph[i].coord = positions[i];
+    // scale interval up if necessary
+    while(f(upper) < desiredValue){
+        lower = upper;
+        upper *= 2;
     }
-}
 
-
-void Generator::setPositions(int n, int dimension, int positionSeed) {
-    assert(m_graph.empty() || m_graph.size() == n);
-    if(m_graph.empty()) m_graph.resize(n);
-
-    auto gen = std::mt19937(positionSeed >= 0 ?  positionSeed : std::random_device()());
-    std::uniform_real_distribution<> dist; // [0..1)
-
-    for(int i=0; i<n; ++i) {
-        m_graph[i].coord.resize(dimension);
-        for (int d=0; d<dimension; ++d)
-            m_graph[i].coord[d] = dist(gen);
+    // scale interval down if necessary
+    while(f(lower) > desiredValue){
+        upper = lower;
+        lower /= 2;
     }
-}
 
-
-double Generator::scaleWeights(double desiredAvgDegree, int dimension, double alpha) {
-    assert(!m_graph.empty());
-    auto n = m_graph.size();
-
-    { // TODO change the whole block
-        // shamefully copy all weights
-        auto currentWeights = std::vector<double>(n);
-        for(int i=0; i<n; ++i)
-            currentWeights[i] = m_graph[i].weight;
-
-        // estimate scaling with binary search
-        double scaling;
-        if(alpha > 10.0)
-            scaling = estimateWeightScalingThreshold(currentWeights, desiredAvgDegree, dimension);
-        else if(alpha > 0.0 && alpha != 1.0)
-            scaling = estimateWeightScaling(currentWeights, desiredAvgDegree, dimension, alpha);
+    // do binary search
+    auto mid = f((upper+lower)/2);
+    while(std::abs(mid - desiredValue) > accuracy) {
+        if(mid < desiredValue)
+            lower = (upper+lower)/2;
         else
-            throw("I do not know how to scale weights for desired alpha :(");
-
-        // scale weights
-        for(auto& each : m_graph)
-            each.weight *= scaling;
-        return scaling;
-    }
-}
-
-
-
-
-void Generator::generate(double alpha, int samplingSeed) {
-    assert(!m_graph.empty());
-    for(auto& each : m_graph) each.edges.clear();
-    auto dimension = m_graph.front().coord.size();
-    switch(dimension) {
-        case 1: SpatialTree<1>().generateEdges(m_graph, alpha, samplingSeed); break;
-        case 2: SpatialTree<2>().generateEdges(m_graph, alpha, samplingSeed); break;
-        case 3: SpatialTree<3>().generateEdges(m_graph, alpha, samplingSeed); break;
-        case 4: SpatialTree<4>().generateEdges(m_graph, alpha, samplingSeed); break;
-        case 5: SpatialTree<5>().generateEdges(m_graph, alpha, samplingSeed); break;
-        default:
-            std::cout << "Dimension " << dimension << " not supported." << std::endl;
-            std::cout << "No edges generated." << std::endl;
-            break;
-    }
-}
-
-
-std::vector<Node> Generator::generate(
-        int n, int dimension, double ple, double alpha, double desiredAvgDegree, int weightSeed, int positionSeed, int samplingSeed) {
-
-    setWeights(n, ple, weightSeed);
-    setPositions(n,dimension, positionSeed);
-
-    scaleWeights(desiredAvgDegree, dimension, alpha);
-
-    generate(alpha, samplingSeed);
-
-    return std::move(m_graph);
-}
-
-
-void Generator::generateThreshold() {
-    generate(std::numeric_limits<double>::infinity(), 0);
-}
-
-
-double Generator::avg_degree() const {
-    return 2.0 * edges() / m_graph.size();
-}
-
-unsigned int girgs::Generator::edges() const {
-    auto edges = 0u;
-    for (auto& each : graph())
-        edges += each.edges.size();
-    return edges;
-}
-
-
-void Generator::saveDot(std::string file) const {
-    if(m_graph.empty()){
-        std::cout << "no graph generated" << std::endl;
-        return;
+            upper = (upper+lower)/2;
+        mid = f((upper+lower)/2);
     }
 
-    auto f = std::ofstream(file);
-    f << "graph girg {\n\toverlap=scale;\n\n";
-    for(auto& each : m_graph){
-        f   << '\t' << each.index << " [label=\""
-            << std::setprecision(2) << std::fixed << each.weight << std::defaultfloat << std::setprecision(6)
-            << "\", pos=\"";
-        for(auto d=0u; d<each.coord.size(); ++d)
-            f << (d==0 ? "" : ",") << each.coord[d];
-        f << "\"];\n";
-    }
-    f << '\n';
-    for(auto& each : m_graph){
-        for(auto neighbor : each.edges)
-            f << '\t' << each.index << "\t-- " << neighbor->index << ";\n";
-    }
-    f << "}\n";
+    return (upper+lower)/2;
 }
 
 
-void girgs::Generator::saveEdgeList(std::string file) const {
-    auto f = std::ofstream(file);
-    f << m_graph.size() << ' ' << edges() << '\n';
-    for (auto& from : m_graph)
-        for (auto to : from.edges)
-            f << from.index << ' ' << to->index << '\n';
-}
-
-
-
-std::vector<double> Generator::weights() const {
-    auto result = std::vector<double>(m_graph.size());
-    for(int i=0; i<m_graph.size(); ++i)
-        result[i] = m_graph[i].weight;
-    return result;
-}
-
-std::vector<std::vector<double>> Generator::positions() const {
-    auto result = std::vector<std::vector<double>>(m_graph.size());
-    for(int i=0; i<m_graph.size(); ++i)
-        result[i] = m_graph[i].coord;
-    return result;
-}
-
-
-double Generator::estimateWeightScalingThreshold(const std::vector<double>& weights, double desiredAvgDegree, int dimension) const {
+// helper for scale weights
+double estimateWeightScalingThreshold(const std::vector<double>& weights, double desiredAvgDegree, int dimension) {
 
     // compute some constant stuff
     auto max_weight = *std::max_element(weights.begin(), weights.end());
@@ -236,7 +94,9 @@ double Generator::estimateWeightScalingThreshold(const std::vector<double>& weig
     return pow(estimated_c, dimension); // return scaling
 }
 
-double Generator::estimateWeightScaling(const std::vector<double> &weights, double desiredAvgDegree, int dimension, double alpha) const {
+
+// helper for scale weights
+double estimateWeightScaling(const std::vector<double> &weights, double desiredAvgDegree, int dimension, double alpha) {
 
     using namespace std;
 
@@ -323,29 +183,110 @@ double Generator::estimateWeightScaling(const std::vector<double> &weights, doub
     return pow(estimated_c, 1/alpha); // return scaling
 }
 
-double Generator::exponentialSearch(std::function<double(double)> f, double desiredValue, double accuracy, double lower, double upper) const {
 
-    // scale interval up if necessary
-    while(f(upper) < desiredValue){
-        lower = upper;
-        upper *= 2;
-    }
-
-    // scale interval down if necessary
-    while(f(lower) > desiredValue){
-        upper = lower;
-        lower /= 2;
-    }
-
-    // do binary search
-    auto mid = f((upper+lower)/2);
-    while(std::abs(mid - desiredValue) > accuracy) {
-        if(mid < desiredValue)
-            lower = (upper+lower)/2;
-        else
-            upper = (upper+lower)/2;
-        mid = f((upper+lower)/2);
-    }
-
-    return (upper+lower)/2;
+std::vector<double> generateWeights(int n, double ple, int weightSeed) {
+    auto result = std::vector<double>(n);
+    auto gen = std::mt19937(weightSeed >= 0 ?  weightSeed : std::random_device()());
+    std::uniform_real_distribution<> dist; // [0..1)
+    for(int i=0; i<n; ++i)
+        result[i] = std::pow((std::pow(n,-ple+1)-1)*dist(gen) + 1, 1/(-ple+1));
+    return result;
 }
+
+
+std::vector<std::vector<double>> generatePositions(int n, int dimension, int positionSeed) {
+    auto result = std::vector<std::vector<double>>(n, std::vector<double>(dimension));
+    auto gen = std::mt19937(positionSeed >= 0 ?  positionSeed : std::random_device()());
+    std::uniform_real_distribution<> dist; // [0..1)
+    for(int i=0; i<n; ++i)
+        for (int d=0; d<dimension; ++d)
+            result[i][d] = dist(gen);
+    return result;
+}
+
+
+double scaleWeights(std::vector<double>& weights, double desiredAvgDegree, int dimension, double alpha) {
+
+    // estimate scaling with binary search
+    double scaling;
+    if(alpha > 10.0)
+        scaling = estimateWeightScalingThreshold(weights, desiredAvgDegree, dimension);
+    else if(alpha > 0.0 && alpha != 1.0)
+        scaling = estimateWeightScaling(weights, desiredAvgDegree, dimension, alpha);
+    else
+        throw("I do not know how to scale weights for desired alpha :(");
+
+    // scale weights
+    for(auto& each : weights) each *= scaling;
+    return scaling;
+}
+
+std::vector<std::pair<int, int>> generateEdges(const std::vector<double> &weights, const std::vector<std::vector<double>> &positions,
+        double alpha, int samplingSeed) {
+
+    using edge_vector = std::vector<std::pair<int, int>>;
+    edge_vector result;
+
+    std::vector<std::pair<
+            edge_vector,
+            uint64_t[31] /* avoid false sharing */
+    > > local_edges(omp_get_max_threads());
+
+    constexpr auto block_size = size_t{1} << 20;
+
+    std::mutex m;
+    auto flush = [&] (const edge_vector& local) {
+        std::lock_guard<std::mutex> lock(m);
+        result.insert(result.end(), local.cbegin(), local.cend());
+    };
+
+    auto addEdge = [&](int u, int v, int tid) {
+        auto& local = local_edges[tid].first;
+        local.emplace_back(u,v);
+        if (local.size() == block_size) {
+            flush(local);
+            local.clear();
+        }
+    };
+
+    auto dimension = positions.front().size();
+
+    switch(dimension) {
+        case 1: makeSpatialTree<1>(weights, positions, alpha, addEdge).generateEdges(samplingSeed); break;
+        case 2: makeSpatialTree<2>(weights, positions, alpha, addEdge).generateEdges(samplingSeed); break;
+        case 3: makeSpatialTree<3>(weights, positions, alpha, addEdge).generateEdges(samplingSeed); break;
+        case 4: makeSpatialTree<4>(weights, positions, alpha, addEdge).generateEdges(samplingSeed); break;
+        case 5: makeSpatialTree<5>(weights, positions, alpha, addEdge).generateEdges(samplingSeed); break;
+        default:
+            std::cout << "Dimension " << dimension << " not supported." << std::endl;
+            std::cout << "No edges generated." << std::endl;
+            break;
+    }
+
+    for(const auto& v : local_edges)
+        flush(v.first);
+
+    return result;
+}
+
+
+void saveDot(const std::vector<double> &weights, const std::vector<std::vector<double>> &positions,
+             std::vector<std::pair<int, int>> graph, std::string file) {
+
+    auto f = std::ofstream(file);
+    f << "graph girg {\n\toverlap=scale;\n\n";
+    for (int i = 0; i < weights.size(); ++i) {
+        f << '\t' << i << " [label=\""
+          << std::setprecision(2) << std::fixed << weights[i] << std::defaultfloat << std::setprecision(6)
+          << "\", pos=\"";
+        for (auto d = 0u; d < positions[i].size(); ++d)
+            f << (d == 0 ? "" : ",") << positions[i][d];
+        f << "\"];\n";
+    }
+    f << '\n';
+    for (auto &edge : graph)
+        f << '\t' << edge.first << "\t-- " << edge.second << ";\n";
+    f << "}\n";
+}
+
+} // namespace girgs

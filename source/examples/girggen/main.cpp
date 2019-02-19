@@ -4,6 +4,7 @@
 #include <map>
 #include <string>
 #include <cstring>
+#include <fstream>
 
 #include <omp.h>
 
@@ -54,7 +55,7 @@ int main(int argc, char* argv[]) {
         clog << "usage: ./girggen\n"
             << "\t\t[-n anInt]          // number of nodes                          default 10000\n"
             << "\t\t[-d anInt]          // dimension of geometry    range [1,5]     default 1\n"
-            << "\t\t[-ple aFloat]       // power law exponent       range (-3,-2]   default -2.5\n"
+            << "\t\t[-ple aFloat]       // power law exponent       range (2,3]     default 2.5\n"
             << "\t\t[-alpha aFloat]     // model parameter          range (1,inf]   default infinity\n"
             << "\t\t[-deg aFloat]       // average degree           range [1,n)     default 10\n"
             << "\t\t[-wseed anInt]      // weight seed                              default 12\n"
@@ -81,7 +82,7 @@ int main(int argc, char* argv[]) {
     auto params = parseArgs(argc, argv);
     auto n      = !params["n"    ].empty()  ? stoi(params["n"    ]) : 10000;
     auto d      = !params["d"    ].empty()  ? stoi(params["d"    ]) : 1;
-    auto ple    = !params["ple"  ].empty()  ? stod(params["ple"  ]) : -2.5;
+    auto ple    = !params["ple"  ].empty()  ? stod(params["ple"  ]) : 2.5;
     auto alpha  = !params["alpha"].empty()  ? stod(params["alpha"]) : std::numeric_limits<double>::infinity();
     auto deg    = !params["deg"  ].empty()  ? stod(params["deg"  ]) : 10.0;
     auto wseed  = !params["wseed"].empty()  ? stoi(params["wseed"]) : 12;
@@ -96,7 +97,7 @@ int main(int argc, char* argv[]) {
     cout << "using:\n";
     logParam(n, "n");
     rangeCheck(d, 1, 5, "d");
-    rangeCheck(ple, -3.0, -2.0, "ple", false, true);
+    rangeCheck(ple, 2.0, 3.0, "ple", true, false);
     rangeCheck(alpha, 1.0, std::numeric_limits<double>::infinity(), "alpha", true);
     rangeCheck(deg, 1.0, n-1.0, "deg");
     logParam(wseed, "wseed");
@@ -113,32 +114,31 @@ int main(int argc, char* argv[]) {
 
 
     cout << "generating weights ...\t\t" << flush;
-    girgs::Generator generator;
-    generator.setWeights(n, ple, wseed);
+    auto weights = girgs::generateWeights(n, ple, wseed);
     auto t2 = high_resolution_clock::now();
     cout << "done in " << duration_cast<milliseconds>(t2 - t1).count() << "ms" << endl;
 
 
     cout << "generating positions ...\t" << flush;
-    generator.setPositions(n, d, pseed);
+    auto positions = girgs::generatePositions(n, d, pseed);
     auto t3 = high_resolution_clock::now();
     cout << "done in " << duration_cast<milliseconds>(t3 - t2).count() << "ms" << endl;
 
 
     cout << "find weight scaling ...\t\t" << flush;
-    auto scaling = generator.scaleWeights(deg, d, alpha);
+    auto scaling = girgs::scaleWeights(weights, deg, d, alpha);
     auto t4 = high_resolution_clock::now();
     cout << "done in " << duration_cast<milliseconds>(t4 - t3).count() << "ms\tscaling = " << scaling << endl;
 
     cout << "sampling edges ...\t\t" << flush;
-    generator.generate(alpha, sseed);
+    auto edges = girgs::generateEdges(weights, positions, alpha, sseed);
     auto t5 = high_resolution_clock::now();
-    cout << "done in " << duration_cast<milliseconds>(t5 - t4).count() << "ms\tavg deg = " << generator.avg_degree() << endl;
+    cout << "done in " << duration_cast<milliseconds>(t5 - t4).count() << "ms\tavg deg = " << edges.size()*2.0/n << endl;
 
     if (dot) {
         cout << "writing .dot file ...\t\t" << flush;
         auto t6 = high_resolution_clock::now();
-        generator.saveDot(file + ".dot");
+        girgs::saveDot(weights, positions, edges, file);
         auto t7 = high_resolution_clock::now();
         cout << "done in " << duration_cast<milliseconds>(t7 - t6).count() << "ms" << endl;
     }
@@ -146,7 +146,10 @@ int main(int argc, char* argv[]) {
     if (edge) {
         cout << "writing edge list (.txt) ...\t" << flush;
         auto t6 = high_resolution_clock::now();
-        generator.saveEdgeList(file + ".txt");
+        auto f = ofstream(file);
+        f << n << ' ' << edges.size() << '\n';
+        for(auto& each : edges)
+            f << each.first << ' ' << each.second << '\n';
         auto t7 = high_resolution_clock::now();
         cout << "done in " << duration_cast<milliseconds>(t7 - t6).count() << "ms" << endl;
     }

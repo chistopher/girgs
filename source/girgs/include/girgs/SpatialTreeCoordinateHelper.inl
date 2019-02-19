@@ -35,7 +35,7 @@ std::array<std::pair<double, double>, D> SpatialTreeCoordinateHelper<D>::bounds(
 
 
 template<unsigned int D>
-unsigned int SpatialTreeCoordinateHelper<D>::cellForPoint(std::vector<double>& point, unsigned int targetLevel) const {
+unsigned int SpatialTreeCoordinateHelper<D>::cellForPoint(const std::vector<double>& point, unsigned int targetLevel) const {
     // calculate coords
     assert(point.size() == D);
     auto diameter = static_cast<double>(1 << targetLevel);
@@ -59,7 +59,7 @@ unsigned int SpatialTreeCoordinateHelper<D>::cellForPoint(std::vector<double>& p
 	    }
 	}
 
-    return result + firstCellOfLevel(targetLevel);
+    return result;
 
 	// TODO: We can use shifts and masks to use word-parallelism
 	// TODO: We can use the AVX2 instruction pdep

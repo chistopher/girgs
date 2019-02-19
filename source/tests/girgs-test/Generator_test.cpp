@@ -6,8 +6,6 @@
 #include <gmock/gmock.h>
 
 #include <girgs/Generator.h>
-#include <girgs/Node.h>
-
 
 using namespace std;
 
@@ -19,46 +17,54 @@ protected:
 };
 
 
-bool connected(const girgs::Node& a, const girgs::Node& b) {
-	bool a2b = find(a.edges.begin(), a.edges.end(), &b) != a.edges.end();
-	bool b2a = find(b.edges.begin(), b.edges.end(), &a) != b.edges.end();
-	if (a2b == false && b2a == false)
-		return false;
-	EXPECT_NE(a2b, b2a);
-	return true;
-}
+// unnamed namespace
+namespace {
 
+    double distance(const std::vector<double> &a, const std::vector<double> &b) {
+        assert(a.size() == b.size());
+        auto result = 0.0;
+        for (auto d = 0u; d < a.size(); ++d) {
+            auto dist = std::abs(a[d] - b[d]);
+            dist = std::min(dist, 1.0 - dist);
+            result = std::max(result, dist);
+        }
+        return result;
+    }
+
+    bool connected(int a, int b, const vector<pair<int, int>> graph) {
+        bool a2b = find(graph.begin(), graph.end(), make_pair(a, b)) != graph.end();
+        bool b2a = find(graph.begin(), graph.end(), make_pair(b, a)) != graph.end();
+        return a2b || b2a;
+    }
+}
 
 
 TEST_F(Generator_test, testThresholdModel)
 {
     const auto n = 100;
     const auto alpha = numeric_limits<double>::infinity();
-    const auto ple = -2.8;
+    const auto ple = 2.8;
 
-    girgs::Generator generator;
-    generator.setWeights(n, ple, seed);
-    auto weights = generator.weights();
+    auto weights = girgs::generateWeights(n, ple, seed);
     auto W = accumulate(weights.begin(), weights.end(), 0.0);
 
     for(auto d=1u; d<5; ++d){
 
-        generator.setPositions(n, d, seed+d);
-        generator.generateThreshold();
+        auto positions = girgs::generatePositions(n, d, seed+d);
+        auto edges = girgs::generateEdges(weights, positions, alpha, 0);
 
         // check that there is an edge if and only if the condition in the paper holds: dist < c*(w1w2/W)^-d
         for(int j=0; j<n; ++j){
             for(int i=j+1; i<n; ++i){
-                auto& a = generator.graph()[j];
-                auto& b = generator.graph()[i];
 
-                auto dist = girgs::distance(a.coord, b.coord);
-                auto w = std::pow(a.weight * b.weight / W, 1.0/d);
+                auto dist = distance(positions[i], positions[j]);
+                auto d_term = pow(dist, d);
+                auto w_term = weights[i] * weights[j] / W;
 
-                if(dist < w) {
-                    EXPECT_TRUE(connected(a,b)) << "edge should be present";
+                if(d_term < w_term) {
+                    EXPECT_TRUE(connected(i,j, edges)) << "edge should be present";
                 } else {
-					EXPECT_FALSE(connected(a, b)) << "edge should be absent";
+					EXPECT_FALSE(connected(i,j, edges)) << "edge should be absent";
                 }
             }
         }
@@ -69,43 +75,37 @@ TEST_F(Generator_test, testGeneralModel)
 {
     const auto n = 500;
     const auto alpha = 2.5;
-    const auto ple = -2.5;
+    const auto ple = 2.5;
 
-    auto generator = girgs::Generator();
-    generator.setWeights(n, ple, seed);
-    auto weights = generator.weights();
+    auto weights = girgs::generateWeights(n, ple, seed);
     auto W = accumulate(weights.begin(), weights.end(), 0.0);
 
     for(auto d=1u; d<5; ++d){
         // check that the number of generated edges is close to the expected value
 
         // 1) generator
-        generator.setPositions(n, d, seed+d);
-        generator.generate(alpha, seed+d);
+        auto positions = girgs::generatePositions(n, d, seed+d);
+        auto edges = girgs::generateEdges(weights, positions, alpha, seed+d);
 
         // 2) quadratic sanity check
-        auto expectedEdges = vector<double>(n, 0.0);
+        auto expectedEdges = 0.0;
         for(int j=0; j<n; ++j){
             for(int i=j+1; i<n; ++i){
-                auto& a = generator.graph()[j];
-                auto& b = generator.graph()[i];
 
-                auto dist = std::pow(girgs::distance(a.coord, b.coord), d);
-                auto w = a.weight * b.weight / W;
+                auto dist = distance(positions[i], positions[j]);
+                auto d_term = pow(dist, d);
+                auto w_term = weights[i] * weights[j] / W;
 
-                auto prob = std::min(std::pow(w/dist, alpha), 1.0);
-                expectedEdges[i] += prob;
-                expectedEdges[j] += prob;
+                auto prob = std::min(std::pow(w_term/d_term, alpha), 1.0);
+                expectedEdges += 2*prob;
             }
         }
 
-        auto total_expected = accumulate(expectedEdges.begin(), expectedEdges.end(), 0.0);
-        auto total_actual = accumulate(generator.graph().begin(), generator.graph().end(), 0.0,
-                [](double sum, const girgs::Node& node){ return sum + node.edges.size() * 2; });
+        auto generatedEdges = edges.size()*2;
 
         auto rigor = 0.98;
-        EXPECT_LT(rigor * total_expected, total_actual) << "edges too much below expected value";
-        EXPECT_LT(rigor * total_actual, total_expected) << "edges too much above expected value";
+        EXPECT_LT(rigor * expectedEdges, generatedEdges) << "edges too much below expected value";
+        EXPECT_LT(rigor * generatedEdges, expectedEdges) << "edges too much above expected value";
     }
 }
 
@@ -114,28 +114,24 @@ TEST_F(Generator_test, testCompleteGraph)
 {
     const auto n = 100;
     const auto alpha = 0.0; // each edge prob will be 100% now
-    const auto ple = -2.5;
+    const auto ple = 2.5;
 
-    auto generator = girgs::Generator();
-    generator.setWeights(n, ple, seed);
+    auto weights = girgs::generateWeights(n, ple, seed);
 
     for(auto d=1u; d<5; ++d) {
 
-        generator.setPositions(n, d, seed+d);
-        generator.generate(alpha, seed+d);
-		
+        auto positions = girgs::generatePositions(n, d, seed+d);
+        auto edges = girgs::generateEdges(weights, positions, alpha, seed+d);
+
 		// check for the correct number of edges
-		auto edges = 0;
-		for (auto& node : generator.graph())
-			edges += node.edges.size();
-		EXPECT_EQ(edges, (n*(n - 1)) / 2) << "expect a complete graph withour self loops";
+		EXPECT_EQ(edges.size(), (n*(n - 1)) / 2) << "expect a complete graph withour self loops";
 
         // check that each node is connected to all other nodes
-        for(auto& node : generator.graph()) 
-            for(auto& other : generator.graph())
-                if(node.index != other.index) 
-                    EXPECT_TRUE(connected(node, other)) << "edge should be present";
-                 
+        for (int i = 0; i < n; ++i) {
+            for (int j = i+1; j < n; ++j) {
+                EXPECT_TRUE(connected(i,j,edges));
+            }
+        }
     }
 }
 
@@ -149,7 +145,7 @@ double edgesInQuadraticSampling(const std::vector<double>& w, const vector<vecto
     auto edges = 0.0;
     for(int i=0; i<n; ++i)
         for(int j=i+1; j<n; ++j)
-            if(girgs::distance(pos[i], pos[j]) < c*std::pow(w[i] * w[j] / W, 1.0/d))
+            if(distance(pos[i], pos[j]) < c*std::pow(w[i] * w[j] / W, 1.0/d))
                 edges += 2; // both endpoints get an edge
     return edges;
 }
@@ -158,7 +154,7 @@ double edgesInQuadraticSampling(const std::vector<double>& w, const vector<vecto
 TEST_F(Generator_test, testThresholdEstimation)
 {
     auto n = 100;
-    auto PLE = -2.5;
+    auto ple = 2.5;
     auto alpha = numeric_limits<double>::infinity();
     auto weightSeed = seed;
     auto positionSeed = seed;
@@ -166,16 +162,14 @@ TEST_F(Generator_test, testThresholdEstimation)
     auto desired_avg = 10;
     auto runs = 20;
 
-    girgs::Generator generator;
-    generator.setWeights(n, PLE, weightSeed);
-    auto weights = generator.weights();
+    auto weights = girgs::generateWeights(n, ple, weightSeed);
 
     // do the tests for all dimensions < 5
     for(auto d = 1; d<5; ++d) {
 
         // estimate scaling for current dimension
-        generator.setWeights(weights); // reset weights
-        auto scaling = generator.scaleWeights(desired_avg, d, alpha);
+        auto scaled_weights = weights;
+        auto scaling = girgs::scaleWeights(scaled_weights, desired_avg, d, alpha);
         auto estimated_c = pow(scaling, 1.0/d);
 
         // observed avg with estimated c (over multiple runs with different positions)
@@ -183,11 +177,11 @@ TEST_F(Generator_test, testThresholdEstimation)
         for(int i = 0; i<runs; ++i) {
 
             // try GIRGS generator and quadratic sampling
-            generator.setPositions(n, d, positionSeed+i);
-            generator.generateThreshold();
+            auto positions = girgs::generatePositions(n, d, positionSeed+i);
+            auto edges = girgs::generateEdges(scaled_weights, positions, alpha, 0);
 
-            auto avg1 = generator.avg_degree();
-            auto avg2 = edgesInQuadraticSampling(weights, generator.positions(), estimated_c) / n;
+            auto avg1 = 2.0 * edges.size() / n;
+            auto avg2 = edgesInQuadraticSampling(weights, positions, estimated_c) / n;
 
             // generator must yield same results as quadratic sampling
             EXPECT_EQ(avg1, avg2) << "sampling with scaled weights produced different results than quadratic samping with constant factor";
@@ -209,7 +203,7 @@ TEST_F(Generator_test, testEstimation)
     auto all_dimensions = {1, 2, 3};
     auto runs = 5;
 
-    auto PLE = -2.5;
+    auto ple = 2.5;
     auto weightSeed = seed;
     auto positionSeed = seed;
 
@@ -219,22 +213,19 @@ TEST_F(Generator_test, testEstimation)
                 for(int d : all_dimensions){
 
                     // generate weights
-                    girgs::Generator generator;
-                    generator.setWeights(n, PLE, weightSeed);
-                    auto weights = generator.weights();
+                    auto weights = girgs::generateWeights(n, ple, weightSeed);
 
                     // estimate scaling for current dimension
-                    generator.setWeights(weights); // reset weights
-                    generator.scaleWeights(desired_avg, d, alpha);
+                    girgs::scaleWeights(weights, desired_avg, d, alpha);
 
                     auto observed_avg = 0.0;
                     for(int i = 0; i<runs; ++i) {
 
                         // try GIRGS generator
-                        generator.setPositions(n, d, positionSeed+i);
-                        generator.generate(alpha, n+i);
+                        auto positions = girgs::generatePositions(n, d, positionSeed+i);
+                        auto edges = girgs::generateEdges(weights, positions, alpha, n+i);
 
-                        auto avg = generator.avg_degree();
+                        auto avg = 2.0 * edges.size() / n;
                         observed_avg += avg;
                     }
                     observed_avg /= runs;
@@ -251,15 +242,12 @@ TEST_F(Generator_test, testEstimation)
 TEST_F(Generator_test, testWeightSampling)
 {
     auto n = 10000;
-    auto ple = -2.1;
+    auto ple = 2.1;
     int runs = 10;
 
-    girgs::Generator g;
-
     for(int i=0; i<runs; ++i){
-        g.setWeights(n, ple, seed+i);
-        auto weights = g.weights();
 
+        auto weights = girgs::generateWeights(n, ple, seed+i);
         for(auto each : weights) {
             EXPECT_GE(each, 1.0);
             EXPECT_LT(each, n);
@@ -273,46 +261,27 @@ TEST_F(Generator_test, testWeightSampling)
 TEST_F(Generator_test, testReproducible)
 {
     auto n = 1000;
-    auto ple = -2.4;
+    auto ple = 2.4;
     auto weight_seed    = 1337;
     auto position_seed  = 42;
-    auto avg_deg = 15;
 
     auto alphas = { 1.5, std::numeric_limits<double>::infinity() };
     auto dimensions = { 1, 2 };
 
-    girgs::Generator g1;
-    girgs::Generator g2;
-
     for (auto alpha : alphas) {
         for (auto d : dimensions) {
-            auto graph1 = g1.generate(n, d, ple, alpha, avg_deg, weight_seed, position_seed, weight_seed + position_seed);
-            auto graph2 = g2.generate(n, d, ple, alpha, avg_deg, weight_seed, position_seed, weight_seed + position_seed);
-            
-            // same weights
-            for (int i = 0; i < n; ++i) {
-                EXPECT_EQ(graph1[i].weight, graph2[i].weight);
-            }
 
-            // same positions
-            for (int i = 0; i < n; ++i) {
-                for (int dim = 0; dim < d; dim++) {
-                    EXPECT_EQ(graph1[i].coord[dim], graph2[i].coord[dim]);
-                }
-            }
+            auto edges1 = girgs::generateEdges(
+                    girgs::generateWeights(n, ple, weight_seed),
+                    girgs::generatePositions(n, d, position_seed),
+                    alpha, weight_seed+position_seed);
+            auto edges2 = girgs::generateEdges(
+                    girgs::generateWeights(n, ple, weight_seed),
+                    girgs::generatePositions(n, d, position_seed),
+                    alpha, weight_seed+position_seed);
 
-            // same number of edges
-            auto edges1 = 0;
-            for (auto& each : graph1)
-                edges1 += each.edges.size();
-
-            auto edges2 = 0;
-            for (auto& each : graph2)
-                edges2 += each.edges.size();
-
+            // same edges
             EXPECT_EQ(edges1, edges2);
         }
-
-        
     }
 }
