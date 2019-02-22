@@ -34,6 +34,8 @@ set(source_path  "${CMAKE_CURRENT_SOURCE_DIR}/source")
 
 set(headers
     ${include_path}/Generator.h
+    ${include_path}/Helper.h
+    ${include_path}/Hyperbolic.h
     ${include_path}/Node.h
     ${include_path}/ScopedTimer.h
     ${include_path}/SpatialTree.h
@@ -42,7 +44,6 @@ set(headers
     ${include_path}/SpatialTreeCoordinateHelper.inl
     ${include_path}/WeightLayer.h
     ${include_path}/WeightLayer.inl
-    ${include_path}/Hyperbolic.h
 )
 
 set(sources

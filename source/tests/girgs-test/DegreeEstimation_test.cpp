@@ -12,17 +12,8 @@
 
 using namespace std;
 
-
-double distance(const std::vector<double>& a, const std::vector<double>& b) {
-    assert(a.size() == b.size());
-    auto result = 0.0;
-    for(auto d=0u; d<a.size(); ++d){
-        auto dist = std::abs(a[d] - b[d]);
-        dist = std::min(dist, 1.0-dist);
-        result = std::max(result, dist);
-    }
-    return result;
-}
+// FWD for distance function. Declared in main.
+double distance(const std::vector<double>& a, const std::vector<double>& b);
 
 // multiple functions follow to compute the expected number of edges
 double tryOften(const std::vector<double>& w, double c, int dim, double a) {
