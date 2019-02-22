@@ -107,27 +107,56 @@ double estimateWeightScaling(const std::vector<double> &weights, double desiredA
     auto sum_sq_w   = 0.0; // sum_{v\in V} (w_v^2/W)
     auto sum_w_a    = 0.0; // sum_{v\in V} (w_v  /W)^\alpha
     auto sum_sq_w_a = 0.0; // sum_{v\in V} (w_v^2/W)^\alpha
-    for(auto each : weights){
-        sum_sq_w   += each*each/W;
-        sum_w_a    += pow(each/W, alpha);
-        sum_sq_w_a += pow(each*each/W, alpha);
-    }
 
     //   sum_{u\in V} sum_{v\in V} (wu*wv/W)^\alpha
     // = sum_{u\in V} sum_{v\in V} wu^\alpha * (wv/W)^\alpha
     // = sum_{u\in V} wu^\alpha sum_{v\in V} (wv/W)^\alpha
     auto sum_wwW_a = 0.0;
-    for(auto each : weights)
-        sum_wwW_a += pow(each, alpha)*sum_w_a;
+    auto max_w = 0.;
 
-    auto factor1 = (W-sum_sq_w) * (1+1/(alpha-1)) * (1<<dimension);
-    auto factor2 = pow(2, alpha*dimension) / (alpha-1) * (sum_wwW_a - sum_sq_w_a);
+    {
+        const auto n = static_cast<int>(weights.size());
+        #pragma omp parallel for reduction(+:sum_sq_w,sum_w_a,sum_sq_w_a,sum_wwW_a), reduction(max:max_w)
+        for(int i = 0; i < n; ++i) {
+            const auto each = weights[i];
+
+            const auto each_W     = each / W;
+            const auto pow_each   = pow(each, alpha);
+            const auto pow_each_W = pow(each / W, alpha);
+
+            sum_sq_w   += each * each_W;
+            sum_wwW_a  += pow_each;
+            sum_w_a    += pow_each_W;
+            sum_sq_w_a += pow_each * pow_each_W;
+            max_w       = std::max(each, max_w);
+        }
+    }
+    sum_wwW_a *= sum_w_a;
+    const auto max_w_W = max_w / W;
+
+    const auto factor1 = (W-sum_sq_w) * (1+1/(alpha-1)) * (1<<dimension);
+    const auto factor2 = pow(2, alpha*dimension) / (alpha-1) * (sum_wwW_a - sum_sq_w_a);
 
     // my function to do the exponential search on
-    auto sorted_weights = weights;
-    sort(sorted_weights.begin(), sorted_weights.end(), greater<double>());
+    std::vector<double> sorted_weights;
+    const auto upper = 2.0;
+    {
+        // derivation of thresh, see below in exp-search callback
+        const auto thresh = exp(dimension * log(0.5 / pow(upper, 1.0 / alpha / dimension)) - log(max_w_W));
 
-    auto f = [alpha, dimension, W, factor1, factor2, &sorted_weights](double c) {
+        for(auto w : weights) {
+            if(w > thresh)
+                sorted_weights.push_back(w);
+        }
+
+        sorted_weights.push_back(std::numeric_limits<double>::min()); // sentinel
+        sort(sorted_weights.begin(), sorted_weights.end(), greater<double>());
+    }
+
+    std::vector<double> rich_club;
+    auto f = [alpha, dimension, W, factor1, factor2, max_w_W, &sorted_weights, &rich_club, upper](double c) {
+        assert(c <= upper);
+
         auto d = dimension;
         auto a = alpha;
 
@@ -142,12 +171,21 @@ double estimateWeightScaling(const std::vector<double> &weights, double desiredA
         // get rich club
         vector<double> rich_club;
         auto w_n = sorted_weights.front();
-        for(int i=0; i<n; ++i){
-            auto crazy_w = pow(c, 1/a/d) * pow(sorted_weights[i] * w_n / W, 1.0/d);
-            if(crazy_w > 0.5)
-                rich_club.push_back(sorted_weights[i]);
-            else
+
+        /**
+         * w := sorted_weights[i]
+         *     pow(c, 1/a/d) * pow(w * max_w_W, 1.0/d) > 0.5
+         * <=> pow(w * max_w_W, 1.0/d) > 0.5 / pow(c, 1/a/d)
+         * <=> log(w * max_w_W) > d * log(0.5 / pow(c, 1/a/d))
+         * <=> log(w) > d * log(0.5 / pow(c, 1/a/d)) - log(max_w_W)
+         * <=> w > exp(d * log(0.5 / pow(c, 1/a/d)) - log(max_w_W))
+         */
+        const auto thresh = exp(d * log(0.5 / pow(c, 1/a/d)) - log(max_w_W));
+        for(int i=0; /* break using sentinel */; ++i) {
+            if (sorted_weights[i] < thresh)
                 break;
+
+            rich_club.push_back(sorted_weights[i]);
         }
 
         // compute errors
@@ -164,11 +202,11 @@ double estimateWeightScaling(const std::vector<double> &weights, double desiredA
                 long_error += c * pow(w_term, a) * d * (1 << d) / (d - a * d) * (pow(0.5, d - a * d) - pow(crazy_w, d - a * d));
             }
         }
-        return (long_and_short_with_error - short_error - long_error)/n;
+        return (long_and_short_with_error - short_error - long_error);
     };
 
     // do exponential search on avg_degree function
-    auto estimated_c = exponentialSearch(f, desiredAvgDegree);
+    auto estimated_c = exponentialSearch(f, desiredAvgDegree * weights.size());
 
     /*
      * Pr(edge) = Pr(c * 1/dist^ad * (wi*wj/W)^a )
@@ -179,7 +217,6 @@ double estimateWeightScaling(const std::vector<double> &weights, double desiredA
      *
      * so we can just scale all weights by (c^{1/a}
      */
-
     return pow(estimated_c, 1/alpha); // return scaling
 }
 
