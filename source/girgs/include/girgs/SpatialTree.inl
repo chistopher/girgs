@@ -170,8 +170,8 @@ void SpatialTree<D, EdgeCallback>::sampleTypeI(
 {
     assert(partitioningBaseLevel(i, j) == level
         || !m_helper.touching(cellA, cellB, level)); // in this case we were redirected from typeII with maxProb==1.0
-    auto sizeV_i_A = m_weight_layers[i].pointsInCell(cellA, level);
-    auto sizeV_j_B = m_weight_layers[j].pointsInCell(cellB, level);
+    const auto sizeV_i_A = m_weight_layers[i].pointsInCell(cellA, level);
+    const auto sizeV_j_B = m_weight_layers[j].pointsInCell(cellB, level);
 	if (sizeV_i_A == 0 || sizeV_j_B == 0)
 		return;
 
@@ -182,10 +182,11 @@ void SpatialTree<D, EdgeCallback>::sampleTypeI(
             : sizeV_i_A * sizeV_j_B * 2; // all pairs in AxB and BxA
 #endif // NDEBUG
 
-    auto threadId = omp_get_thread_num();
     std::uniform_real_distribution<> dist;
+    const auto threadId = omp_get_thread_num();
     const auto* firstA = m_weight_layers[i].firstPointPointer(cellA, level);
     const auto* firstB = m_weight_layers[j].firstPointPointer(cellB, level);
+    const auto inThresholdMode = m_alpha == std::numeric_limits<double>::infinity();
     for(int kA=0; kA<sizeV_i_A; ++kA){
         for (int kB =(cellA == cellB && i==j ? kA+1 : 0); kB<sizeV_j_B; ++kB) {
             const Node<D>& nodeInA = firstA[kA];
@@ -204,15 +205,15 @@ void SpatialTree<D, EdgeCallback>::sampleTypeI(
             assert(j == static_cast<unsigned int>(std::log2(nodeInB.weight/m_w0)));
 
             assert(nodeInA.index != nodeInB.index);
-            auto distance = nodeInA.distance(nodeInB);
-            auto w_term = nodeInA.weight*nodeInB.weight/m_W;
+            const auto distance = nodeInA.distance(nodeInB);
+            const auto w_term = nodeInA.weight*nodeInB.weight/m_W;
             const auto d_term = pow_to_the<D>(distance);
 
-            if(m_alpha == std::numeric_limits<double>::infinity()) {
+            if(inThresholdMode) {
                 if(d_term < w_term)
                     m_EdgeCallback(nodeInA.index, nodeInB.index, threadId);
             } else {
-                auto edge_prob = std::min(std::pow(w_term/d_term, m_alpha), 1.0);
+                auto edge_prob = std::pow(w_term/d_term, m_alpha); // we don't need min with 1.0 here
                 if(dist(m_gens[threadId]) < edge_prob)
                     m_EdgeCallback(nodeInA.index, nodeInB.index, threadId);
             }
@@ -227,8 +228,8 @@ void SpatialTree<D, EdgeCallback>::sampleTypeII(
         unsigned int i, unsigned int j)
 {
     assert(partitioningBaseLevel(i, j) >= level);
-    long long sizeV_i_A = m_weight_layers[i].pointsInCell(cellA, level);
-    long long sizeV_j_B = m_weight_layers[j].pointsInCell(cellB, level);
+    const long long sizeV_i_A = m_weight_layers[i].pointsInCell(cellA, level);
+    const long long sizeV_j_B = m_weight_layers[j].pointsInCell(cellB, level);
     if(sizeV_i_A == 0 || sizeV_j_B == 0)
         return;
 
@@ -260,7 +261,7 @@ void SpatialTree<D, EdgeCallback>::sampleTypeII(
     auto threadId = omp_get_thread_num();
     auto& gen = m_gens[threadId];
     auto geo = std::geometric_distribution<unsigned long long>(max_connection_prob);
-    std::uniform_real_distribution<> dist;
+    auto dist = std::uniform_real_distribution<>(0, max_connection_prob);
     const auto* firstA = m_weight_layers[i].firstPointPointer(cellA, level);
     const auto* firstB = m_weight_layers[j].firstPointPointer(cellB, level);
     for (auto r = geo(gen); r < num_pairs; r += 1 + geo(gen)) {
@@ -276,11 +277,11 @@ void SpatialTree<D, EdgeCallback>::sampleTypeII(
         const auto distance = nodeInA.distance(nodeInB);
         const auto w_term = nodeInA.weight*nodeInB.weight/m_W;
         const auto d_term = pow_to_the<D>(distance);
-        const auto connection_prob = std::min(std::pow(w_term/d_term, m_alpha), 1.0);
+        const auto connection_prob = std::pow(w_term/d_term, m_alpha); // we don't need min with 1.0 here
         assert(w_term < w_upper_bound);
         assert(d_term >= dist_lower_bound);
 
-        if(dist(gen) < connection_prob/max_connection_prob) {
+        if(dist(gen) < connection_prob) {
             m_EdgeCallback(nodeInA.index, nodeInB.index, threadId);
         }
     }
