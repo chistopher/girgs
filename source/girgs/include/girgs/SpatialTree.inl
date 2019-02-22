@@ -1,4 +1,5 @@
 #include <girgs/ScopedTimer.h>
+#include <girgs/Helper.h>
 
 namespace girgs {
 
@@ -205,8 +206,7 @@ void SpatialTree<D, EdgeCallback>::sampleTypeI(
             assert(nodeInA.index != nodeInB.index);
             auto distance = nodeInA.distance(nodeInB);
             auto w_term = nodeInA.weight*nodeInB.weight/m_W;
-            auto d_term = distance; //std::pow(distance, D);
-            for(auto d=1u; d<D; ++d) d_term*=distance; // this trick gives nealy x2 speedup for higher dimensions
+            const auto d_term = pow_to_the<D>(distance);
 
             if(m_alpha == std::numeric_limits<double>::infinity()) {
                 if(d_term < w_term)
@@ -235,8 +235,7 @@ void SpatialTree<D, EdgeCallback>::sampleTypeII(
     // get upper bound for probability
     const auto w_upper_bound = m_w0*(1<<(i+1)) * m_w0*(1<<(j+1)) / m_W;
     const auto cell_distance = m_helper.dist(cellA, cellB, level);
-    auto dist_lower_bound = cell_distance; // std::pow(cell_distance, D);
-    for(auto d=1u; d<D; ++d) dist_lower_bound *= cell_distance;
+    const auto dist_lower_bound = pow_to_the<D>(cell_distance);
     const auto max_connection_prob = std::min(std::pow(w_upper_bound/dist_lower_bound, m_alpha), 1.0);
     assert(dist_lower_bound > w_upper_bound); // in threshold model we would not sample anything
     const auto num_pairs = sizeV_i_A * sizeV_j_B;
@@ -274,11 +273,10 @@ void SpatialTree<D, EdgeCallback>::sampleTypeII(
         assert(j == static_cast<unsigned int>(std::log2(nodeInB.weight/m_w0)));
 
         // get actual connection probability
-        auto distance = nodeInA.distance(nodeInB);
-        auto w_term = nodeInA.weight*nodeInB.weight/m_W;
-        auto d_term = distance; //std::pow(distance, D);
-        for(auto d=1u; d<D; ++d) d_term*=distance;
-        auto connection_prob = std::min(std::pow(w_term/d_term, m_alpha), 1.0);
+        const auto distance = nodeInA.distance(nodeInB);
+        const auto w_term = nodeInA.weight*nodeInB.weight/m_W;
+        const auto d_term = pow_to_the<D>(distance);
+        const auto connection_prob = std::min(std::pow(w_term/d_term, m_alpha), 1.0);
         assert(w_term < w_upper_bound);
         assert(d_term >= dist_lower_bound);
 
