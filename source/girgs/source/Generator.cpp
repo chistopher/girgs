@@ -126,9 +126,6 @@ double estimateWeightScalingThreshold(const std::vector<double>& weights, double
 
 // helper for scale weights
 double estimateWeightScaling(const std::vector<double> &weights, double desiredAvgDegree, int dimension, double alpha) {
-
-    using namespace std;
-
     assert(alpha != 1.0); // somehow breaks for alpha 1.0
 
     // compute some constant stuff
@@ -200,7 +197,7 @@ double estimateWeightScaling(const std::vector<double> &weights, double desiredA
         auto long_error = 0.0;
 
         // get rich club
-        vector<double> rich_club;
+        std::vector<double> rich_club;
         auto w_n = sorted_weights.front();
 
         /* We re-write the "rich-condition", s.t. no pows have to be
