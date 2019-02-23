@@ -12,6 +12,8 @@
 
 using namespace std;
 
+// FWD for distance function. Declared in main.
+double distance(const std::vector<double>& a, const std::vector<double>& b);
 
 // multiple functions follow to compute the expected number of edges
 double tryOften(const std::vector<double>& w, double c, int dim, double a) {
@@ -36,7 +38,7 @@ double tryOften(const std::vector<double>& w, double c, int dim, double a) {
         for(int i=0; i<n; ++i)
             for(int j=i+1; j<n; ++j) {
                 auto w_term = w[i] * w[j] / W;
-                auto d_term = pow(girgs::distance(pos[i], pos[j]), dim);
+                auto d_term = pow(distance(pos[i], pos[j]), dim);
                 auto edgeProb = min(c * pow(w_term/d_term, a), 1.0);
                 sum += 2*edgeProb;
             }
@@ -226,15 +228,13 @@ TEST(DegreeEstimation_test, testEstimationFormula)
     auto n = 300;
     auto a = 4.5;
     auto d = 2;
-    auto ple = -2.5;
+    auto ple = 2.5;
 
     auto c = 0.5;
 
     auto epsilon = 0.00001;
 
-    girgs::Generator g;
-    g.setWeights(n, ple, seed);
-    auto weights = g.weights();
+    auto weights = girgs::generateWeights(n, ple, seed);
 
     auto experimental_number_of_edges = tryOften(weights, c, d, a);
 

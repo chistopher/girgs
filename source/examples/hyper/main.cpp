@@ -50,7 +50,7 @@ void rangeCheck(T value, T min, T max, string name, bool lex = false, bool hex =
 
 
 int main(int argc, char* argv[]) {
-
+    // TODO rewrite using hypergirgs
     // write help
     if (argc < 2 || 0 == strcmp(argv[1], "--help") || 0 == strcmp(argv[1], "-help")) {
         clog << "usage: ./hyper\n"
@@ -63,8 +63,6 @@ int main(int argc, char* argv[]) {
              << "\t\t[-aseed anInt]      // angle seed                               default 130\n"
              << "\t\t[-sseed anInt]      // sampling seed                            default 1400\n"
              << "\t\t[-file aString]     // file name for output graph               default \"graph\"\n"
-             << "\t\t[-edge 0|1]         // write result as edgelist (.txt)          default 0\n"
-             << "\t\t[-hyp 0|1]          // write hyperbolic coordinates (.hyp)      default 0\n"
              << "\t\t[-stats 0|1]        // shows difference to actual hyp graph     default 0\n";
         return 0;
     }
@@ -80,8 +78,6 @@ int main(int argc, char* argv[]) {
     auto aseed  = !params["aseed"].empty()  ? stoi(params["aseed"]) : 130;
     auto sseed  = !params["sseed"].empty()  ? stoi(params["sseed"]) : 1400;
     auto file   = !params["file" ].empty()  ? params["file"] : "graph";
-    auto edge   = params["edge" ] == "1";
-    auto hyp    = params["hyp"  ] == "1";
     auto stats  = params["stats"] == "1";
 
     // log params and range checks
@@ -95,8 +91,6 @@ int main(int argc, char* argv[]) {
     logParam(aseed, "aseed");
     logParam(sseed, "sseed");
     logParam(file, "file");
-    logParam(edge, "edge");
-    logParam(hyp, "hyp");
     logParam(stats, "stats");
     auto R = calculateRadius(n, alpha, T, deg);
     logParam(R, "R");
@@ -127,31 +121,11 @@ int main(int argc, char* argv[]) {
 
 
     cout << "sampling edges for girg ...\t" << flush;
-    girgs::Generator generator;
-    generator.setWeights(girg_weights);
-    generator.setPositions(girg_positions);
-    generator.scaleWeights(deg + odeg, 1, girg_alpha);
-    generator.generate(girg_alpha, sseed);
+    scaleWeights(girg_weights, deg+odeg, 1, girg_alpha);
+    auto edges = generateEdges(girg_weights, girg_positions, girg_alpha, sseed);
     auto t5 = high_resolution_clock::now();
-    cout << "done in " << duration_cast<milliseconds>(t5 - t4).count() << "ms\tavg deg = " << generator.avg_degree() << endl;
+    cout << "done in " << duration_cast<milliseconds>(t5 - t4).count() << "ms\tavg deg = " << 2.0*edges.size() / n << endl;
 
-    if (edge) {
-        cout << "writing edge list (.txt) ...\t" << flush;
-        auto t6 = high_resolution_clock::now();
-        generator.saveEdgeList(file + ".txt");
-        auto t7 = high_resolution_clock::now();
-        cout << "done in " << duration_cast<milliseconds>(t7 - t6).count() << "ms" << endl;
-    }
-
-    if (hyp) {
-        cout << "writing hyp. coords (.hyp) ...\t" << flush;
-        auto t6 = high_resolution_clock::now();
-        auto f = std::ofstream(file);
-        for(int i = 0; i < n; ++i)
-            f << radii[i] << ' ' << angles[i] << '\n';
-        auto t7 = high_resolution_clock::now();
-        cout << "done in " << duration_cast<milliseconds>(t7 - t6).count() << "ms" << endl;
-    }
 
     // compute some stats
     if(!stats)
@@ -168,11 +142,9 @@ int main(int argc, char* argv[]) {
 
     // normalize adj matrix that edges point from smaller index to larger
     auto adj_list = vector<vector<int>>(n);
-    for(auto& node : generator.graph()) {
-        for(auto neigh : node.edges) {
-            auto mm = minmax(node.index, neigh->index);
+    for(auto& edge : edges) {
+            auto mm = minmax(edge.first, edge.second);
             adj_list[mm.first].push_back(mm.second);
-        }
     }
 
     // check all point pairs
@@ -201,7 +173,7 @@ int main(int argc, char* argv[]) {
     }
 
     auto t7 = high_resolution_clock::now();
-    auto total_edges = generator.edges();
+    auto total_edges = edges.size();
     cout << "done in " << duration_cast<milliseconds>(t7 - t6).count() << "ms" << endl;
     cout << '\n';
     cout << "total edges       " << total_edges << '\n';

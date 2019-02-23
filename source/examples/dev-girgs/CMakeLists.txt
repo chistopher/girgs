@@ -11,7 +11,7 @@
 #
 
 # Target name
-set(target dev2)
+set(target dev-girgs)
 
 # Exit here if required dependencies are not met
 message(STATUS "Example ${target}")
