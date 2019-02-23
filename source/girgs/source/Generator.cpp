@@ -43,39 +43,68 @@ double exponentialSearch(const std::function<double(double)>& f, double desiredV
     return (upper+lower)/2;
 }
 
-
 // helper for scale weights
 double estimateWeightScalingThreshold(const std::vector<double>& weights, double desiredAvgDegree, int dimension) {
-
     // compute some constant stuff
-    auto max_weight = *std::max_element(weights.begin(), weights.end());
+    auto max_weight = 0.0;
     auto W = 0.0, sq_W = 0.0;
-    for(auto each : weights){
-        W += each;
-        sq_W += each*each;
+    {
+        const auto n = weights.size();
+
+        #pragma omp parallel for reduction(+:W, sq_W), reduction(max: max_weight)
+        for(int i = 0; i < n; ++i) {
+            const auto each = weights[i];
+            W += each;
+            sq_W += each * each;
+            max_weight = std::max(max_weight, each);
+        }
+    }
+
+    // filter and sort candidates for rich_club
+    const double upper = 2.0;
+    std::vector<double> sorted_weights;
+    {
+        const auto thresh = W / std::pow(2*upper,dimension) / max_weight;
+        std::copy_if(weights.cbegin(), weights.cend(), std::back_inserter(sorted_weights),
+                     [thresh] (double x) {return x > thresh;});
+        sort(sorted_weights.begin(), sorted_weights.end(), std::greater<double>());
+        sorted_weights.push_back(std::numeric_limits<double>::min());
     }
 
     // my function to do the exponential search on
-    auto f = [W, sq_W, &weights, dimension, max_weight](double c) {
+    std::vector<double> rich_club;
+    auto f = [&] (double c) {
         // compute rich club
-        std::vector<double> rich_club;
-        for(auto weight : weights)
-            if(std::pow(2*c,dimension) * (weight*max_weight/W) > 1.0)
-                rich_club.push_back(weight);
-        sort(rich_club.begin(), rich_club.end(), std::greater<double>());
+        rich_club.clear();
+        const auto thresh = W / std::pow(2*c,dimension) / max_weight;
+
+        for(int i=0; /* sentinel based */; ++i) {
+            if (sorted_weights[i] < thresh)
+                break;
+
+            rich_club.push_back(sorted_weights[i]);
+        }
+
         // compute overestimation
         auto overestimation = pow(2, dimension) * pow(c, dimension) * (W - sq_W/W);
+
         // subtract error
         auto error = 0.0;
-        for(int i = 0; i<rich_club.size(); ++i)
-            for(int j = 0; j<rich_club.size(); ++j) {
-                if(i==j) continue;
-                auto w1 = rich_club[i];
-                auto w2 = rich_club[j];
-                auto e = std::max( std::pow(2*c,dimension)*(w1*w2/W)-1.0, 0.0);
+        for(int i = 0; i<rich_club.size(); ++i) {
+            for (int j = 0; j < rich_club.size(); ++j) {
+                if (i == j)
+                    continue;
+
+                const auto w1 = rich_club[i];
+                const auto w2 = rich_club[j];
+                const auto e = std::max(std::pow(2 * c, dimension) * (w1 * w2 / W) - 1.0, 0.0);
                 error += e;
-                if(e <= 0) break;
+
+                if (e <= 0)
+                    break;
             }
+        }
+
         return (overestimation - error) / weights.size();
     };
 
