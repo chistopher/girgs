@@ -143,6 +143,7 @@ double estimateWeightScaling(const std::vector<double> &weights, double desiredA
     auto sum_wwW_a = 0.0;
     auto max_w = 0.;
 
+    // this loop causes >= 70% of runtime
     {
         const auto n = static_cast<int>(weights.size());
         #pragma omp parallel for reduction(+:sum_sq_w,sum_w_a,sum_sq_w_a,sum_wwW_a), reduction(max:max_w)
@@ -183,6 +184,7 @@ double estimateWeightScaling(const std::vector<double> &weights, double desiredA
     }
 
     std::vector<double> rich_club;
+    // it's not really necessary to optimize this callback; less than 10% of computation time are spent here
     auto f = [alpha, dimension, W, factor1, factor2, max_w_W, &sorted_weights, &rich_club, upper](double c) {
         assert(c <= upper);
 
@@ -201,8 +203,9 @@ double estimateWeightScaling(const std::vector<double> &weights, double desiredA
         vector<double> rich_club;
         auto w_n = sorted_weights.front();
 
-        /**
-         * w := sorted_weights[i]
+        /* We re-write the "rich-condition", s.t. no pows have to be
+         * evalutated. Let w := sorted_weights[i], then:
+         *
          *     pow(c, 1/a/d) * pow(w * max_w_W, 1.0/d) > 0.5
          * <=> pow(w * max_w_W, 1.0/d) > 0.5 / pow(c, 1/a/d)
          * <=> log(w * max_w_W) > d * log(0.5 / pow(c, 1/a/d))
@@ -218,6 +221,8 @@ double estimateWeightScaling(const std::vector<double> &weights, double desiredA
         }
 
         // compute errors
+        const auto fac1 = (1<<d)*pow(c, 1/a);
+        const auto base = pow(0.5, d - a * d);
         for(int i = 0; i<rich_club.size(); ++i) {
             for (int j = 0; j < rich_club.size(); ++j) {
                 if (i == j) continue;
@@ -227,10 +232,13 @@ double estimateWeightScaling(const std::vector<double> &weights, double desiredA
                 if (crazy_w <= 0.5)
                     break;
 
-                short_error += (1<<d)*pow(c, 1/a)*w_term -1.0;
-                long_error += c * pow(w_term, a) * d * (1 << d) / (d - a * d) * (pow(0.5, d - a * d) - pow(crazy_w, d - a * d));
+                short_error += fac1*w_term - 1.0;
+                long_error += pow(w_term, a) * (base - pow(crazy_w, d - a * d));
             }
         }
+
+        long_error *= c * d * (1 << d) / (d - a * d);
+
         return (long_and_short_with_error - short_error - long_error);
     };
 
