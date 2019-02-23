@@ -16,7 +16,7 @@
 namespace girgs {
 
 // helper for scale weights
-double exponentialSearch(const std::function<double(double)>& f, double desiredValue, double accuracy = 0.02, double lower = 1.0, double upper = 2.0) {
+static double exponentialSearch(const std::function<double(double)>& f, double desiredValue, double accuracy = 0.02, double lower = 1.0, double upper = 2.0) {
 
     // scale interval up if necessary
     while(f(upper) < desiredValue){
