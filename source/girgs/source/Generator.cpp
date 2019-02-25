@@ -67,7 +67,7 @@ double estimateWeightScalingThreshold(const std::vector<double>& weights, double
         const auto thresh = W / std::pow(2*upper,dimension) / max_weight;
         std::copy_if(weights.cbegin(), weights.cend(), std::back_inserter(sorted_weights),
                      [thresh] (double x) {return x > thresh;});
-        sort(sorted_weights.begin(), sorted_weights.end(), std::greater<double>());
+        std::sort(sorted_weights.begin(), sorted_weights.end(), std::greater<double>());
         sorted_weights.push_back(std::numeric_limits<double>::min());
     }
 
@@ -170,14 +170,10 @@ double estimateWeightScaling(const std::vector<double> &weights, double desiredA
     {
         // derivation of thresh, see below in exp-search callback
         const auto thresh = exp(dimension * log(0.5 / pow(upper, 1.0 / alpha / dimension)) - log(max_w_W));
-
-        for(auto w : weights) {
-            if(w > thresh)
-                sorted_weights.push_back(w);
-        }
-
+        std::copy_if(weights.cbegin(), weights.cend(), std::back_inserter(sorted_weights),
+                     [thresh] (double x) {return x > thresh;});
         sorted_weights.push_back(std::numeric_limits<double>::min()); // sentinel
-        sort(sorted_weights.begin(), sorted_weights.end(), greater<double>());
+        std::sort(sorted_weights.begin(), sorted_weights.end(), std::greater<double>());
     }
 
     std::vector<double> rich_club;
