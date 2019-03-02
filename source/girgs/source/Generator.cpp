@@ -60,56 +60,72 @@ double estimateWeightScalingThreshold(const std::vector<double>& weights, double
         }
     }
 
-    // filter and sort candidates for rich_club
-    const double upper = 2.0;
-    std::vector<double> sorted_weights;
-    {
-        const auto thresh = W / std::pow(2*upper,dimension) / max_weight;
-        std::copy_if(weights.cbegin(), weights.cend(), std::back_inserter(sorted_weights),
-                     [thresh] (double x) {return x > thresh;});
-        std::sort(sorted_weights.begin(), sorted_weights.end(), std::greater<double>());
-        sorted_weights.push_back(std::numeric_limits<double>::min());
-    }
+    // rather than sorting all weights (which can dominate the runtime for large n and small avgDeg)
+    // we use stable_partition to find the "rich_club" and then only sort it. If the rich_club grows
+    // over the course of the algorithm (i.e., c is growing), we apply this idea recursively on the
+    // elements not sorted yet.
+    std::vector<double> sorted_weights = weights;
+    auto sorted_end = sorted_weights.begin(); // points to the first element not yet sorted
+    auto sorted_upper = std::numeric_limits<double>::min();
+    auto get_sorted_end = [&] (double c) {
+        const auto thresh = W / std::pow(2.0 * c, dimension) / max_weight;
+
+        if (c > sorted_upper) {
+            // we need more points
+            auto it = std::stable_partition(sorted_end, sorted_weights.end(), [=](double x) { return x >= thresh; });
+            std::sort(sorted_end, it, std::greater<double>());
+            sorted_end = it;
+
+            // if we reached the end of the input, we set the sorted_upper to max() in order to every
+            // going into the partition branch again.
+            sorted_upper = (sorted_end == sorted_weights.end()) ? std::numeric_limits<double>::max() : c;
+            return sorted_end;
+
+        } else {
+            // the splitter is within our already sorted segment
+            return std::lower_bound(sorted_weights.begin(), sorted_end, thresh, std::greater<double>());
+        }
+    };
+
+    std::vector<std::pair<int, double>> row_res;
 
     // my function to do the exponential search on
-    std::vector<double> rich_club;
     auto f = [&] (double c) {
         // compute rich club
-        rich_club.clear();
-        const auto thresh = W / std::pow(2*c,dimension) / max_weight;
-
-        for(int i=0; /* sentinel based */; ++i) {
-            if (sorted_weights[i] < thresh)
-                break;
-
-            rich_club.push_back(sorted_weights[i]);
-        }
+        const auto it = get_sorted_end(c);
+        const auto n = std::distance(sorted_weights.begin(), it);
+        row_res.resize(n);
 
         // compute overestimation
-        auto overestimation = pow(2, dimension) * pow(c, dimension) * (W - sq_W/W);
+        const auto pow2c = pow(2*c, dimension);
+        const auto thresh = 1.0 / pow2c;
 
         // subtract error
         auto error = 0.0;
-        for(int i = 0; i<rich_club.size(); ++i) {
-            for (int j = 0; j < rich_club.size(); ++j) {
-                if (i == j)
-                    continue;
+        for(int i = 0; i<n; ++i) {
+            const auto w1 = sorted_weights[i];
+            const auto fac = w1 / W;
 
-                const auto w1 = rich_club[i];
-                const auto w2 = rich_club[j];
-                const auto e = std::max(std::pow(2 * c, dimension) * (w1 * w2 / W) - 1.0, 0.0);
-                error += e;
+            auto& row = row_res[i];
+            while(row.first < n) {
+                if (i != row.first) {
+                    const auto e = fac * sorted_weights[row.first];
+                    if (e <= thresh) break;
+                    row.second += e;
+                }
 
-                if (e <= 0)
-                    break;
+                row.first++;
             }
+
+            error += pow2c * row.second - row.first;
         }
 
-        return (overestimation - error) / weights.size();
+        const auto overestimation = pow2c * (W - sq_W/W);
+        return (overestimation - error);
     };
 
     // do exponential search on expected average degree function
-    auto estimated_c = exponentialSearch(f, desiredAvgDegree);
+    auto estimated_c = exponentialSearch(f, desiredAvgDegree * weights.size(), 0.02 * weights.size());
 
     /*
      * edge iff dist < c(wi*wj/W)^(1/d)
