@@ -40,95 +40,116 @@ static double exponentialSearch(const std::function<double(double)> &f, double d
 
 // helper for scale weights
 double estimateWeightScalingThreshold(const std::vector<double> &weights, double desiredAvgDegree, int dimension) {
+    // Conceptionally, prefix_sum contains a prefix sum of the weights vector sorted decreasingly.
+    // To speed up sorting and prefix computation, we only sort as many elements as we need, hence
+    // the vector contains three segments:
+    //  - front element is always 0 and functions as a sentinel value to avoid boundary checks in
+    //    function original_value
+    //  - the prefix sum section [ps_begin, ps_end)
+    //  - unordered section [ps_end, end) storing remaining elements
+    std::vector<double> prefix_sum(weights.size() + 1);
+    prefix_sum[0] = 0;
+    const auto ps_begin = prefix_sum.begin() + 1;
+          auto ps_end   = ps_begin;
+    const auto end      = prefix_sum.end();
+    using iter_t = decltype(ps_begin);
+    auto original_value = [] (iter_t x) {return *x - *(x - 1);};
+
     // compute some constant stuff
+    const auto n = weights.size();
     auto max_weight = 0.0;
     auto W = 0.0, sq_W = 0.0;
     {
-        const auto n = weights.size();
-
         #pragma omp parallel for reduction(+:W, sq_W), reduction(max: max_weight)
         for (int i = 0; i < n; ++i) {
             const auto each = weights[i];
+            prefix_sum[i+1] = each; // copy to prefix_sum
+
             W += each;
             sq_W += each * each;
             max_weight = std::max(max_weight, each);
         }
     }
 
-    // rather than sorting all weights (which can dominate the runtime for large n and small avgDeg)
-    // we use stable_partition to find the "rich_club" and then only sort it. If the rich_club grows
-    // over the course of the algorithm (i.e., c is growing), we apply this idea recursively on the
-    // elements not sorted yet.
-    std::vector<double> sorted_weights = weights;
-    std::vector<double> prefix_sum(weights.size());
-    auto sorted_end = sorted_weights.begin(); // points to the first element not yet sorted
     auto sorted_upper = std::numeric_limits<double>::min();
-    auto get_sorted_end = [&](double c) {
+    auto prefixsum_upto = [&](double c) {
         const auto thresh = W / std::pow(2.0 * c, dimension) / max_weight;
 
         if (c > sorted_upper) {
-            assert(sorted_end != sorted_weights.end());
+            // we need more points, make sure we have more!
+            assert(ps_end != prefix_sum.end());
 
-            // we need more points
-            auto it = std::stable_partition(sorted_end, sorted_weights.end(), [=](double x) { return x >= thresh; });
-            std::sort(sorted_end, it, std::greater<double>());
+            // move all not yet sorted elements larger than the threshold directly next to the sorted ones
+            auto new_ps_end = std::partition(ps_end, end, [=](double x) { return x >= thresh; });
+            if (new_ps_end == ps_end) return ps_end;
 
-            // update prefixsum
-            {
-                // we are adding prefix (sum up to the element summed in the last iteration, if any)
-                // to the first element of our new range to continue the prefix sum
-                const auto prefix = (sorted_end == sorted_weights.begin()) ? 0 : *(sorted_end - 1);
+            std::sort(ps_end, new_ps_end, std::greater<double>());
 
-                double tmp = *sorted_end + prefix;
-                std::swap(*sorted_end, tmp);
-                std::partial_sum(sorted_end, it, prefix_sum.begin() + std::distance(sorted_weights.begin(), sorted_end));
-                std::swap(*sorted_end, tmp);
-            }
+            // compute the inclusive prefix sum starting one early to "connect" it to the already sorted
+            // sequence. Initially we rewrite the sentinel value, so no additional checks are necessary
+            std::partial_sum(ps_end - 1, new_ps_end, ps_end -1);
 
-            // if we reached the end of the input, we set the sorted_upper to max() in order to every
-            // going into the partition branch again.
-            sorted_upper = (sorted_end == sorted_weights.end()) ? std::numeric_limits<double>::max() : c;
-            sorted_end = it;
-            return sorted_end;
+#ifndef NDEBUG
+            for(auto it = ps_begin + 1; it != new_ps_end; ++it)
+                assert(original_value(it) <= original_value(it - 1));
+#endif
+
+            ps_end = new_ps_end;
+            sorted_upper = (ps_end == prefix_sum.end()) ? std::numeric_limits<double>::max() : c;
+            return ps_end;
 
         } else {
             // the splitter is within our already sorted segment
-            return std::lower_bound(sorted_weights.begin(), sorted_end, thresh, std::greater<double>());
+            return std::lower_bound(ps_begin, ps_end, thresh,
+                [&] (const double& x, const double thresh) {return x - *(&x - 1) > thresh;});
+
         }
     };
 
     // my function to do the exponential search on
-    auto f = [&](double c) {
+    auto f = [ps_begin, dimension, W, sq_W, n, &prefixsum_upto, &original_value](double c) {
         // compute rich club
-        const auto it = get_sorted_end(c);
-        const auto num_richclub = static_cast<int>(std::distance(sorted_weights.begin(), it));
+        const auto richclub_end = prefixsum_upto(c);
 
         // compute overestimation
         const auto pow2c = pow(2 * c, dimension);
-        const auto thresh = 1.0 / pow2c;
 
         // subtract error
         auto error = 0.0;
-        int j = num_richclub;
-        for (int i = 0; i < num_richclub; ++i) {
-            const auto fac = sorted_weights[i] / W;
-            const auto my_thres = thresh / fac;
+        auto y = richclub_end - 1;
+        for(auto x = ps_begin; x != richclub_end; ++x) {
+            const auto fac = original_value(x) / W;
+            const auto my_thres = 1.0 / fac / pow2c;
 
-            while (--j >= 0 && sorted_weights[j] <= my_thres);
+            // search smallest element larger than my_thresh; since `my_thresh` is non-decreasing,
+            // y is non-decreasing either and we can use the old values as a lower-bound for the
+            // next one
+            for(; y >= ps_begin && original_value(y) < my_thres; y--);
+            if (y < ps_begin) break;
 
-            if (j < 0) break;
+            /**
+              * sum_{k < j, k != i}{ std::pow(2*c,dimension)*(w1*w_k/W)-1.0 }
+              * = sum_{k < j, k != i}{ std::pow(2*c,dimension)*(w1*w_k/W) } - j
+              * = sum_{k < j}{ std::pow(2*c,dimension)*(w1*w_k/W) } - j - (0 if j < i else std::pow(2*c,dimension)*(w1*w_i/W) - 1)
+              * = pow2c * w1/W * (sum_j{w_j}) - j - (0 if j < i else pow2c*(w1/W)*w_i - 1)
+              */
 
-            const auto self_contribution = (i > j) ? 0.0 : (prefix_sum[i] * fac - 1.0);
+            error += *y * pow2c * fac - (std::distance(ps_begin, y) + 1);
 
-            error += pow2c * fac * prefix_sum[j] - j - self_contribution;
+            if (y >= x) {
+                // we have to subtract the self-contribution of x == y
+                error -= pow2c * fac * original_value(x) - 1.0;
+            }
         }
 
         const auto overestimation = pow2c * (W - sq_W / W);
-        return (overestimation - error);
+        const auto res = (overestimation - error) / n;
+
+        return res;
     };
 
     // do exponential search on expected average degree function
-    auto estimated_c = exponentialSearch(f, desiredAvgDegree * weights.size(), 0.02 * weights.size());
+    auto estimated_c = exponentialSearch(f, desiredAvgDegree);
 
     /*
      * edge iff dist < c(wi*wj/W)^(1/d)
