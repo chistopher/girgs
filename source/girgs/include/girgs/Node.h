@@ -34,6 +34,13 @@ struct Node {
         }
         return result;
     }
+
+    void prefetch() const noexcept {
+#if defined(__GNUC__) || defined(__clang__)
+        __builtin_prefetch(coord.data(), 0);
+        __builtin_prefetch(&index, 0);
+#endif
+    }
 };
 
 

@@ -277,9 +277,14 @@ void SpatialTree<D, EdgeCallback>::sampleTypeII(
         const Node<D>& nodeInA = rangeA.first[r%sizeV_i_A];
         const Node<D>& nodeInB = rangeB.first[r/sizeV_i_A];
 
+        nodeInB.prefetch();
+        nodeInA.prefetch();
+
         // points are in correct weight layer
         assert(i == static_cast<unsigned int>(std::log2(nodeInA.weight/m_w0)));
         assert(j == static_cast<unsigned int>(std::log2(nodeInB.weight/m_w0)));
+
+        const auto rnd = dist(gen);
 
         // get actual connection probability
         const auto distance = nodeInA.distance(nodeInB);
@@ -289,7 +294,7 @@ void SpatialTree<D, EdgeCallback>::sampleTypeII(
         assert(w_term < w_upper_bound);
         assert(d_term >= dist_lower_bound);
 
-        if(dist(gen) < connection_prob) {
+        if(rnd < connection_prob) {
             m_EdgeCallback(nodeInA.index, nodeInB.index, threadId);
         }
     }
