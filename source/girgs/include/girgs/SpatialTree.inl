@@ -201,8 +201,8 @@ void SpatialTree<D, EdgeCallback>::sampleTypeI(
 			assert(nodeInB.index == m_weight_layers[j].kthPoint(cellB, level, std::distance(rangeB.first, pointerB)).index);
 
             // points are in correct cells
-            assert(cellA - m_helper.firstCellOfLevel(level) == m_helper.cellForPoint({nodeInA.coord.begin(), nodeInA.coord.end()}, level));
-            assert(cellB - m_helper.firstCellOfLevel(level) == m_helper.cellForPoint({nodeInB.coord.begin(), nodeInB.coord.end()}, level));
+            assert(cellA - m_helper.firstCellOfLevel(level) == m_helper.cellForPoint(nodeInA.coord, level));
+            assert(cellB - m_helper.firstCellOfLevel(level) == m_helper.cellForPoint(nodeInB.coord, level));
 
             // points are in correct weight layer
             assert(i == static_cast<unsigned int>(std::log2(nodeInA.weight/m_w0)));
@@ -373,7 +373,7 @@ std::vector<WeightLayer<D>> SpatialTree<D, EdgeCallback>::buildPartition(const s
             const auto layer = weight_to_layer(weights[i]);
             const auto level = weightLayerTargetLevel(layer);
             points[i] = Node<D>(positions[i], weights[i], i);
-            points[i].cell_id = first_cell_of_layer[layer] + m_helper.cellForPoint(points[i], level);
+            points[i].cell_id = first_cell_of_layer[layer] + m_helper.cellForPoint(points[i].coord, level);
             assert(points[i].cell_id < max_cell_id);
         }
     }

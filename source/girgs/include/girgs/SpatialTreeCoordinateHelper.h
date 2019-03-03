@@ -5,8 +5,6 @@
 #include <array>
 #include <cassert>
 
-#include <girgs/Node.h>
-
 namespace girgs {
 
 
@@ -30,8 +28,7 @@ public:
     explicit SpatialTreeCoordinateHelper(unsigned int levels);
 
     std::array<std::pair<double,double>, D> bounds(unsigned int cell, unsigned int level) const;
-    unsigned int cellForPoint(const std::vector<double>& point, unsigned int targetLevel) const;
-    unsigned int cellForPoint(const Node<D>& node, unsigned int targetLevel) const;
+    unsigned int cellForPoint(const std::array<double, D>& position, unsigned int targetLevel) const;
 
     bool touching(unsigned int cellA, unsigned int cellB, unsigned int level) const;
 

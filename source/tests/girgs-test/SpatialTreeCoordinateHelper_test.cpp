@@ -60,7 +60,7 @@ void testCoordMapping(SpatialTreeCoordinateHelper<D>& helper) {
     for(auto i=0; i<100; ++i) {
 
         // generate random point in [0..1)^D
-        auto point = vector<double>(D, 0.0);
+        auto point = std::array<double, D>();
         for(auto d=0u; d<D; ++d)
             point[d] = dist(gen);
 
