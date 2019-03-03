@@ -9,6 +9,8 @@
 
 using namespace std;
 
+// FWD for distance function. Declared in main.
+double distance(const std::vector<double>& a, const std::vector<double>& b);
 
 class Generator_test: public testing::Test
 {
@@ -17,25 +19,10 @@ protected:
 };
 
 
-// unnamed namespace
-namespace {
-
-    double distance(const std::vector<double> &a, const std::vector<double> &b) {
-        assert(a.size() == b.size());
-        auto result = 0.0;
-        for (auto d = 0u; d < a.size(); ++d) {
-            auto dist = std::abs(a[d] - b[d]);
-            dist = std::min(dist, 1.0 - dist);
-            result = std::max(result, dist);
-        }
-        return result;
-    }
-
-    bool connected(int a, int b, const vector<pair<int, int>> graph) {
-        bool a2b = find(graph.begin(), graph.end(), make_pair(a, b)) != graph.end();
-        bool b2a = find(graph.begin(), graph.end(), make_pair(b, a)) != graph.end();
-        return a2b || b2a;
-    }
+bool connected(int a, int b, const vector<pair<int, int>> graph) {
+    bool a2b = find(graph.begin(), graph.end(), make_pair(a, b)) != graph.end();
+    bool b2a = find(graph.begin(), graph.end(), make_pair(b, a)) != graph.end();
+    return a2b || b2a;
 }
 
 
@@ -57,9 +44,9 @@ TEST_F(Generator_test, testThresholdModel)
         for(int j=0; j<n; ++j){
             for(int i=j+1; i<n; ++i){
 
-                auto dist = distance(positions[i], positions[j]);
-                auto d_term = pow(dist, d);
-                auto w_term = weights[i] * weights[j] / W;
+                const auto dist = distance(positions[i], positions[j]);
+                const auto d_term = pow(dist, d);
+                const auto w_term = weights[i] * weights[j] / W;
 
                 if(d_term < w_term) {
                     EXPECT_TRUE(connected(i,j, edges)) << "edge should be present";
@@ -92,9 +79,9 @@ TEST_F(Generator_test, testGeneralModel)
         for(int j=0; j<n; ++j){
             for(int i=j+1; i<n; ++i){
 
-                auto dist = distance(positions[i], positions[j]);
-                auto d_term = pow(dist, d);
-                auto w_term = weights[i] * weights[j] / W;
+                const auto dist = distance(positions[i], positions[j]);
+                const auto d_term = pow(dist, d);
+                const auto w_term = weights[i] * weights[j] / W;
 
                 auto prob = std::min(std::pow(w_term/d_term, alpha), 1.0);
                 expectedEdges += 2*prob;

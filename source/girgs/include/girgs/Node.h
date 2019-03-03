@@ -15,7 +15,7 @@ struct Node {
     int                     index;
 
     Node() = default;
-    Node(std::vector<double> _coord, double _weight, int _index)
+    Node(const std::vector<double>& _coord, double _weight, int _index)
     : weight(_weight), index(_index) {
         assert(_coord.size()==D);
         for(auto d=0u; d<D; ++d)
