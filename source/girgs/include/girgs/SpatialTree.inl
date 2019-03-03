@@ -251,11 +251,11 @@ void SpatialTree<D, EdgeCallback>::sampleTypeII(
     const auto num_pairs = sizeV_i_A * sizeV_j_B;
     const auto expected_samples = num_pairs * max_connection_prob;
 
-    // if we must sample all pairs we treat this as type 1 sampling
-    // also, 1.0 is no valid prob for a geometric dist (see c++ std)
-    if(max_connection_prob == 1.0){
-        sampleTypeI(cellA, cellB, level, i, j);
-        return;
+    // skipping over points is actually quite expensive as it messes up
+    // branch predictions and prefetching. Hence low expected skip distances
+    // it's cheapter to throw a coin each time!
+    if (max_connection_prob > 0.2) {
+        return sampleTypeI(cellA, cellB, level, i, j);
     }
 
 #ifndef NDEBUG
