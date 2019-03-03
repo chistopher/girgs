@@ -10,6 +10,7 @@
 
 #include <girgs/girgs-version.h>
 #include <girgs/Generator.h>
+#include <girgs/BitInterleaving.h>
 
 
 using namespace std;
@@ -129,6 +130,8 @@ int main(int argc, char* argv[]) {
     auto scaling = girgs::scaleWeights(weights, deg, d, alpha);
     auto t4 = high_resolution_clock::now();
     cout << "done in " << duration_cast<milliseconds>(t4 - t3).count() << "ms\tscaling = " << scaling << endl;
+
+    cout << "bit: " << girgs::BitInterleavingImpl() << "\n";
 
     cout << "sampling edges ...\t\t" << flush;
     auto edges = girgs::generateEdges(weights, positions, alpha, sseed);

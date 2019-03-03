@@ -127,6 +127,13 @@ if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU" OR "${CMAKE_CXX_COMPILER_ID}" MATCH
             -pthread
         >
     )
+
+    if(OPTION_USE_PDEP)
+        set(DEFAULT_COMPILE_OPTIONS ${DEFAULT_COMPILE_OPTIONS}
+                -DUSE_PDEP
+                -mbmi2
+                )
+    endif()
 endif ()
 
 

@@ -1,3 +1,4 @@
+#include <girgs/BitInterleaving.h>
 
 namespace girgs {
 
@@ -34,34 +35,14 @@ std::array<std::pair<double, double>, D> SpatialTreeCoordinateHelper<D>::bounds(
 }
 
 template<unsigned int D>
-unsigned int SpatialTreeCoordinateHelper<D>::cellForPoint(const std::array<double, D>& position, unsigned int targetLevel) const {
-    // calculate coords
+unsigned int SpatialTreeCoordinateHelper<D>::cellForPoint(const std::array<double, D>& position, unsigned int targetLevel) {
     auto diameter = static_cast<double>(1 << targetLevel);
 
-    std::array<int, D> coords;
+    std::array<uint32_t, D> coords;
     for (auto d = 0u; d < D; ++d)
-        coords[d] = static_cast<unsigned int>(position[d] * diameter);
+        coords[d] = static_cast<uint32_t>(position[d] * diameter);
 
-    /*
-     * We now interleave the bits of the coordinates, let X[i,j] be the i-th bit (counting from LSB) of coordinate j,
-     * and let D' = D-1, and t = targetLevel-1. Then return
-     *  X[t, D'] o X[t, D'-1] o ... o X[t, 0]   o  X[t-1, D'] o ... o X[t-1, 0]   o  ...  o  X[0, D'] o ... o X[0, 0]
-     *
-     * The following in a naive implementation of this bit interleaving:
-     */
-    unsigned int result = 0u;
-    unsigned int bit = 0;
-    for(auto l = 0u; l != targetLevel; l++) {
-        for(auto d = 0u; d != D; d++) {
-            result |= ((coords[d] >> l) & 1) << bit++;
-        }
-    }
-
-    return result;
-
-    // TODO: We can use shifts and masks to use word-parallelism
-    // TODO: We can use the AVX2 instruction pdep
-    // TODO: Write benchmark what's faster given that we consider at most targetLevel bits per coordinate
+    return BitInterleaving<D>::interleave(coords, targetLevel);
 }
 
 template<unsigned int D>

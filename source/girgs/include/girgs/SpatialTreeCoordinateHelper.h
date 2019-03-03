@@ -5,6 +5,7 @@
 #include <array>
 #include <cassert>
 
+
 namespace girgs {
 
 
@@ -24,11 +25,13 @@ public:
     static constexpr unsigned int lastChild(unsigned int cell) noexcept { return firstChild(cell) + numChildren() - 1; }
     static constexpr unsigned int numChildren() noexcept { return 1u<<D; }
 
+    static unsigned int bitInterleaving(const std::array<unsigned int, D>& words);
+    static unsigned int cellForPoint(const std::array<double, D>& position, unsigned int targetLevel);
+
     SpatialTreeCoordinateHelper() = default;
     explicit SpatialTreeCoordinateHelper(unsigned int levels);
 
     std::array<std::pair<double,double>, D> bounds(unsigned int cell, unsigned int level) const;
-    unsigned int cellForPoint(const std::array<double, D>& position, unsigned int targetLevel) const;
 
     bool touching(unsigned int cellA, unsigned int cellB, unsigned int level) const;
 
