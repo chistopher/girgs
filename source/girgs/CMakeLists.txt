@@ -43,7 +43,6 @@ set(headers
     ${include_path}/SpatialTreeCoordinateHelper.h
     ${include_path}/SpatialTreeCoordinateHelper.inl
     ${include_path}/WeightLayer.h
-    ${include_path}/WeightLayer.inl
 )
 
 set(sources

@@ -67,6 +67,37 @@ unsigned int SpatialTreeCoordinateHelper<D>::cellForPoint(const std::vector<doub
 }
 
 template<unsigned int D>
+unsigned int SpatialTreeCoordinateHelper<D>::cellForPoint(const Node<D>& node, unsigned int targetLevel) const {
+    // calculate coords
+    auto diameter = static_cast<double>(1 << targetLevel);
+
+    std::array<int, D> coords;
+    for (auto d = 0u; d < D; ++d)
+        coords[d] = static_cast<unsigned int>(node.coord[d] * diameter);
+
+    /*
+     * We now interleave the bits of the coordinates, let X[i,j] be the i-th bit (counting from LSB) of coordinate j,
+     * and let D' = D-1, and t = targetLevel-1. Then return
+     *  X[t, D'] o X[t, D'-1] o ... o X[t, 0]   o  X[t-1, D'] o ... o X[t-1, 0]   o  ...  o  X[0, D'] o ... o X[0, 0]
+     *
+     * The following in a naive implementation of this bit interleaving:
+     */
+    unsigned int result = 0u;
+    unsigned int bit = 0;
+    for(auto l = 0u; l != targetLevel; l++) {
+        for(auto d = 0u; d != D; d++) {
+            result |= ((coords[d] >> l) & 1) << bit++;
+        }
+    }
+
+    return result;
+
+    // TODO: We can use shifts and masks to use word-parallelism
+    // TODO: We can use the AVX2 instruction pdep
+    // TODO: Write benchmark what's faster given that we consider at most targetLevel bits per coordinate
+}
+
+template<unsigned int D>
 bool SpatialTreeCoordinateHelper<D>::touching(unsigned int cellA, unsigned int cellB, unsigned int level) const {
     auto& coordA = m_coords[cellA];
     auto& coordB = m_coords[cellB];

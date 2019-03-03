@@ -176,6 +176,11 @@ protected:
      */
     unsigned int partitioningBaseLevel(int layer1, int layer2) const;
 
+
+    std::vector<WeightLayer<D>> buildPartition(
+        const std::vector<double>& weights, const std::vector<std::vector<double>>& positions);
+
+
 private:
     EdgeCallback& m_EdgeCallback; ///< called for every produced edge
     const bool m_profile;
