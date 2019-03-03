@@ -83,6 +83,18 @@ public:
     }
 
 
+    /**
+     * @brief
+     *  Return points to the first element of the cell ("begin") and the first element after the cell ("end")
+     *
+     * @param cell
+     *  The cell that contains the points.
+     * @param level
+     *  The level of the given cell.
+     *  This should be less or equal to the target level of this weight layer.
+     * @return
+     *  {begin, end}
+     */
     std::pair<const Node<D>*, const Node<D>*> cellIterators(unsigned int cell, unsigned int level) const {
         auto cellBoundaries = levelledCell(cell, level);
         const auto begin_end = std::make_pair(m_base.get() + m_prefix_sums[cellBoundaries.first],
@@ -90,11 +102,6 @@ public:
         assert(begin_end.first <= begin_end.second);
         return begin_end;
     }
-
-    const Node<D>* firstPointPointer(unsigned int cell, unsigned int level) const {
-        return cellIterators(cell, level).first; // TODO: REMOVE!
-    }
-
 
 protected:
     const unsigned int m_target_level;      ///< the insertion level for the current weight layer (v(i) = wiw0/W)

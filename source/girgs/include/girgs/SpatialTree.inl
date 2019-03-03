@@ -163,33 +163,42 @@ void SpatialTree<D, EdgeCallback>::sampleTypeI(
         unsigned int cellA, unsigned int cellB, unsigned int level,
         unsigned int i, unsigned int j)
 {
-    assert(partitioningBaseLevel(i, j) == level
-        || !m_helper.touching(cellA, cellB, level)); // in this case we were redirected from typeII with maxProb==1.0
-    const auto sizeV_i_A = m_weight_layers[i].pointsInCell(cellA, level);
-    const auto sizeV_j_B = m_weight_layers[j].pointsInCell(cellB, level);
-	if (sizeV_i_A == 0 || sizeV_j_B == 0)
-		return;
+    assert(partitioningBaseLevel(i, j) == level || !m_helper.touching(cellA, cellB, level)); // in this case we were redirected from typeII with maxProb==1.0
+
+    auto rangeA = m_weight_layers[i].cellIterators(cellA, level);
+    auto rangeB = m_weight_layers[j].cellIterators(cellB, level);
+
+    if (rangeA.first == rangeA.second || rangeB.first == rangeB.second)
+        return;
+
 
 #ifndef NDEBUG
-    #pragma omp atomic
-    m_type1_checks += (cellA == cellB && i == j)
-            ? sizeV_i_A * (sizeV_i_A-1)  // all pairs in AxA without {v,v}
-            : sizeV_i_A * sizeV_j_B * 2; // all pairs in AxB and BxA
+    {
+        const auto sizeV_i_A = std::distance(rangeA.first, rangeA.second);
+        const auto sizeV_j_B = std::distance(rangeB.first, rangeB.second);
+
+        #pragma omp atomic
+        m_type1_checks += (cellA == cellB && i == j) ? sizeV_i_A * (sizeV_i_A - 1)  // all pairs in AxA without {v,v}
+                                                     : sizeV_i_A * sizeV_j_B * 2; // all pairs in AxB and BxA
+    }
 #endif // NDEBUG
 
     std::uniform_real_distribution<> dist;
     const auto threadId = omp_get_thread_num();
-    const auto* firstA = m_weight_layers[i].firstPointPointer(cellA, level);
-    const auto* firstB = m_weight_layers[j].firstPointPointer(cellB, level);
+
     const auto inThresholdMode = m_alpha == std::numeric_limits<double>::infinity();
-    for(int kA=0; kA<sizeV_i_A; ++kA){
-        for (int kB =(cellA == cellB && i==j ? kA+1 : 0); kB<sizeV_j_B; ++kB) {
-            const Node<D>& nodeInA = firstA[kA];
-            const Node<D>& nodeInB = firstB[kB];
+
+    int kA = 0;
+    for(auto pointerA = rangeA.first; pointerA != rangeA.second; ++kA, ++pointerA) {
+        auto offset = (cellA == cellB && i==j) ? kA+1 : 0;
+        for (auto pointerB = rangeB.first + offset; pointerB != rangeB.second; ++pointerB) {
+
+            const auto& nodeInA = *pointerA;
+            const auto& nodeInB = *pointerB;
 
 			// pointer magic gives same results
 			assert(nodeInA.index == m_weight_layers[i].kthPoint(cellA, level, kA).index);
-			assert(nodeInB.index == m_weight_layers[j].kthPoint(cellB, level, kB).index);
+			assert(nodeInB.index == m_weight_layers[j].kthPoint(cellB, level, std::distance(rangeB.first, pointerB)).index);
 
             // points are in correct cells
             assert(cellA - m_helper.firstCellOfLevel(level) == m_helper.cellForPoint({nodeInA.coord.begin(), nodeInA.coord.end()}, level));
@@ -223,10 +232,15 @@ void SpatialTree<D, EdgeCallback>::sampleTypeII(
         unsigned int i, unsigned int j)
 {
     assert(partitioningBaseLevel(i, j) >= level);
-    const long long sizeV_i_A = m_weight_layers[i].pointsInCell(cellA, level);
-    const long long sizeV_j_B = m_weight_layers[j].pointsInCell(cellB, level);
-    if(sizeV_i_A == 0 || sizeV_j_B == 0)
+
+    auto rangeA = m_weight_layers[i].cellIterators(cellA, level);
+    auto rangeB = m_weight_layers[j].cellIterators(cellB, level);
+
+    if (rangeA.first == rangeA.second || rangeB.first == rangeB.second)
         return;
+
+    const auto sizeV_i_A = std::distance(rangeA.first, rangeA.second);
+    const auto sizeV_j_B = std::distance(rangeB.first, rangeB.second);
 
     // get upper bound for probability
     const auto w_upper_bound = m_w0*(1<<(i+1)) * m_w0*(1<<(j+1)) / m_W;
@@ -257,12 +271,11 @@ void SpatialTree<D, EdgeCallback>::sampleTypeII(
     auto& gen = m_gens[threadId];
     auto geo = std::geometric_distribution<unsigned long long>(max_connection_prob);
     auto dist = std::uniform_real_distribution<>(0, max_connection_prob);
-    const auto* firstA = m_weight_layers[i].firstPointPointer(cellA, level);
-    const auto* firstB = m_weight_layers[j].firstPointPointer(cellB, level);
+
     for (auto r = geo(gen); r < num_pairs; r += 1 + geo(gen)) {
         // determine the r-th pair
-        const Node<D>& nodeInA = firstA[r%sizeV_i_A];
-        const Node<D>& nodeInB = firstB[r/sizeV_i_A];
+        const Node<D>& nodeInA = rangeA.first[r%sizeV_i_A];
+        const Node<D>& nodeInB = rangeB.first[r/sizeV_i_A];
 
         // points are in correct weight layer
         assert(i == static_cast<unsigned int>(std::log2(nodeInA.weight/m_w0)));
