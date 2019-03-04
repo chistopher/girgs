@@ -21,7 +21,7 @@ struct Node {
     Node(const std::vector<double>& _coord, double weight, int index, int cell_id = 0)
         : weight(weight), index(index), cell_id(cell_id)
     {
-        assert(coord.size()==D);
+        assert(_coord.size()==D);
         std::copy_n(_coord.cbegin(), D, coord.begin());
     }
 

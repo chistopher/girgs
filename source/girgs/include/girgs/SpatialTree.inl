@@ -34,7 +34,7 @@ SpatialTree<D, EdgeCallback>::SpatialTree(const std::vector<double>& weights, co
     // sort weights into exponentially growing layers
     {
         ScopedTimer timer("Build DS", profile);
-        m_weight_layers = std::move(buildPartition(weights, positions));
+        m_weight_layers = buildPartition(weights, positions);
     }
 }
 
@@ -363,8 +363,7 @@ std::vector<WeightLayer<D>> SpatialTree<D, EdgeCallback>::buildPartition(const s
     const auto max_cell_id = first_cell_of_layer.back();
 
     std::shared_ptr<Node<D>[]> points(new Node<D>[n]);
-    // pre-compute values for fast distance computation and also compute
-    // the cell a point belongs to
+    // compute the cell a point belongs to
     {
         ScopedTimer timer("Classify points & precompute coordinates", m_profile);
 
@@ -384,7 +383,7 @@ std::vector<WeightLayer<D>> SpatialTree<D, EdgeCallback>::buildPartition(const s
 
         auto compare = [](const Node<D> &a, const Node<D> &b) { return a.cell_id < b.cell_id; };
 
-        intsort::intsort(points, n, [](const Node<D> &p) { return p.cell_id; }, max_cell_id + 1);
+        intsort::intsort(points, n, [](const Node<D> &p) { return p.cell_id; }, max_cell_id);
         //alternatively: std::sort(points.begin(), points.end(), compare);
 
         assert(std::is_sorted(points.get(), points.get() + n, compare));

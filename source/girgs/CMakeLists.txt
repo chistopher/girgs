@@ -36,6 +36,7 @@ set(headers
     ${include_path}/Generator.h
     ${include_path}/Helper.h
     ${include_path}/Hyperbolic.h
+    ${include_path}/IntSort.h
     ${include_path}/Node.h
     ${include_path}/ScopedTimer.h
     ${include_path}/SpatialTree.h
