@@ -10,7 +10,7 @@
 
 #include <girgs/girgs-version.h>
 #include <girgs/Generator.h>
-#include <girgs/BitInterleaving.h>
+#include <girgs/BitManipulation.h>
 
 
 using namespace std;

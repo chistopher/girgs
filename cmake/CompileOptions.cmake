@@ -128,9 +128,9 @@ if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU" OR "${CMAKE_CXX_COMPILER_ID}" MATCH
         >
     )
 
-    if(OPTION_USE_PDEP)
+    if(OPTION_USE_BMI2)
         set(DEFAULT_COMPILE_OPTIONS ${DEFAULT_COMPILE_OPTIONS}
-                -DUSE_PDEP
+                -DUSE_BMI2
                 -mbmi2
                 )
     endif()
