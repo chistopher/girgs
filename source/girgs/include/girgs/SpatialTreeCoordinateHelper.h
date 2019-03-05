@@ -25,30 +25,29 @@ public:
     static constexpr unsigned int lastChild(unsigned int cell) noexcept { return firstChild(cell) + numChildren() - 1; }
     static constexpr unsigned int numChildren() noexcept { return 1u<<D; }
 
-    static unsigned int bitInterleaving(const std::array<unsigned int, D>& words);
+    static unsigned int cellOfLayer(unsigned cell);
+
+
     static unsigned int cellForPoint(const std::array<double, D>& position, unsigned int targetLevel);
 
-    SpatialTreeCoordinateHelper() = default;
-    explicit SpatialTreeCoordinateHelper(unsigned int levels);
+    static std::array<std::pair<double,double>, D> bounds(unsigned int cell, unsigned int level);
 
-    std::array<std::pair<double,double>, D> bounds(unsigned int cell, unsigned int level) const;
-
-    bool touching(unsigned int cellA, unsigned int cellB, unsigned int level) const;
+    static bool touching(unsigned int cellA, unsigned int cellB, unsigned int level);
 
     // implements the chebyshev distance metric (L_\infty)
     static double dist(std::vector<double>& a, std::vector<double>& b);
 
     // returns a lower bound for the distance of two points in these cells
-    double dist(unsigned int cellA, unsigned int cellB, unsigned int level) const;
+    static double dist(unsigned int cellA, unsigned int cellB, unsigned int level);
 
 
+    SpatialTreeCoordinateHelper() = default;
+    explicit SpatialTreeCoordinateHelper(unsigned int levels) : m_levels(levels) {}
     unsigned int levels() const { return m_levels; }
-
 
 protected:
     unsigned int m_levels = 0;
 
-    std::vector<std::array<int, D>> m_coords;       // cell index to coord
 };
 
 

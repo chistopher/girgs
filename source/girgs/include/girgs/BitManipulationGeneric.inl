@@ -1,5 +1,6 @@
 #pragma once
 #include <array>
+#include <cassert>
 #include <cstdint>
 
 #ifdef USE_BMI2
@@ -153,7 +154,10 @@ struct Implementation {
     static std::array<uint32_t, kDimensions> extract(uint32_t cell) {
         return Extract<D>::extract(cell);
     }
-    
+
+    static std::string name() {
+        return "Generic";
+    }
 };
 
 } // namespace Generic

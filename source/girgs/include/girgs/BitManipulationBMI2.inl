@@ -84,7 +84,10 @@ struct Implementation {
     static std::array<uint32_t, kDimensions> extract(uint32_t cell) {
         return Extract<D>::extract(cell);
     }
-    
+
+    static std::string name() {
+        return "BMI2";
+    }
 };
 
 } // namespace BMI2

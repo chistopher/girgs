@@ -131,7 +131,7 @@ int main(int argc, char* argv[]) {
     auto t4 = high_resolution_clock::now();
     cout << "done in " << duration_cast<milliseconds>(t4 - t3).count() << "ms\tscaling = " << scaling << endl;
 
-    cout << "bit: " << girgs::BitInterleavingImpl() << "\n";
+    cout << "bit: " << girgs::BitManipulation<1>::name() << "\n";
 
     cout << "sampling edges ...\t\t" << flush;
     auto edges = girgs::generateEdges(weights, positions, alpha, sseed);
