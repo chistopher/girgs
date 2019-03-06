@@ -1,9 +1,11 @@
 #include <girgs/BitManipulation.h>
+#include <cassert>
 
 namespace girgs {
 
 template<unsigned int D>
-unsigned int SpatialTreeCoordinateHelper<D>::cellOfLayer(unsigned cell) {
+unsigned int SpatialTreeCoordinateHelper<D>::cellOfLayer(unsigned cell) noexcept {
+    // sets all bits below the most significant bit set in x
     auto assertLower = [] (uint32_t x) {
 #if defined(__GNUC__) || defined(__clang__)
         if (__builtin_expect(!x, 0))
@@ -31,10 +33,8 @@ unsigned int SpatialTreeCoordinateHelper<D>::cellOfLayer(unsigned cell) {
     return cell - firstCellInLayer;
 }
 
-
-
 template<unsigned int D>
-std::array<std::pair<double, double>, D> SpatialTreeCoordinateHelper<D>::bounds(unsigned int cell, unsigned int level)  {
+std::array<std::pair<double, double>, D> SpatialTreeCoordinateHelper<D>::bounds(unsigned int cell, unsigned int level) noexcept {
     const auto diameter = 1.0 / (1<<level);
     const auto coord = BitManipulation<D>::extract(cellOfLayer(cell));
 
@@ -46,8 +46,8 @@ std::array<std::pair<double, double>, D> SpatialTreeCoordinateHelper<D>::bounds(
 }
 
 template<unsigned int D>
-unsigned int SpatialTreeCoordinateHelper<D>::cellForPoint(const std::array<double, D>& position, unsigned int targetLevel) {
-    auto diameter = static_cast<double>(1 << targetLevel);
+unsigned int SpatialTreeCoordinateHelper<D>::cellForPoint(const std::array<double, D>& position, unsigned int targetLevel) noexcept {
+    const auto diameter = static_cast<double>(1 << targetLevel);
 
     std::array<uint32_t, D> coords;
     for (auto d = 0u; d < D; ++d)
@@ -57,7 +57,7 @@ unsigned int SpatialTreeCoordinateHelper<D>::cellForPoint(const std::array<doubl
 }
 
 template<unsigned int D>
-bool SpatialTreeCoordinateHelper<D>::touching(unsigned int cellA, unsigned int cellB, unsigned int level) {
+bool SpatialTreeCoordinateHelper<D>::touching(unsigned int cellA, unsigned int cellB, unsigned int level) noexcept  {
     const auto coordA = BitManipulation<D>::extract(cellOfLayer(cellA));
     const auto coordB = BitManipulation<D>::extract(cellOfLayer(cellB));
 
@@ -65,28 +65,14 @@ bool SpatialTreeCoordinateHelper<D>::touching(unsigned int cellA, unsigned int c
     for(auto d=0u; d<D; ++d){
         auto dist = std::abs(static_cast<int>(coordA[d]) - static_cast<int>(coordB[d]));
         dist = std::min(dist, (1<<level) - dist);
-        touching &= dist<=1;
+        touching &= (dist <= 1);
     }
+
     return touching;
 }
 
 template<unsigned int D>
-double SpatialTreeCoordinateHelper<D>::dist(std::vector<double> &a, std::vector<double> &b) {
-    assert(a.size() == b.size());
-    assert(a.size() == D);
-
-    // max over the torus distance in all dimensions
-    auto result = 0.0;
-    for(auto d=0u; d<D; ++d){
-        auto dist = std::abs(a[d] - b[d]);
-        dist = std::min(dist, 1.0-dist);
-        result = std::max(result, dist);
-    }
-    return result;
-}
-
-template<unsigned int D>
-double SpatialTreeCoordinateHelper<D>::dist(unsigned int cellA, unsigned int cellB, unsigned int level) {
+double SpatialTreeCoordinateHelper<D>::dist(unsigned int cellA, unsigned int cellB, unsigned int level) noexcept  {
     // first work with integer d dimensional index
     const auto coordA = BitManipulation<D>::extract(cellOfLayer(cellA));
     const auto coordB = BitManipulation<D>::extract(cellOfLayer(cellB));
@@ -102,6 +88,4 @@ double SpatialTreeCoordinateHelper<D>::dist(unsigned int cellA, unsigned int cel
     auto diameter = 1.0 / (1<<level);
     return std::max(0.0, (result-1) * diameter); // TODO if cellA and cellB are not touching, this max is irrelevant
 }
-
-
 } // namespace girgs

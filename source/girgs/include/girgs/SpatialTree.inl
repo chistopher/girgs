@@ -312,7 +312,7 @@ unsigned int SpatialTree<D, EdgeCallback>::weightLayerTargetLevel(int layer) con
         auto volume_requested  = m_w0*m_w0*std::pow(2,layer+1)/m_W; // v(i) = w0*wi/W
         auto volume_current    = std::pow(2.0, -(result+0.0)*D); // in paper \mu with v <= \mu < O(v)
         auto volume_one_deeper = std::pow(2.0, -(result+1.0)*D);
-        assert(volume_requested <= volume_current); // current level has more volume than requested
+        assert(volume_requested <= volume_current || volume_requested >= 1.0); // current level has more volume than requested
         assert(volume_requested >  volume_one_deeper);    // but is the smallest such level
     }
 #endif // NDEBUG

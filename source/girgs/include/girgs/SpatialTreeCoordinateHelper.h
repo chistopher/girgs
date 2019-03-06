@@ -1,10 +1,6 @@
-
 #pragma once
 
-#include <vector>
 #include <array>
-#include <cassert>
-
 
 namespace girgs {
 
@@ -13,32 +9,40 @@ template<unsigned int D>
 class SpatialTreeCoordinateHelper
 {
 public:
+    static constexpr unsigned int numChildren() noexcept {
+        return 1u<<D;
+    }
 
-    // static helper functions
-    // the total number of cells on all levels {0..(L-1)}
-    // $\sum_{i=0}^{L-1} 2^{DL} = \frac{2^{DL}-1}{2^D-1}
-    static constexpr unsigned int numCellsInLevel(unsigned int level) noexcept { return 1u<<(D*level); }
-    static constexpr unsigned int firstCellOfLevel(unsigned int level) noexcept { return ((1u<<(D*level))-1)/((1<<D)-1); }
+    static constexpr unsigned int numCellsInLevel(unsigned int level) noexcept {
+        return 1u<<(D*level);
+    }
 
-    static constexpr unsigned int parent(unsigned int cell) noexcept { return (cell-1)/(1<<D); }
-    static constexpr unsigned int firstChild(unsigned int cell) noexcept { return (1<<D)*cell+1; }
-    static constexpr unsigned int lastChild(unsigned int cell) noexcept { return firstChild(cell) + numChildren() - 1; }
-    static constexpr unsigned int numChildren() noexcept { return 1u<<D; }
+    static constexpr unsigned int firstCellOfLevel(unsigned int level) noexcept {
+        return ((1u<<(D*level))-1)/(numChildren()-1);
+    }
 
-    static unsigned int cellOfLayer(unsigned cell);
+    static constexpr unsigned int parent(unsigned int cell) noexcept {
+        return (cell-1) / numChildren();
+    }
+
+    static constexpr unsigned int firstChild(unsigned int cell) noexcept {
+        return numChildren() * cell + 1;
+    }
+
+    static constexpr unsigned int lastChild(unsigned int cell) noexcept {
+        return firstChild(cell) + numChildren() - 1;
+    }
 
 
-    static unsigned int cellForPoint(const std::array<double, D>& position, unsigned int targetLevel);
+    static unsigned int cellOfLayer(unsigned cell) noexcept;
 
-    static std::array<std::pair<double,double>, D> bounds(unsigned int cell, unsigned int level);
+    static unsigned int cellForPoint(const std::array<double, D>& position, unsigned int targetLevel) noexcept;
 
-    static bool touching(unsigned int cellA, unsigned int cellB, unsigned int level);
+    static std::array<std::pair<double,double>, D> bounds(unsigned int cell, unsigned int level) noexcept;
 
-    // implements the chebyshev distance metric (L_\infty)
-    static double dist(std::vector<double>& a, std::vector<double>& b);
+    static bool touching(unsigned int cellA, unsigned int cellB, unsigned int level) noexcept;
 
-    // returns a lower bound for the distance of two points in these cells
-    static double dist(unsigned int cellA, unsigned int cellB, unsigned int level);
+    static double dist(unsigned int cellA, unsigned int cellB, unsigned int level) noexcept;
 
 
     SpatialTreeCoordinateHelper() = default;
