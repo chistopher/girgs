@@ -18,7 +18,6 @@ SpatialTree<D, EdgeCallback>::SpatialTree(const std::vector<double>& weights, co
 , m_baseLevelConstant(static_cast<int>(std::log2(m_W/m_w0/m_w0))) // log2(W/w0^2)
 , m_layers(static_cast<unsigned int>(floor(std::log2(m_wn/m_w0)))+1)
 , m_levels(partitioningBaseLevel(0,0) + 1) // (log2(W/w0^2) - 2) / d
-, m_helper(SpatialTreeCoordinateHelper<D>(m_levels+1)) // helper for the deepest insertion level which possibly is one larger than the deepest comparison level
 {
     assert(weights.size() == positions.size());
     assert(positions.size() > 0 && positions.front().size() == D);
@@ -86,9 +85,7 @@ void SpatialTree<D, EdgeCallback>::generateEdges(int seed) {
 
 template<unsigned int D, typename EdgeCallback>
 void SpatialTree<D, EdgeCallback>::visitCellPair(unsigned int cellA, unsigned int cellB, unsigned int level) {
-    using Helper = SpatialTreeCoordinateHelper<D>;
-
-    if(!m_helper.touching(cellA, cellB, level)) { // not touching
+    if(!CoordinateHelper::touching(cellA, cellB, level)) { // not touching
         // sample all type 2 occurrences with this cell pair
         #ifdef NDEBUG
 		if (m_alpha == std::numeric_limits<double>::infinity()) return; // dont trust compilter optimization
@@ -111,8 +108,8 @@ void SpatialTree<D, EdgeCallback>::visitCellPair(unsigned int cellA, unsigned in
 
     // recursive call for all children pairs (a,b) where a in A and b in B
     // these will be type 1 if a and b touch or type 2 if they don't
-    for(auto a = Helper::firstChild(cellA); a<=Helper::lastChild(cellA); ++a)
-        for(auto b = cellA == cellB ? a : Helper::firstChild(cellB); b<=Helper::lastChild(cellB); ++b)
+    for(auto a = CoordinateHelper::firstChild(cellA); a<=CoordinateHelper::lastChild(cellA); ++a)
+        for(auto b = cellA == cellB ? a : CoordinateHelper::firstChild(cellB); b<=CoordinateHelper::lastChild(cellB); ++b)
             visitCellPair(a, b, level+1);
 }
 
@@ -122,9 +119,7 @@ template<unsigned int D, typename EdgeCallback>
 void SpatialTree<D, EdgeCallback>::visitCellPair_sequentialStart(unsigned int cellA, unsigned int cellB, unsigned int level,
                                                    unsigned int first_parallel_level,
                                                    std::vector<std::vector<unsigned int>> &parallel_calls) {
-    using Helper = SpatialTreeCoordinateHelper<D>;
-
-    if(!m_helper.touching(cellA, cellB, level)) { // not touching
+    if(!CoordinateHelper::touching(cellA, cellB, level)) { // not touching
         // sample all type 2 occurrences with this cell pair
         #ifdef NDEBUG
 		if (m_alpha == std::numeric_limits<double>::infinity()) return; // dont trust compilter optimization
@@ -147,10 +142,10 @@ void SpatialTree<D, EdgeCallback>::visitCellPair_sequentialStart(unsigned int ce
 
     // recursive call for all children pairs (a,b) where a in A and b in B
     // these will be type 1 if a and b touch or type 2 if they don't
-    for(auto a = Helper::firstChild(cellA); a<=Helper::lastChild(cellA); ++a)
-        for(auto b = cellA == cellB ? a : Helper::firstChild(cellB); b<=Helper::lastChild(cellB); ++b){
+    for(auto a = CoordinateHelper::firstChild(cellA); a<=CoordinateHelper::lastChild(cellA); ++a)
+        for(auto b = cellA == cellB ? a : CoordinateHelper::firstChild(cellB); b<=CoordinateHelper::lastChild(cellB); ++b){
             if(level+1 == first_parallel_level)
-                parallel_calls[a-Helper::firstCellOfLevel(first_parallel_level)].push_back(b);
+                parallel_calls[a-CoordinateHelper::firstCellOfLevel(first_parallel_level)].push_back(b);
             else
                 visitCellPair_sequentialStart(a, b, level+1, first_parallel_level, parallel_calls);
         }
@@ -163,7 +158,7 @@ void SpatialTree<D, EdgeCallback>::sampleTypeI(
         unsigned int cellA, unsigned int cellB, unsigned int level,
         unsigned int i, unsigned int j)
 {
-    assert(partitioningBaseLevel(i, j) == level || !m_helper.touching(cellA, cellB, level)); // in this case we were redirected from typeII with maxProb==1.0
+    assert(partitioningBaseLevel(i, j) == level || !CoordinateHelper::touching(cellA, cellB, level)); // in this case we were redirected from typeII with maxProb==1.0
 
     auto rangeA = m_weight_layers[i].cellIterators(cellA, level);
     auto rangeB = m_weight_layers[j].cellIterators(cellB, level);
@@ -201,8 +196,8 @@ void SpatialTree<D, EdgeCallback>::sampleTypeI(
 			assert(nodeInB.index == m_weight_layers[j].kthPoint(cellB, level, std::distance(rangeB.first, pointerB)).index);
 
             // points are in correct cells
-            assert(cellA - m_helper.firstCellOfLevel(level) == m_helper.cellForPoint(nodeInA.coord, level));
-            assert(cellB - m_helper.firstCellOfLevel(level) == m_helper.cellForPoint(nodeInB.coord, level));
+            assert(cellA - CoordinateHelper::firstCellOfLevel(level) == CoordinateHelper::cellForPoint(nodeInA.coord, level));
+            assert(cellB - CoordinateHelper::firstCellOfLevel(level) == CoordinateHelper::cellForPoint(nodeInB.coord, level));
 
             // points are in correct weight layer
             assert(i == static_cast<unsigned int>(std::log2(nodeInA.weight/m_w0)));
@@ -244,7 +239,7 @@ void SpatialTree<D, EdgeCallback>::sampleTypeII(
 
     // get upper bound for probability
     const auto w_upper_bound = m_w0*(1<<(i+1)) * m_w0*(1<<(j+1)) / m_W;
-    const auto cell_distance = m_helper.dist(cellA, cellB, level);
+    const auto cell_distance = CoordinateHelper::dist(cellA, cellB, level);
     const auto dist_lower_bound = pow_to_the<D>(cell_distance);
     const auto max_connection_prob = std::min(std::pow(w_upper_bound/dist_lower_bound, m_alpha), 1.0);
     assert(dist_lower_bound > w_upper_bound); // in threshold model we would not sample anything
@@ -355,7 +350,7 @@ std::vector<WeightLayer<D>> SpatialTree<D, EdgeCallback>::buildPartition(const s
         unsigned int sum = 0;
         for (auto l = 0; l < m_layers; ++l) {
             first_cell_of_layer[l] = sum;
-            sum += m_helper.numCellsInLevel(weightLayerTargetLevel(l));
+            sum += CoordinateHelper::numCellsInLevel(weightLayerTargetLevel(l));
         }
         first_cell_of_layer.back() = sum;
         return first_cell_of_layer;
@@ -373,7 +368,7 @@ std::vector<WeightLayer<D>> SpatialTree<D, EdgeCallback>::buildPartition(const s
             const auto layer = weight_to_layer(weights[i]);
             const auto level = weightLayerTargetLevel(layer);
             points[i] = Node<D>(positions[i], weights[i], i);
-            points[i].cell_id = first_cell_of_layer[layer] + m_helper.cellForPoint(points[i].coord, level);
+            points[i].cell_id = first_cell_of_layer[layer] + CoordinateHelper::cellForPoint(points[i].coord, level);
             assert(points[i].cell_id < max_cell_id);
         }
     }

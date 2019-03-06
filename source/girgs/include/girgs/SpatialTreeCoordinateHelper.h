@@ -44,14 +44,7 @@ public:
 
     static double dist(unsigned int cellA, unsigned int cellB, unsigned int level) noexcept;
 
-
-    SpatialTreeCoordinateHelper() = default;
-    explicit SpatialTreeCoordinateHelper(unsigned int levels) : m_levels(levels) {}
-    unsigned int levels() const { return m_levels; }
-
-protected:
-    unsigned int m_levels = 0;
-
+    SpatialTreeCoordinateHelper() = delete; // we want to support static accesses only
 };
 
 
