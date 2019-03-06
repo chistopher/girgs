@@ -146,6 +146,33 @@ struct Deposit<2> {
     }
 };
 
+template <>
+struct Deposit<3> {
+    static uint32_t deposit(const std::array<uint32_t, 3>& coords) {
+        assert(coords[0] <= 0x7ff);
+        assert(coords[1] <= 0x7ff);
+        assert(coords[2] <= 0x3ff);
+
+        uint32_t x = coords[0];
+        uint32_t y = coords[1];
+        uint32_t z = coords[2];
+
+        x = (x | x << 16) & 0x070000ff;
+        y = (y | y << 16) & 0x070000ff;
+        z = (z | z << 16) & 0x070000ff;
+        x = (x | x <<  8) & 0x0700f00f;
+        y = (y | y <<  8) & 0x0700f00f;
+        z = (z | z <<  8) & 0x0700f00f;
+        x = (x | x <<  4) & 0xc30c30c3;
+        y = (y | y <<  4) & 0xc30c30c3;
+        z = (z | z <<  4) & 0xc30c30c3;
+        x = (x | x <<  2) & 0x49249249;
+        y = (y | y <<  2) & 0x49249249;
+        z = (z | z <<  2) & 0x49249249;
+
+        return x | (y << 1) | (z << 2);
+    }
+};
 
 template <>
 struct Deposit<4> {
