@@ -23,7 +23,7 @@ namespace girgs {
  * @return
  *  The weights according to the desired distribution.
  */
-GIRGS_API std::vector<double> generateWeights(int n, double ple, int weightSeed);
+GIRGS_API std::vector<double> generateWeights(int n, double ple, int weightSeed, bool parallel = true);
 
 /**
  * @brief
@@ -39,7 +39,7 @@ GIRGS_API std::vector<double> generateWeights(int n, double ple, int weightSeed)
  * @return
  *  The positions on a torus. All inner vectors have the same length.
  */
-GIRGS_API std::vector<std::vector<double>> generatePositions(int n, int dimension, int positionSeed);
+GIRGS_API std::vector<std::vector<double>> generatePositions(int n, int dimension, int positionSeed, bool parallel = true);
 
 /**
  * @brief

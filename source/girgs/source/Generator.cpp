@@ -14,22 +14,41 @@
 
 namespace girgs {
 
-std::vector<double> generateWeights(int n, double ple, int weightSeed) {
+std::vector<double> generateWeights(int n, double ple, int weightSeed, bool parallel) {
+    const auto threads = parallel ? std::max(1, std::min(omp_get_max_threads(), n / 10000)) : 1;
     auto result = std::vector<double>(n);
-    auto gen = std::mt19937(weightSeed >= 0 ?  weightSeed : std::random_device()());
-    std::uniform_real_distribution<> dist; // [0..1)
-    for(int i=0; i<n; ++i)
-        result[i] = std::pow((std::pow(n,-ple+1)-1)*dist(gen) + 1, 1/(-ple+1));
+
+    #pragma omp parallel num_threads(threads)
+    {
+        const auto tid = omp_get_thread_num();
+        auto gen = default_random_engine{weightSeed >= 0 ? weightSeed : std::random_device()()};
+        auto dist = std::uniform_real_distribution<>{};
+
+        #pragma omp for schedule(static)
+        for (int i = 0; i < n; ++i) {
+            result[i] = std::pow((std::pow(n, -ple + 1) - 1) * dist(gen) + 1, 1 / (-ple + 1));
+        }
+    }
+
     return result;
 }
 
-std::vector<std::vector<double>> generatePositions(int n, int dimension, int positionSeed) {
+std::vector<std::vector<double>> generatePositions(int n, int dimension, int positionSeed, bool parallel) {
+    const auto threads = parallel ? std::max(1, std::min(omp_get_max_threads(), n / 10000)) : 1;
     auto result = std::vector<std::vector<double>>(n, std::vector<double>(dimension));
-    auto gen = std::mt19937(positionSeed >= 0 ?  positionSeed : std::random_device()());
-    std::uniform_real_distribution<> dist; // [0..1)
-    for(int i=0; i<n; ++i)
-        for (int d=0; d<dimension; ++d)
-            result[i][d] = dist(gen);
+
+    #pragma omp parallel num_threads(threads)
+    {
+        const auto tid = omp_get_thread_num();
+        auto gen = default_random_engine{positionSeed >= 0 ? positionSeed : std::random_device()()};
+        auto dist = std::uniform_real_distribution<>{};
+
+        #pragma omp for schedule(static)
+        for(int i=0; i<n; ++i)
+            for (int d=0; d<dimension; ++d)
+                result[i][d] = dist(gen);
+    }
+
     return result;
 }
 
@@ -44,7 +63,8 @@ double scaleWeights(std::vector<double>& weights, double desiredAvgDegree, int d
         throw("I do not know how to scale weights for desired alpha :(");
 
     // scale weights
-    for(auto& each : weights) each *= scaling;
+    for(auto& each : weights)
+        each *= scaling;
     return scaling;
 }
 

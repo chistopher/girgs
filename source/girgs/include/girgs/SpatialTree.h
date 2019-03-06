@@ -16,6 +16,7 @@
 
 namespace girgs {
 
+using default_random_engine = std::mt19937_64;
 
 /**
  * @brief
@@ -201,7 +202,7 @@ private:
     std::vector<std::vector<std::pair<unsigned int, unsigned int>>> m_layer_pairs; ///< which pairs of weight layers to check in each level
 
 
-    std::vector<std::mt19937> m_gens; ///< random generators for each thread
+    std::vector<default_random_engine> m_gens; ///< random generators for each thread
 
 #ifndef NDEBUG
     long long m_type1_checks = 0; ///< number of node pairs that are checked via a type 1 check
