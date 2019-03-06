@@ -21,7 +21,7 @@ std::vector<double> generateWeights(int n, double ple, int weightSeed, bool para
     #pragma omp parallel num_threads(threads)
     {
         const auto tid = omp_get_thread_num();
-        auto gen = default_random_engine{weightSeed >= 0 ? weightSeed : std::random_device()()};
+        auto gen = default_random_engine{weightSeed >= 0 ? (weightSeed+tid) : std::random_device()()};
         auto dist = std::uniform_real_distribution<>{};
 
         #pragma omp for schedule(static)
@@ -40,7 +40,7 @@ std::vector<std::vector<double>> generatePositions(int n, int dimension, int pos
     #pragma omp parallel num_threads(threads)
     {
         const auto tid = omp_get_thread_num();
-        auto gen = default_random_engine{positionSeed >= 0 ? positionSeed : std::random_device()()};
+        auto gen = default_random_engine{positionSeed >= 0 ? (positionSeed+tid) : std::random_device()()};
         auto dist = std::uniform_real_distribution<>{};
 
         #pragma omp for schedule(static)
