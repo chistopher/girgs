@@ -12,22 +12,84 @@ namespace girgs {
 namespace BitManipulationDetails {
 namespace Generic {
 
+template <unsigned Bits, unsigned Space, unsigned Block>
+struct ExtractionHelper {
+private:
+    static_assert( (Block + Space) * (Bits / Block) - Space + (Bits % Block ? (Space + Bits % Block) : 0) <= 32,
+                   "Pattern does not fit into 32 bits");
+
+    constexpr static uint32_t nBits(int n) {
+        return n <= 0 ? 0 : ((1u << n) - 1);
+    }
+
+    constexpr static uint32_t compile_pattern(unsigned i = 0, unsigned b = Bits) {
+        return i > 31 ? 0 : (
+            (b ? nBits(b < Block ? b : Block) << i : 0) // own contribution
+            | compile_pattern(i + Block + Space, b > Block ? b - Block : 0) // recursion
+        );
+    }
+
+public:
+    static constexpr uint32_t kPattern32 = compile_pattern();
+    static constexpr uint64_t kPattern64 = (static_cast<uint64_t>(kPattern32) << 32) | kPattern32;
+
+    template<typename T>
+    static constexpr auto shift(const T x) -> typename std::enable_if<sizeof(T) == 4, uint32_t>::type {
+        return recurse<uint32_t>(x & kPattern32);
+    }
+
+    template<typename T>
+    static constexpr auto shift(const T x) -> typename std::enable_if<sizeof(T) == 8, uint64_t>::type {
+        return recurse<uint64_t>(x & kPattern64);
+    }
+
+private:
+    static constexpr bool kDoneAfter = (Block >= Bits);
+
+    template<typename T>
+    static constexpr auto recurse(T x) -> typename std::enable_if<kDoneAfter, T>::type {
+        return x;
+    }
+
+    template<typename T>
+    static constexpr auto recurse(T x) -> typename std::enable_if<!kDoneAfter, T>::type {
+        return ExtractionHelper<Bits, 2*Space, 2*Block>::template shift<T>( x | (x >> Space) );
+    }
+};
+
+static_assert(ExtractionHelper<16, 1, 1>::kPattern32 == 0x55555555, "Unittest failed");
+static_assert(ExtractionHelper<15, 1, 1>::kPattern32 == 0x15555555, "Unittest failed");
+static_assert(ExtractionHelper<11, 2, 1>::kPattern32 == 0x49249249, "Unittest failed");
+static_assert(ExtractionHelper<8,  3, 1>::kPattern32 == 0x11111111, "Unittest failed");
+static_assert(ExtractionHelper<16, 2, 2>::kPattern32 == 0x33333333, "Unittest failed");
+static_assert(ExtractionHelper<11, 4, 2>::kPattern32 == 0x430c30c3, "Unittest failed");
+
+static_assert(ExtractionHelper<16, 1, 1>::shift(0x55555555u) == 0xffff, "Unittest failed");
+static_assert(ExtractionHelper<16, 1, 1>::shift(0xaaaaaaaau) == 0x0000, "Unittest failed");
+static_assert(ExtractionHelper<16, 1, 1>::shift(0x0000ffffu) == 0x00ff, "Unittest failed");
+static_assert(ExtractionHelper<16, 1, 1>::shift(0x5555555500000000u) == 0xffff00000000, "Unittest failed");
+static_assert(ExtractionHelper<16, 1, 1>::shift(0xaaaaaaaa00000000u) == 0x000000000000, "Unittest failed");
+static_assert(ExtractionHelper<16, 1, 1>::shift(0x0000ffff00000000u) == 0x00ff00000000, "Unittest failed");
+
 // Generic Implementation of Extractting
 template <size_t D>
 struct Extract {
     static std::array<uint32_t, D> extract(uint32_t cell) {
         std::array<uint32_t, D> result;
 
-        if (D == 1) {
-            result.front() = cell;
-            return result;
-        }
+        using Extractor = ExtractionHelper<(32 + D - 1) / D, D-1, 1>;
 
-        std::fill_n(result.begin(), D, 0);
-
-        for(int j = 0; j < (31 + D) / D; j++) {
-            for(auto d = 0u; d != D; d++, cell >>= 1) {
-                result[d] |= (cell & 1) << j;
+        if (D % 2) {
+            // if D is odd, shifts are slightly more complicated, hence
+            // we cannot process two coordinates in parallel
+            for(int i = 0; i < D; ++i)
+                result[i] = Extractor::shift(cell >> i);
+        } else {
+            for(int i = 0; i < D - 1; i += 2) {
+                const auto twoWords = (cell >> i) | (static_cast<uint64_t>(cell >> (i + 1)) << 32);
+                const auto shifted = Extractor::shift(twoWords);
+                result[i  ] = shifted & 0xffffffff;
+                result[i+1] = shifted >> 32;
             }
         }
 
@@ -36,44 +98,10 @@ struct Extract {
 };
 
 template <>
-struct Extract<2> {
-    static std::array<uint32_t, 2> extract(uint32_t cell) {
-        auto x = cell | (static_cast<uint64_t>(cell & ~1) << 31);
-
-        x = x & 0x5555555555555555;
-        x = (x | (x >> 1)) & 0x3333333333333333;
-        x = (x | (x >> 2)) & 0x0f0f0f0f0f0f0f0f;
-        x = (x | (x >> 4)) & 0x00ff00ff00ff00ff;
-        x = (x | (x >> 8)) & 0x0000ffff0000ffff;
-
-        std::array<uint32_t, 2> result;
-        result[0] = static_cast<uint32_t>(x);
-        result[1] = static_cast<uint32_t>(x >> 32);
-
-        return result;
-    }
-};
-
-template <>
-struct Extract<4> {
-    static std::array<uint32_t, 4> extract(uint32_t cell) {
-        auto x = (cell >> 0) | (static_cast<uint64_t>(cell & ~1) << 31);
-        auto y = (cell >> 2) | (static_cast<uint64_t>(cell & ~7) << 29);
-
-        x = x & 0x1111111111111111;
-        y = y & 0x1111111111111111;
-        x = (x | (x >>  3)) & 0x0303030303030303;
-        y = (y | (y >>  3)) & 0x0303030303030303;
-        x = (x | (x >>  6)) & 0x000f000f000f000f;
-        y = (y | (y >>  6)) & 0x000f000f000f000f;
-        x = (x | (x >> 12)) & 0x000000ff000000ff;
-        y = (y | (y >> 12)) & 0x000000ff000000ff;
-
-        std::array<uint32_t, 4> result;
-        result[0] = static_cast<uint32_t>(x);
-        result[1] = static_cast<uint32_t>(x >> 32);
-        result[2] = static_cast<uint32_t>(y);
-        result[3] = static_cast<uint32_t>(y >> 32);
+struct Extract<1> {
+    static std::array<uint32_t, 1> extract(uint32_t cell) {
+        std::array<uint32_t, 1> result;
+        result[0] = cell;
         return result;
     }
 };

@@ -12,6 +12,7 @@ struct BitPattern {
 
     constexpr static unsigned kBits = 8 * sizeof(T);
     constexpr static T kEveryDthBit = setEveryDthBit(0);
+    constexpr static T kDBits = (kBits == D) ? T{-1} : ((T{1} << D) - 1);
 };
 }
 

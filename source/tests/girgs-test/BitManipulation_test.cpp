@@ -128,7 +128,7 @@ TYPED_TEST(BitManipulationTest, ExtractSingle) {
 
             for(int j = 0; j < D; ++j) {
                 if (j == d) continue;
-                ASSERT_EQ(tested[j], 0) << cell;
+                ASSERT_EQ(tested[j], 0) << cell << " tested: " << tested << " ref: " << ref;
             }
 
             ASSERT_EQ(tested, ref) << cell;
