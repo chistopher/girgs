@@ -28,8 +28,9 @@ namespace girgs {
 template<unsigned int D, typename EdgeCallback>
 class SpatialTree
 {
-public:
+    using CoordinateHelper = SpatialTreeCoordinateHelper<D>;
 
+public:
     SpatialTree(const std::vector<double>& weights, const std::vector<std::vector<double>>& positions, double alpha, EdgeCallback& edgeCallback, bool profile = false);
 
     /**
@@ -196,7 +197,6 @@ private:
     unsigned int m_layers; ///< number of layers
     unsigned int m_levels; ///< number of levels
 
-    SpatialTreeCoordinateHelper<D> m_helper;        ///< computes index to coordinate mappings, also offers static helper for cell indices
     std::vector<WeightLayer<D>> m_weight_layers;    ///< stores all nodes of one weight layer and provides the data structure described in paper
     std::vector<std::vector<std::pair<unsigned int, unsigned int>>> m_layer_pairs; ///< which pairs of weight layers to check in each level
 

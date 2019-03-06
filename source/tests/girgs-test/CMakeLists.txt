@@ -14,6 +14,7 @@ message(STATUS "Test ${target}")
 
 set(sources
     main.cpp
+    BitManipulation_test.cpp
     DegreeEstimation_test.cpp
     Helper_test.cpp
     Generator_test.cpp

@@ -184,9 +184,9 @@ TEST_F(Generator_test, testThresholdEstimation)
 
 TEST_F(Generator_test, testEstimation)
 {
-    auto all_n = {100, 150};
+    auto all_n = {100, 150, 500};
     auto all_alpha = {0.7, 3.0, numeric_limits<double>::infinity()};
-    auto all_desired_avg = {10, 20};
+    auto all_desired_avg = {10, 20, 50, 100};
     auto all_dimensions = {1, 2, 3};
     auto runs = 5;
 
@@ -197,6 +197,7 @@ TEST_F(Generator_test, testEstimation)
     for(int n : all_n){
         for(double alpha : all_alpha){
             for(double desired_avg : all_desired_avg){
+                if (desired_avg * 3 > n) continue;
                 for(int d : all_dimensions){
 
                     // generate weights
