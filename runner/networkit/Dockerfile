@@ -1,9 +1,4 @@
-FROM ubuntu:18.04
-
-RUN apt-get update && apt-get upgrade -y
-RUN apt-get install -y \
-   git g++-7 ninja-build cmake \
-   python3-pip python3-venv
+FROM girgs_common
 
 RUN mkdir /runner /data
 RUN cd /runner; git clone https://github.com/manpen/networkit.git . && git checkout benchmark_hyper

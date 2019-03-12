@@ -1,0 +1,11 @@
+FROM girgs_common
+
+RUN mkdir /runner /data
+COPY source /source
+VOLUME /data
+
+RUN cd /runner; \
+ cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-march=native" -GNinja /source && \
+ ninja bench_hyper
+
+CMD cd /data; /runner/bench_hyper
