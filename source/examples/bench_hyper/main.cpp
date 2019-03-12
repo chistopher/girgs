@@ -9,10 +9,26 @@
 #include <hypergirgs/Hyperbolic.h>
 #include <hypergirgs/ScopedTimer.h>
 
-#include "../dev3/CounterPerThread.h" // TODO don't!
+#include "CounterPerThread.h"
+
+#ifdef __unix__
+#include "unistd.h"
+
+static std::string hostname() {
+    char tmp[128];
+    if (gethostname(tmp, 128))
+        return "n/a";
+    return {tmp};
+}
+
+#else
+static std::string hostname() {
+    return "n/a";
+}
+#endif
 
 
-void benchmark(std::ostream& os, unsigned int n, unsigned int avgDeg, double alpha, double T, unsigned int seed = 0) {
+double benchmark(std::ostream& os, const std::string& host, unsigned int iter, unsigned int n, unsigned int avgDeg, double alpha, double T, unsigned int seed = 0) {
     CounterPerThread<uint64_t> counter_num_edges;
 
     double time_total, time_points, time_preprocess, time_sample;
@@ -47,58 +63,84 @@ void benchmark(std::ostream& os, unsigned int n, unsigned int avgDeg, double alp
     // Logging
     {
         std::stringstream ss;
-        ss << "[DATA] "
-           << std::setw(11) << "SimplePP,"
-           << std::setw(10) << n << ","
-           << std::setw(10) << avgDeg << ","
-           << std::setw(10) << alpha << ","
-           << std::setw(10) << T << ","
-           << std::setw(10) << time_total      << ","
-           << std::setw(10) << time_points     << ","
-           << std::setw(10) << time_preprocess << ","
-           << std::setw(10) << time_sample << ","
-           << std::setw(10) << num_edges << ","
-           << std::setw(10) << (2.0 * num_edges / n);
+        ss << "[CSV]"
+           << "hypergirgs,"
+           << host << ","
+           << iter << ","
+           << n << ","
+           << avgDeg << ","
+           << alpha << ","
+           << T << ","
+           << time_total      << ","
+           << time_points     << ","
+           << time_preprocess << ","
+           << time_sample << ","
+           << num_edges << ","
+           << (2.0 * num_edges / n);
 
         os << ss.str() << std::endl;
     }
+
+    return time_total;
 }
 
 int main(int argc, char* argv[]) {
-    const auto alpha = 0.75; // ple = 2*alpha+1
-    const auto T = 0;
     unsigned int seed = 0;
 
+    const unsigned n0 = 1e4;
+    const unsigned nMax = 1e8;
+    const unsigned steps_per_dec = 3;
+    const double timeout = 100 * 1e3; // ms
+
+
     // Print Header
-    {
-        std::stringstream ss;
-        ss << "[DATA] "
-           << std::setw(11) << "algo,"
-           << std::setw(11) << "n,"
-           << std::setw(11) << "avgDeg,"
-           << std::setw(11) << "alpha,"
-           << std::setw(11) << "T,"
-           << std::setw(11) << "TimeTotal,"
-           << std::setw(11) << "TimePoints,"
-           << std::setw(11) << "TimePrepro,"
-           << std::setw(11) << "TimeEdges,"
-           << std::setw(11) << "GenNumEdge,"
-           << std::setw(10) << "GenAvgDeg";
+    std::cerr <<
+        "[CSV]"
+          "algo,"
+          "host,"
+          "iter,"
+          "n,"
+          "avgDeg,"
+          "alpha,"
+          "T,"
+          "TimeTotal,"
+          "TimePoints,"
+          "TimePrepro,"
+          "TimeEdges,"
+          "GenNumEdge,"
+          "GenAvgDeg";
 
+    const auto host = hostname();
 
-        std::cout << ss.str() << std::endl;
-    }
+    for(int iter = 0; iter < 5; iter++) {
+        for (const double T : {0.0, 0.5, 0.9}) {
+            for (const double ple : {2.2, 3.0}) {
+                unsigned int skip_n = nMax + 1;
 
+                for (const int avgDeg : {10, 100, 1000}) {
+                    const auto alpha = (ple - 1.0) / 2.0;
+                    int ni = 0;
 
-    for(unsigned int iter = 0; iter != 5; ++iter) {
-        for (unsigned int n = 1024; n < (2 << 21); n *= 2) {
-            for (unsigned avgDeg : {10, 100, 1000}) {
-                if (avgDeg * 10 > n) continue;
+                    for (auto n = n0; n <= nMax; n = n0 * std::pow(10.0, 1.0 * ni / steps_per_dec), ++ni) {
+                        std::cout << "\033[1miter=" << iter << ", T=" << T << ", PLE=" << ple << ", n=" << n << ", avgDeg=" << avgDeg
+                                  << "\033[21m\n";
 
-                std::clog << "iter=" << iter << ", n=" << n << ", avgDeg=" << avgDeg << "\n";
+                        double time;
+                        if (n < skip_n) {
+                            // if last (smaller) problem took too long, we skip this one
+                            // we do not use break to make sure seed stays consistent
+                            time = benchmark(std::cerr, host, iter, n, avgDeg, alpha, T, seed);
+                            if (time > timeout) {
+                                skip_n = n;
+                                std::cout << " took too long\n";
+                            }
+                        } else {
+                            std::cout << " skip_n = " << skip_n << "\n";
+                        }
 
-                benchmark(std::cout, n, avgDeg, alpha, T, seed);
-                seed += 10;
+                        seed += 10;
+                    }
+                }
             }
         }
     }
