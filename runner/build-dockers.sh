@@ -5,10 +5,12 @@ docker build -t girgs_common common
 
 docker build -t girgs_networkit networkit
 
-cd girgs; git clone ../.. source
+git clone ../.. girgs/source
 docker build -t girgs_girgs
+rm -rf girgs/source
 
-cd hypergirgs; git clone ../.. source
+git clone ../.. hypergirgs/source
 docker build -t girgs_hypergirgs hypergirgs
+rm -rf hypergirgs/source
 
 docker build -t girgs_hypergen  hypergen

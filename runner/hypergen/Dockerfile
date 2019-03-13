@@ -1,7 +1,9 @@
 FROM girgs_common
 
-RUN mkdir /runner /data
-RUN cd /runner; git clone https://github.com/manpen/hypergen.git . && git checkout benchmark_girg
-RUN cd /runner/; ./build-benchmark.sh
+RUN apt-get -y install scons
 
-CMD cd /data; /runner/run-benchmark.sh
+RUN mkdir /runner /data
+RUN cd /runner; git clone https://github.com/manpen/hypergen.git . && git checkout bench_hypergirgs
+RUN cd /runner/; ./compile.sh
+
+CMD cd /data; LD_PRELOAD=libtbbmalloc_proxy.so.2 /runner/build_gcc/benchmark_hypergen 2> hypergen_bench.csv
