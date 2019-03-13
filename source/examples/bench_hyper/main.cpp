@@ -122,6 +122,9 @@ int main(int argc, char* argv[]) {
                     int ni = 0;
 
                     for (auto n = n0; n <= nMax; n = n0 * std::pow(10.0, 1.0 * ni / steps_per_dec), ++ni) {
+                        if (avgDeg * 20 > n)
+                            continue;
+
                         std::cout << "\033[1miter=" << iter << ", T=" << T << ", PLE=" << ple << ", n=" << n << ", avgDeg=" << avgDeg
                                   << "\033[21m\n";
 
