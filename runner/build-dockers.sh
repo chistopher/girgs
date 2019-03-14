@@ -6,11 +6,11 @@ docker build -t girgs_common common
 docker build -t girgs_networkit networkit
 
 git clone ../.. girgs/source
-docker build -t girgs_girgs
+docker build --no-cache  -t girgs_girgs
 rm -rf girgs/source
 
 git clone ../.. hypergirgs/source
-docker build -t girgs_hypergirgs hypergirgs
+docker build --no-cache  -t girgs_hypergirgs hypergirgs
 rm -rf hypergirgs/source
 
-docker build -t girgs_hypergen  hypergen
+docker build --no-cache  -t girgs_hypergen  hypergen
