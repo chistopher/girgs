@@ -27,6 +27,63 @@ static std::string hostname() {
 }
 #endif
 
+/////////////////////////////////////////////////////////////
+// copied from NetworKit
+static double getExpectedDegree(double n, double alpha, double R) {
+    double gamma = 2*alpha+1;
+    double xi = (gamma-1)/(gamma-2);
+    double firstSumTerm = exp(-R/2);
+    double secondSumTerm = exp(-alpha*R)*(alpha*(R/2)*((M_PI/4)*pow((1/alpha),2)-(M_PI-1)*(1/alpha)+(M_PI-2))-1);
+    double expectedDegree = (2/M_PI)*xi*xi*n*(firstSumTerm + secondSumTerm);
+    return expectedDegree;
+}
+
+static double searchTargetRadiusForColdGraphs(double n, double k, double alpha, double epsilon) {
+    double gamma = 2*alpha+1;
+    double xiInv = ((gamma-2)/(gamma-1));
+    double v = k * (M_PI/2)*xiInv*xiInv;
+    double currentR = 2*log(n / v);
+    double lowerBound = currentR/2;
+    double upperBound = currentR*2;
+    assert(getExpectedDegree(n, alpha, lowerBound) > k);
+    assert(getExpectedDegree(n, alpha, upperBound) < k);
+    do {
+        currentR = (lowerBound + upperBound)/2;
+        double currentK = getExpectedDegree(n, alpha, currentR);
+        std::cout << "n: " << n << " k: " << k << " alpha: " << alpha << " curK: " << currentK << " R: " << currentR << std::endl;
+        if (currentK < k) {
+            upperBound = currentR;
+        } else {
+            lowerBound = currentR;
+        }
+    } while (abs(getExpectedDegree(n, alpha, currentR) - k) > epsilon );
+    return currentR;
+}
+
+static double getTargetRadius(double n, double m, double alpha=1, double T=0, double epsilon = 0.01) {
+    double result;
+    double plexp = 2*alpha+1;
+    double targetAvgDegree = (m/n)*2;
+    double xiInv = ((plexp-2)/(plexp-1));
+    if (T == 0) {
+        double v = targetAvgDegree * (M_PI/2)*xiInv*xiInv;
+        result = 2*log(n / v);
+        result = searchTargetRadiusForColdGraphs(n, targetAvgDegree, alpha, epsilon);
+    } else {
+        double beta = 1/T;
+        if (T < 1){//cold regime
+            double Iinv = ((beta/M_PI)*sin(M_PI/beta));
+            double v = (targetAvgDegree*Iinv)*(M_PI/2)*xiInv*xiInv;
+            result = 2*log(n / v);
+        } else {//hot regime
+            double v = targetAvgDegree*(1-beta)*pow((M_PI/2), beta)*xiInv*xiInv;
+            result = 2*log(n/v)/beta;
+        }
+    }
+    return result;
+}
+/////////////////////////////////////////////////////////////
+
 
 double benchmark(std::ostream& os, const std::string& host, unsigned int iter, unsigned int n, unsigned int avgDeg, double alpha, double T, unsigned int seed = 0) {
     CounterPerThread<uint64_t> counter_num_edges;
@@ -34,7 +91,8 @@ double benchmark(std::ostream& os, const std::string& host, unsigned int iter, u
     double time_total, time_points, time_preprocess, time_sample;
     {
         ScopedTimer tot_timer("Total", time_total);
-        auto R = hypergirgs::calculateRadius(n, alpha, T, avgDeg);
+        //auto R = hypergirgs::calculateRadius(n, alpha, T, avgDeg);
+        const auto R = getTargetRadius(n, avgDeg * n / 2.0, alpha, T);
 
         // Sample points
         std::vector<double> radii, angles;
