@@ -22,50 +22,55 @@ double hyperbolicDistance(double r1, double phi1, double r2, double phi2) {
     return acosh(std::max(1., cosh(r1 - r2) + (1. - cos(phi1 - phi2)) * sinh(r1) * sinh(r2)));
 }
 
-std::vector<double> sampleRadii(int n, double alpha, double R, int seed, bool parallel) {
-    std::vector<double> result(n);
+template <bool Radii, bool Angles>
+static std::pair<std::vector<double>, std::vector<double>> sampleRadiiAndAnglesHelper(
+    const int n, const double alpha, const double R, const int seed, const bool parallel
+) {
+    static_assert(Radii || Angles, "At least one output is required");
 
-    const auto threads = parallel ? omp_get_max_threads() : 1;
+    std::vector<double> radii(n * Radii);
+    std::vector<double> angles(n * Angles);
+
+    constexpr auto kMinChunkSize = 10000;
+    const auto threads = parallel ? std::min<int>(omp_get_max_threads(), (n + kMinChunkSize - 1) / kMinChunkSize) : 1;
 
     const auto invalpha = 1.0 / alpha;
     #pragma omp parallel num_threads(threads)
     {
-        auto gen = hypergirgs::default_random_engine(
-            seed >= 0 ? seed + omp_get_thread_num() : std::random_device()());
-        auto dist = std::uniform_real_distribution<>(std::nextafter(1.0, 2.0), std::cosh(alpha * R));
+        auto gen = hypergirgs::default_random_engine(seed >= 0 ? seed + omp_get_thread_num() : std::random_device()());
+        auto adist = std::uniform_real_distribution<>(0, 2*M_PI);
+        auto rdist = std::uniform_real_distribution<>(std::nextafter(1.0, 2.0), std::cosh(alpha * R));
 
-        for(int i=0; i < n / threads / 10; ++i)
+        // warm-up generator
+        constexpr int kMinWarmup = 1000;
+        for (int i = 0; i < std::max<int>(n / threads / 5, kMinWarmup); ++i)
             gen();
 
         #pragma omp for schedule(static)
         for (int i = 0; i < n; ++i) {
-            result[i] = acosh(dist(gen)) * invalpha;
+            if (Angles)
+                angles[i] = adist(gen);
+
+            if (Radii)
+                radii[i] = acosh(rdist(gen)) * invalpha;
         }
     }
 
-    return result;
+    return {radii, angles};
+}
+
+
+std::vector<double> sampleRadii(int n, double alpha, double R, int seed, bool parallel) {
+    return sampleRadiiAndAnglesHelper<true, false>(n, alpha, R, seed, parallel).first;
 }
 
 std::vector<double> sampleAngles(int n, int seed, bool parallel) {
-    std::vector<double> result(n);
-    
-    const auto threads = parallel ? omp_get_max_threads() : 1;
+    return sampleRadiiAndAnglesHelper<false, true>(n, /*unused*/1.0, /*unused*/10.0, seed, parallel).second;
 
-    #pragma omp parallel num_threads(threads)
-    {
-        auto gen = hypergirgs::default_random_engine(
-            seed >= 0 ? seed + omp_get_thread_num() : std::random_device()());
-        auto dist = std::uniform_real_distribution<>(0, 2 * PI);
+}
 
-        for(int i=0; i < n / threads / 10; ++i)
-            gen();
-
-        #pragma omp for schedule(static)
-        for (int i = 0; i < n; ++i)
-            result[i] = dist(gen);
-    }
-
-    return result;
+std::pair<std::vector<double>, std::vector<double>> sampleRadiiAndAngles(int n, double alpha, double R, int seed, bool parallel) {
+    return sampleRadiiAndAnglesHelper<true, true>(n, alpha, R, seed, parallel);
 }
 
 std::vector<std::pair<int, int> > generateEdges(std::vector<double>& radii, std::vector<double>& angles, double T, double R, int seed) {

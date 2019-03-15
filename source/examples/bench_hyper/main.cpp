@@ -99,8 +99,7 @@ double benchmark(std::ostream& os, const std::string& host, unsigned int iter, u
         std::vector<double> radii, angles;
         {
             ScopedTimer timer("Generate points", time_points);
-            radii = hypergirgs::sampleRadii(n, alpha, R, seed++);
-            angles = hypergirgs::sampleAngles(n, seed++);
+            std::tie(radii, angles) = hypergirgs::sampleRadiiAndAngles(n, alpha, R, seed, true);
         }
 
         // Preprocess
@@ -113,7 +112,7 @@ double benchmark(std::ostream& os, const std::string& host, unsigned int iter, u
         // Generate edges
         {
             ScopedTimer timer("Generate edges", time_sample);
-            generator.generate(seed);
+            generator.generate(seed+12345678);
         }
     }
 
