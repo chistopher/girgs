@@ -25,25 +25,18 @@ double hyperbolicDistance(double r1, double phi1, double r2, double phi2) {
 std::vector<double> sampleRadii(int n, double alpha, double R, int seed, bool parallel) {
     std::vector<double> result(n);
 
-    auto threads = parallel ? omp_get_max_threads() : 1;
-    auto gens = std::vector<hypergirgs::default_random_engine>(threads);
-    auto dists = std::vector<std::uniform_real_distribution<>>(threads);
-    for (int thread = 0; thread < threads; thread++) {
-        gens[thread].seed(seed >= 0 ? seed + thread : std::random_device()());
-    }
+    const auto threads = parallel ? omp_get_max_threads() : 1;
 
     const auto invalpha = 1.0 / alpha;
-    const auto factor = std::cosh(alpha * R) - 1.0;
-
     #pragma omp parallel num_threads(threads)
     {
-        auto& gen = gens[omp_get_thread_num()];
-        auto& dist = dists[omp_get_thread_num()];
+        auto gen = hypergirgs::default_random_engine(
+            seed >= 0 ? seed + omp_get_thread_num() : std::random_device()());
+        auto dist = std::uniform_real_distribution<>(std::nextafter(1.0, 2.0), std::cosh(alpha * R));
+        
         #pragma omp for schedule(static)
         for (int i = 0; i < n; ++i) {
-            auto p = dist(gen);
-            while (p == 0) p = dist(gen);
-            result[i] = acosh(p * factor + 1.0) * invalpha;
+            result[i] = acosh(dist(gen)) * invalpha;
         }
     }
 
@@ -53,18 +46,14 @@ std::vector<double> sampleRadii(int n, double alpha, double R, int seed, bool pa
 std::vector<double> sampleAngles(int n, int seed, bool parallel) {
     std::vector<double> result(n);
     
-    auto threads = parallel ? omp_get_max_threads() : 1;
-    auto gens = std::vector<hypergirgs::default_random_engine>(threads);
-    auto dists = std::vector<std::uniform_real_distribution<>>();
-    for (int thread = 0; thread < threads; thread++) {
-        gens[thread].seed(seed >= 0 ? seed + thread : std::random_device()());
-        dists.emplace_back(0.0, std::nextafter(2 * PI, 0.0));
-    }
+    const auto threads = parallel ? omp_get_max_threads() : 1;
 
     #pragma omp parallel num_threads(threads)
     {
-        auto& gen = gens[omp_get_thread_num()];
-        auto& dist = dists[omp_get_thread_num()];
+        auto gen = hypergirgs::default_random_engine(
+            seed >= 0 ? seed + omp_get_thread_num() : std::random_device()());
+        auto dist = std::uniform_real_distribution<>(0, 2 * PI);
+
         #pragma omp for schedule(static)
         for (int i = 0; i < n; ++i)
             result[i] = dist(gen);
