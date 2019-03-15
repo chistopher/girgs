@@ -113,7 +113,7 @@ double benchmark(std::ostream& os, const std::string& host, unsigned int iter, u
         // Generate edges
         {
             ScopedTimer timer("Generate edges", time_sample);
-            generator.generate(seed++);
+            generator.generate(seed);
         }
     }
 
@@ -126,6 +126,7 @@ double benchmark(std::ostream& os, const std::string& host, unsigned int iter, u
            << "hypergirgs,"
            << host << ","
            << iter << ","
+           << seed << ","
            << n << ","
            << avgDeg << ","
            << alpha << ","
@@ -160,6 +161,7 @@ int main(int argc, char* argv[]) {
           "algo,"
           "host,"
           "iter,"
+          "seed,"
           "n,"
           "avgDeg,"
           "alpha,"
@@ -179,10 +181,10 @@ int main(int argc, char* argv[]) {
         for (const double T : {0.0, 0.5, 0.9}) {
             for (const double ple : {2.2, 3.0}) {
                 unsigned int skip_n = nMax + 1;
+                const auto alpha = (ple - 1.0) / 2.0;
 
                 for (const int avgDeg : {10, 100, 1000}) {
-                    const auto alpha = (ple - 1.0) / 2.0;
-                    int ni = 0;
+                    int ni = 1;
 
                     for (auto n = n0; n <= nMax; n = n0 * std::pow(10.0, 1.0 * ni / steps_per_dec), ++ni) {
                         if (avgDeg * 20 > n)

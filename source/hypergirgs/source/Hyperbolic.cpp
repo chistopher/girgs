@@ -33,7 +33,10 @@ std::vector<double> sampleRadii(int n, double alpha, double R, int seed, bool pa
         auto gen = hypergirgs::default_random_engine(
             seed >= 0 ? seed + omp_get_thread_num() : std::random_device()());
         auto dist = std::uniform_real_distribution<>(std::nextafter(1.0, 2.0), std::cosh(alpha * R));
-        
+
+        for(int i=0; i < n / threads / 10; ++i)
+            gen();
+
         #pragma omp for schedule(static)
         for (int i = 0; i < n; ++i) {
             result[i] = acosh(dist(gen)) * invalpha;
@@ -53,6 +56,9 @@ std::vector<double> sampleAngles(int n, int seed, bool parallel) {
         auto gen = hypergirgs::default_random_engine(
             seed >= 0 ? seed + omp_get_thread_num() : std::random_device()());
         auto dist = std::uniform_real_distribution<>(0, 2 * PI);
+
+        for(int i=0; i < n / threads / 10; ++i)
+            gen();
 
         #pragma omp for schedule(static)
         for (int i = 0; i < n; ++i)
