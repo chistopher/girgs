@@ -89,10 +89,11 @@ double benchmark(std::ostream& os, const std::string& host, unsigned int iter, u
     CounterPerThread<uint64_t> counter_num_edges;
 
     double time_total, time_points, time_preprocess, time_sample;
+
+    const auto R = getTargetRadius(n, avgDeg * n / 2.0, alpha, T);
     {
         ScopedTimer tot_timer("Total", time_total);
         //auto R = hypergirgs::calculateRadius(n, alpha, T, avgDeg);
-        const auto R = getTargetRadius(n, avgDeg * n / 2.0, alpha, T);
 
         // Sample points
         std::vector<double> radii, angles;
@@ -130,6 +131,7 @@ double benchmark(std::ostream& os, const std::string& host, unsigned int iter, u
            << alpha << ","
            << (2*alpha + 1) << ","
            << T << ","
+           << R << ","
            << time_total      << ","
            << time_points     << ","
            << time_preprocess << ","
@@ -163,12 +165,13 @@ int main(int argc, char* argv[]) {
           "alpha,"
           "PLE,"
           "T,"
+          "R,"
           "TimeTotal,"
           "TimePoints,"
           "TimePrepro,"
           "TimeEdges,"
           "GenNumEdge,"
-          "GenAvgDeg";
+          "GenAvgDeg\n";
 
     const auto host = hostname();
 
