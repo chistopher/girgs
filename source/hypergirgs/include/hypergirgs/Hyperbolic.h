@@ -4,6 +4,7 @@
 #include <vector>
 #include <cmath>
 #include <random>
+#include <utility>
 
 #include <hypergirgs/hypergirgs_api.h>
 
@@ -19,6 +20,11 @@ HYPERGIRGS_API double hyperbolicDistance(double r1, double phi1, double r2, doub
 
 HYPERGIRGS_API std::vector<double> sampleRadii(int n, double alpha, double R, int seed, bool parallel = true);
 HYPERGIRGS_API std::vector<double> sampleAngles(int n, int seed, bool parallel = true);
+
+/// If both, radii and angles, are to be sampled prefer this function of sampleRadii() and sampleAngles() for performance and quality reasons.
+HYPERGIRGS_API std::pair<std::vector<double>, std::vector<double> > sampleRadiiAndAngles(int n, double alpha, double R, int seed, bool parallel = true);
+
+
 HYPERGIRGS_API std::vector<std::pair<int, int> > generateEdges(std::vector<double>& radii, std::vector<double>& angles, double T, double R, int seed = 0);
 
 } // namespace hypergirgs
