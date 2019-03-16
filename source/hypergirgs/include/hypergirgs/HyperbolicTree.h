@@ -25,27 +25,27 @@ class HyperbolicTree
 {
 public:
 
-    HyperbolicTree(std::vector<double>& radii, std::vector<double>& angles, double T, double R, EdgeCallback& edgeCallback, bool profile = false);
+    HyperbolicTree(const std::vector<double>& radii, const std::vector<double>& angles, double T, double R, EdgeCallback& edgeCallback, bool profile = false);
 
-    void generate(int seed);
+    void generate(int seed) const;
 
 protected:
     /// Create a set of tasks to be executed in parallel; We'll skip all sampling steps during recursion (call visitCellPairSample!)
     void visitCellPairCreateTasks(unsigned int cellA, unsigned int cellB, unsigned int level, unsigned int first_parallel_level,
-                                  std::vector<TaskDescription>& parallel_calls);
+                                  std::vector<TaskDescription>& parallel_calls) const;
 
     /// Performs same recursion as visitCellPairCreateTasks, but samples for cells skipp by visitCellPairCreateTasks.
     int visitCellPairSample(unsigned int cellA, unsigned int cellB, unsigned int level, unsigned int first_parallel_level,
-                                  int num_threads, int thread_shift, default_random_engine& gen);
+                                  int num_threads, int thread_shift, default_random_engine& gen) const;
 
     /// Recursively sample cellA and cellB for level and higher
-    void visitCellPair(unsigned int cellA, unsigned int cellB, unsigned int level, default_random_engine& gen);
+    void visitCellPair(unsigned int cellA, unsigned int cellB, unsigned int level, default_random_engine& gen) const;
 
-    void sampleTypeI(unsigned int cellA, unsigned int cellB, unsigned int level, unsigned int i, unsigned int j, default_random_engine& gen);
-    void sampleTypeII(unsigned int cellA, unsigned int cellB, unsigned int level, unsigned int i, unsigned int j, default_random_engine& gen);
+    void sampleTypeI(unsigned int cellA, unsigned int cellB, unsigned int level, unsigned int i, unsigned int j, default_random_engine& gen) const;
+    void sampleTypeII(unsigned int cellA, unsigned int cellB, unsigned int level, unsigned int i, unsigned int j, default_random_engine& gen) const;
 
     /// takes lower bound on radius for two layers
-    unsigned int partitioningBaseLevel(double r1, double r2);
+    unsigned int partitioningBaseLevel(double r1, double r2) const;
 
     /// 1.0 / connection probability with respect to hyperbolic distance
     double connectionProbRec(double dist) const;
@@ -76,8 +76,8 @@ protected:
     std::vector<std::vector<std::pair<DistanceFilter<filter_size>,DistanceFilter<filter_size>>>> m_typeII_filter;
 
 #ifndef NDEBUG
-    long long m_type1_checks{0}; ///< number of node pairs per thread that are checked via a type 1 check
-    long long m_type2_checks{0}; ///< number of node pairs per thread that are checked via a type 2 check
+    mutable long long m_type1_checks{0}; ///< number of node pairs per thread that are checked via a type 1 check
+    mutable long long m_type2_checks{0}; ///< number of node pairs per thread that are checked via a type 2 check
 #endif // NDEBUG
 };
 
