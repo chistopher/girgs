@@ -72,7 +72,7 @@ option(OPTION_BUILD_TESTS     "Build tests."                                    
 option(OPTION_BUILD_BENCHMARKS "Build benchmarks."                                     OFF)
 option(OPTION_BUILD_EXAMPLES  "Build examples."                                        ON)
 option(OPTION_BUILD_DOCS      "Build documentation."                                   OFF)
-
+option(OPTION_USE_BOOST       "Allow usage of boost"                                   OFF)
 
 #
 # Declare project
@@ -159,6 +159,13 @@ if(NOT SYSTEM_DIR_INSTALL)
         set(CMAKE_INSTALL_RPATH "$ORIGIN/${INSTALL_LIB}")
     endif()
 endif()
+
+if (OPTION_USE_BOOST)
+    find_package(Boost
+            1.46.0
+            REQUIRED)
+endif()
+
 
 
 #

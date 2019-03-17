@@ -55,6 +55,10 @@ target_include_directories(${target}
     ${PROJECT_BINARY_DIR}/source/include
 )
 
+if(Boost_FOUND)
+    target_include_directories(${target} PRIVATE ${Boost_INCLUDE_DIRS})
+    target_sources(${target} PRIVATE EdgeProbabilities_test.cpp)
+endif()
 
 #
 # Libraries
