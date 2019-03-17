@@ -84,7 +84,9 @@ void HyperbolicTree<EdgeCallback>::generate(int seed) const {
     const auto num_tasks = (first_parallel_level == 2)
         ? 10
         : ((2 << first_parallel_level) + (3 << (first_parallel_level - 1)));
-    std::cout << "First Parallel Level: " << first_parallel_level << "\n";
+
+    if (m_profile)
+        std::cout << "First Parallel Level: " << first_parallel_level << "\n";
 
     // prepare seed_seq and initialize a gen per thread for initial sampling
     auto gens = initialize_prngs(num_threads - 1 + num_tasks,
@@ -108,7 +110,7 @@ void HyperbolicTree<EdgeCallback>::generate(int seed) const {
     // 1. Phase
         // one thread will generate the task list
         if (tid + 1 == num_threads && first_parallel_level < m_levels) {
-            ScopedTimer timer("Gen Tasks");
+            ScopedTimer timer("Gen Tasks", m_profile);
             tasks.reserve(num_tasks);
 
             visitCellPairCreateTasks(0, 0, 0, first_parallel_level, tasks);
@@ -117,7 +119,6 @@ void HyperbolicTree<EdgeCallback>::generate(int seed) const {
             std::partition(tasks.begin(), tasks.end(), [] (const TaskDescription& t) {
                 return t.cellA == t.cellB;});
 
-            std::cout << "Num Parallel Tasks: " << tasks.size() << "\n";
             assert(num_tasks == tasks.size());
 
             // inform consumers that tasks are ready
@@ -489,6 +490,5 @@ template<typename EdgeCallback>
 double HyperbolicTree<EdgeCallback>::connectionProbRec(double dist) const {
     return 1.0 + std::exp(0.5/m_T*(dist-m_R));
 }
-
 
 } // namespace hypergirgs

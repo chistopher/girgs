@@ -82,7 +82,7 @@ protected:
 };
 
 template <typename EdgeCallback>
-inline HyperbolicTree<EdgeCallback> makeHyperbolicTree(std::vector<double>& radii, std::vector<double>& angles, double T, double R, EdgeCallback& edgeCallback, bool profile = false) {
+inline HyperbolicTree<EdgeCallback> makeHyperbolicTree(const std::vector<double>& radii, const std::vector<double>& angles, double T, double R, EdgeCallback& edgeCallback, bool profile = false) {
     return {radii, angles, T, R, edgeCallback, profile};
 }
 
