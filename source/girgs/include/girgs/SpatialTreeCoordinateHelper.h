@@ -34,7 +34,7 @@ public:
     }
 
 
-    static unsigned int cellOfLayer(unsigned cell) noexcept;
+    static unsigned int cellOfLevel(unsigned cell) noexcept;
 
     static unsigned int cellForPoint(const std::array<double, D>& position, unsigned int targetLevel) noexcept;
 

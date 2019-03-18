@@ -4,7 +4,7 @@
 namespace girgs {
 
 template<unsigned int D>
-unsigned int SpatialTreeCoordinateHelper<D>::cellOfLayer(unsigned cell) noexcept {
+unsigned int SpatialTreeCoordinateHelper<D>::cellOfLevel(unsigned cell) noexcept {
     // sets all bits below the most significant bit set in x
     auto assertLower = [] (uint32_t x) {
 #if defined(__GNUC__) || defined(__clang__)
@@ -36,7 +36,7 @@ unsigned int SpatialTreeCoordinateHelper<D>::cellOfLayer(unsigned cell) noexcept
 template<unsigned int D>
 std::array<std::pair<double, double>, D> SpatialTreeCoordinateHelper<D>::bounds(unsigned int cell, unsigned int level) noexcept {
     const auto diameter = 1.0 / (1<<level);
-    const auto coord = BitManipulation<D>::extract(cellOfLayer(cell));
+    const auto coord = BitManipulation<D>::extract(cellOfLevel(cell));
 
     auto result = std::array<std::pair<double, double>, D>();
     for(auto d=0u; d<D; ++d)
@@ -58,8 +58,8 @@ unsigned int SpatialTreeCoordinateHelper<D>::cellForPoint(const std::array<doubl
 
 template<unsigned int D>
 bool SpatialTreeCoordinateHelper<D>::touching(unsigned int cellA, unsigned int cellB, unsigned int level) noexcept  {
-    const auto coordA = BitManipulation<D>::extract(cellOfLayer(cellA));
-    const auto coordB = BitManipulation<D>::extract(cellOfLayer(cellB));
+    const auto coordA = BitManipulation<D>::extract(cellOfLevel(cellA));
+    const auto coordB = BitManipulation<D>::extract(cellOfLevel(cellB));
 
     auto touching = true;
     for(auto d=0u; d<D; ++d){
@@ -74,8 +74,8 @@ bool SpatialTreeCoordinateHelper<D>::touching(unsigned int cellA, unsigned int c
 template<unsigned int D>
 double SpatialTreeCoordinateHelper<D>::dist(unsigned int cellA, unsigned int cellB, unsigned int level) noexcept  {
     // first work with integer d dimensional index
-    const auto coordA = BitManipulation<D>::extract(cellOfLayer(cellA));
-    const auto coordB = BitManipulation<D>::extract(cellOfLayer(cellB));
+    const auto coordA = BitManipulation<D>::extract(cellOfLevel(cellA));
+    const auto coordB = BitManipulation<D>::extract(cellOfLevel(cellB));
 
     auto result = 0;
     for(auto d=0u; d<D; ++d){
