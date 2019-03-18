@@ -12,7 +12,7 @@
 namespace hypergirgs {
 
 template <typename EdgeCallback>
-HyperbolicTree<EdgeCallback>::HyperbolicTree(std::vector<double> &radii, std::vector<double> &angles,
+HyperbolicTree<EdgeCallback>::HyperbolicTree(const std::vector<double> &radii, const std::vector<double> &angles,
     double T, double R, EdgeCallback& edgeCallback, bool enable_profiling)
     : m_edgeCallback(edgeCallback)
     , m_profile(enable_profiling)
@@ -63,7 +63,12 @@ HyperbolicTree<EdgeCallback>::HyperbolicTree(std::vector<double> &radii, std::ve
 }
 
 template <typename EdgeCallback>
-void HyperbolicTree<EdgeCallback>::generate(int seed) {
+void HyperbolicTree<EdgeCallback>::generate(int seed) const {
+    #ifndef NDEBUG
+    m_type1_checks = 0;
+    m_type2_checks = 0;
+    #endif
+
     const auto num_threads = omp_get_max_threads();
     if(num_threads == 1) {
         default_random_engine master_gen(seed >= 0 ? seed : std::random_device{}());
@@ -79,7 +84,9 @@ void HyperbolicTree<EdgeCallback>::generate(int seed) {
     const auto num_tasks = (first_parallel_level == 2)
         ? 10
         : ((2 << first_parallel_level) + (3 << (first_parallel_level - 1)));
-    std::cout << "First Parallel Level: " << first_parallel_level << "\n";
+
+    if (m_profile)
+        std::cout << "First Parallel Level: " << first_parallel_level << "\n";
 
     // prepare seed_seq and initialize a gen per thread for initial sampling
     auto gens = initialize_prngs(num_threads - 1 + num_tasks,
@@ -103,7 +110,7 @@ void HyperbolicTree<EdgeCallback>::generate(int seed) {
     // 1. Phase
         // one thread will generate the task list
         if (tid + 1 == num_threads && first_parallel_level < m_levels) {
-            ScopedTimer timer("Gen Tasks");
+            ScopedTimer timer("Gen Tasks", m_profile);
             tasks.reserve(num_tasks);
 
             visitCellPairCreateTasks(0, 0, 0, first_parallel_level, tasks);
@@ -112,7 +119,6 @@ void HyperbolicTree<EdgeCallback>::generate(int seed) {
             std::partition(tasks.begin(), tasks.end(), [] (const TaskDescription& t) {
                 return t.cellA == t.cellB;});
 
-            std::cout << "Num Parallel Tasks: " << tasks.size() << "\n";
             assert(num_tasks == tasks.size());
 
             // inform consumers that tasks are ready
@@ -149,7 +155,7 @@ void HyperbolicTree<EdgeCallback>::generate(int seed) {
 }
 
 template <typename EdgeCallback>
-void HyperbolicTree<EdgeCallback>::visitCellPair(unsigned int cellA, unsigned int cellB, unsigned int level, default_random_engine& gen) {
+void HyperbolicTree<EdgeCallback>::visitCellPair(unsigned int cellA, unsigned int cellB, unsigned int level, default_random_engine& gen) const {
 
     if(!AngleHelper::touching(cellA, cellB, level))
     {   // not touching cells
@@ -190,7 +196,7 @@ template<typename EdgeCallback>
 void HyperbolicTree<EdgeCallback>::visitCellPairCreateTasks(unsigned int cellA, unsigned int cellB,
                                                              unsigned int level,
                                                              unsigned int first_parallel_level,
-                                                             std::vector<TaskDescription>& parallel_calls) {
+                                                             std::vector<TaskDescription>& parallel_calls) const {
 
     if(!AngleHelper::touching(cellA, cellB, level))
         return;
@@ -218,7 +224,7 @@ void HyperbolicTree<EdgeCallback>::visitCellPairCreateTasks(unsigned int cellA, 
 
 template<typename EdgeCallback>
 int HyperbolicTree<EdgeCallback>::visitCellPairSample(unsigned int cellA, unsigned int cellB, unsigned int level, unsigned int first_parallel_level,
-                                                                int num_threads, int thread_shift, default_random_engine& gen) {
+                                                                int num_threads, int thread_shift, default_random_engine& gen) const {
 
     auto isMyTurn = [&] {
         if (++thread_shift == num_threads) {
@@ -269,7 +275,7 @@ int HyperbolicTree<EdgeCallback>::visitCellPairSample(unsigned int cellA, unsign
 
 
 template <typename EdgeCallback>
-void HyperbolicTree<EdgeCallback>::sampleTypeI(unsigned int cellA, unsigned int cellB, unsigned int level, unsigned int i, unsigned int j, default_random_engine& gen) {
+void HyperbolicTree<EdgeCallback>::sampleTypeI(unsigned int cellA, unsigned int cellB, unsigned int level, unsigned int i, unsigned int j, default_random_engine& gen) const {
     auto rangeA = m_radius_layers[i].cellIterators(cellA, level);
     auto rangeB = m_radius_layers[j].cellIterators(cellB, level);
 
@@ -347,7 +353,7 @@ void HyperbolicTree<EdgeCallback>::sampleTypeI(unsigned int cellA, unsigned int 
 }
 
 template <typename EdgeCallback>
-void HyperbolicTree<EdgeCallback>::sampleTypeII(unsigned int cellA, unsigned int cellB, unsigned int level, unsigned int i, unsigned int j, default_random_engine& gen) {
+void HyperbolicTree<EdgeCallback>::sampleTypeII(unsigned int cellA, unsigned int cellB, unsigned int level, unsigned int i, unsigned int j, default_random_engine& gen) const {
 
     // TODO use cell iterators
     const auto sizeV_i_A = static_cast<long long>(m_radius_layers[i].pointsInCell(cellA, level));
@@ -476,7 +482,7 @@ std::vector<default_random_engine> HyperbolicTree<EdgeCallback>::initialize_prng
 }
 
 template <typename EdgeCallback>
-unsigned int HyperbolicTree<EdgeCallback>::partitioningBaseLevel(double r1, double r2) {
+unsigned int HyperbolicTree<EdgeCallback>::partitioningBaseLevel(double r1, double r2) const {
     return RadiusLayer::partitioningBaseLevel(r1, r2, m_R);
 }
 
@@ -484,6 +490,5 @@ template<typename EdgeCallback>
 double HyperbolicTree<EdgeCallback>::connectionProbRec(double dist) const {
     return 1.0 + std::exp(0.5/m_T*(dist-m_R));
 }
-
 
 } // namespace hypergirgs
