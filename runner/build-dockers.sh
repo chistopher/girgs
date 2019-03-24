@@ -14,3 +14,5 @@ docker build --no-cache  -t girgs_hypergirgs hypergirgs
 rm -rf hypergirgs/source
 
 docker build --no-cache  -t girgs_hypergen  hypergen
+
+docker build --no-cache  -t girgs_embedder  embedder
