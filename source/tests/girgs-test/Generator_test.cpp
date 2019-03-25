@@ -140,7 +140,7 @@ double edgesInQuadraticSampling(const std::vector<double>& w, const vector<vecto
 
 TEST_F(Generator_test, testThresholdEstimation)
 {
-    auto n = 100;
+    auto n = 300;
     auto ple = 2.5;
     auto alpha = numeric_limits<double>::infinity();
     auto weightSeed = seed;
@@ -177,7 +177,7 @@ TEST_F(Generator_test, testThresholdEstimation)
         observed_avg /= runs;
 
         // test the goodness of the estimation for weight scaling
-        EXPECT_LT(abs(desired_avg - observed_avg), 0.1) << "estimated constant does not produce desired average degree";
+        EXPECT_LT(abs(desired_avg - observed_avg) / desired_avg, 0.05) << "estimated constant does not produce desired average degree";
     }
 }
 
@@ -219,7 +219,7 @@ TEST_F(Generator_test, testEstimation)
                     observed_avg /= runs;
 
                     // test the goodness of the estimation for weight scaling
-                    EXPECT_LT(abs(desired_avg - observed_avg), 1.0) << "estimated constant does not produce desired average degree";
+                    EXPECT_LT(abs(desired_avg - observed_avg)/desired_avg, 0.05) << "estimated constant does not produce desired average degree";
                 }
             }
         }

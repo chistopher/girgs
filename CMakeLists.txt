@@ -72,6 +72,7 @@ option(OPTION_BUILD_TESTS     "Build tests."                                    
 option(OPTION_BUILD_BENCHMARKS "Build benchmarks."                                     OFF)
 option(OPTION_BUILD_EXAMPLES  "Build examples."                                        ON)
 option(OPTION_BUILD_DOCS      "Build documentation."                                   OFF)
+option(OPTION_USE_BMI2        "Use PDEP Instruction (requires bmi2 instruction set; SLOW ON AMD)" ON)
 option(OPTION_USE_BOOST       "Allow usage of boost"                                   OFF)
 
 #

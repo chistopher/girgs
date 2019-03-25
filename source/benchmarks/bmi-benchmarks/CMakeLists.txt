@@ -4,7 +4,7 @@
 #
 
 # Target name
-set(target girgs-test)
+set(target bmi-benchmarks)
 message(STATUS "Test ${target}")
 
 
@@ -14,11 +14,6 @@ message(STATUS "Test ${target}")
 
 set(sources
     main.cpp
-    BitManipulation_test.cpp
-    DegreeEstimation_test.cpp
-    Helper_test.cpp
-    Generator_test.cpp
-    SpatialTreeCoordinateHelper_test.cpp
 )
 
 
@@ -65,8 +60,7 @@ target_link_libraries(${target}
     PRIVATE
     ${DEFAULT_LIBRARIES}
     ${META_PROJECT_NAME}::girgs
-    gmock
-    gtest
+    benchmark
 )
 
 

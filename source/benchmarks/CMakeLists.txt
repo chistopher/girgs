@@ -29,5 +29,6 @@ endforeach()
 
 
 # add onw benchmarks
+add_subdirectory(bmi-benchmarks)
 add_subdirectory(hypergirgs-benchmark)
 add_subdirectory(math-benchmarks)

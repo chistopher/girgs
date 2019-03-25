@@ -16,6 +16,7 @@
 
 namespace girgs {
 
+using default_random_engine = std::mt19937_64;
 
 /**
  * @brief
@@ -28,8 +29,9 @@ namespace girgs {
 template<unsigned int D, typename EdgeCallback>
 class SpatialTree
 {
-public:
+    using CoordinateHelper = SpatialTreeCoordinateHelper<D>;
 
+public:
     SpatialTree(const std::vector<double>& weights, const std::vector<std::vector<double>>& positions, double alpha, EdgeCallback& edgeCallback, bool profile = false);
 
     /**
@@ -176,6 +178,11 @@ protected:
      */
     unsigned int partitioningBaseLevel(int layer1, int layer2) const;
 
+
+    std::vector<WeightLayer<D>> buildPartition(
+        const std::vector<double>& weights, const std::vector<std::vector<double>>& positions);
+
+
 private:
     EdgeCallback& m_EdgeCallback; ///< called for every produced edge
     const bool m_profile;
@@ -191,12 +198,11 @@ private:
     unsigned int m_layers; ///< number of layers
     unsigned int m_levels; ///< number of levels
 
-    SpatialTreeCoordinateHelper<D> m_helper;        ///< computes index to coordinate mappings, also offers static helper for cell indices
     std::vector<WeightLayer<D>> m_weight_layers;    ///< stores all nodes of one weight layer and provides the data structure described in paper
     std::vector<std::vector<std::pair<unsigned int, unsigned int>>> m_layer_pairs; ///< which pairs of weight layers to check in each level
 
 
-    std::vector<std::mt19937> m_gens; ///< random generators for each thread
+    std::vector<default_random_engine> m_gens; ///< random generators for each thread
 
 #ifndef NDEBUG
     long long m_type1_checks = 0; ///< number of node pairs that are checked via a type 1 check

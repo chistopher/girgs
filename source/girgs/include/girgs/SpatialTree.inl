@@ -1,5 +1,7 @@
+#include <girgs/IntSort.h>
 #include <girgs/ScopedTimer.h>
 #include <girgs/Helper.h>
+
 
 namespace girgs {
 
@@ -16,7 +18,6 @@ SpatialTree<D, EdgeCallback>::SpatialTree(const std::vector<double>& weights, co
 , m_baseLevelConstant(static_cast<int>(std::log2(m_W/m_w0/m_w0))) // log2(W/w0^2)
 , m_layers(static_cast<unsigned int>(floor(std::log2(m_wn/m_w0)))+1)
 , m_levels(partitioningBaseLevel(0,0) + 1) // (log2(W/w0^2) - 2) / d
-, m_helper(SpatialTreeCoordinateHelper<D>(m_levels+1)) // helper for the deepest insertion level which possibly is one larger than the deepest comparison level
 {
     assert(weights.size() == positions.size());
     assert(positions.size() > 0 && positions.front().size() == D);
@@ -30,16 +31,9 @@ SpatialTree<D, EdgeCallback>::SpatialTree(const std::vector<double>& weights, co
             m_layer_pairs[partitioningBaseLevel(i, j)].emplace_back(i,j);
 
     // sort weights into exponentially growing layers
-    {   // block to let weightLayerNodes go out of scope after it was moved away
-        auto weightLayerNodes = std::vector<std::vector<int>>(m_layers);
-        for (auto i = 0u; i < weights.size(); ++i)
-            weightLayerNodes[std::log2(weights[i]/m_w0)].push_back(i);
-
-        // build spatial structure described in paper
-        for (auto layer = 0u; layer < m_layers; ++layer)
-            m_weight_layers.push_back(
-                    WeightLayer<D>(layer, weightLayerTargetLevel(layer), m_helper, std::move(weightLayerNodes[layer]), weights, positions)
-            );
+    {
+        ScopedTimer timer("Build DS", profile);
+        m_weight_layers = buildPartition(weights, positions);
     }
 }
 
@@ -91,9 +85,7 @@ void SpatialTree<D, EdgeCallback>::generateEdges(int seed) {
 
 template<unsigned int D, typename EdgeCallback>
 void SpatialTree<D, EdgeCallback>::visitCellPair(unsigned int cellA, unsigned int cellB, unsigned int level) {
-    using Helper = SpatialTreeCoordinateHelper<D>;
-
-    if(!m_helper.touching(cellA, cellB, level)) { // not touching
+    if(!CoordinateHelper::touching(cellA, cellB, level)) { // not touching
         // sample all type 2 occurrences with this cell pair
         #ifdef NDEBUG
 		if (m_alpha == std::numeric_limits<double>::infinity()) return; // dont trust compilter optimization
@@ -116,8 +108,8 @@ void SpatialTree<D, EdgeCallback>::visitCellPair(unsigned int cellA, unsigned in
 
     // recursive call for all children pairs (a,b) where a in A and b in B
     // these will be type 1 if a and b touch or type 2 if they don't
-    for(auto a = Helper::firstChild(cellA); a<=Helper::lastChild(cellA); ++a)
-        for(auto b = cellA == cellB ? a : Helper::firstChild(cellB); b<=Helper::lastChild(cellB); ++b)
+    for(auto a = CoordinateHelper::firstChild(cellA); a<=CoordinateHelper::lastChild(cellA); ++a)
+        for(auto b = cellA == cellB ? a : CoordinateHelper::firstChild(cellB); b<=CoordinateHelper::lastChild(cellB); ++b)
             visitCellPair(a, b, level+1);
 }
 
@@ -127,9 +119,7 @@ template<unsigned int D, typename EdgeCallback>
 void SpatialTree<D, EdgeCallback>::visitCellPair_sequentialStart(unsigned int cellA, unsigned int cellB, unsigned int level,
                                                    unsigned int first_parallel_level,
                                                    std::vector<std::vector<unsigned int>> &parallel_calls) {
-    using Helper = SpatialTreeCoordinateHelper<D>;
-
-    if(!m_helper.touching(cellA, cellB, level)) { // not touching
+    if(!CoordinateHelper::touching(cellA, cellB, level)) { // not touching
         // sample all type 2 occurrences with this cell pair
         #ifdef NDEBUG
 		if (m_alpha == std::numeric_limits<double>::infinity()) return; // dont trust compilter optimization
@@ -152,10 +142,10 @@ void SpatialTree<D, EdgeCallback>::visitCellPair_sequentialStart(unsigned int ce
 
     // recursive call for all children pairs (a,b) where a in A and b in B
     // these will be type 1 if a and b touch or type 2 if they don't
-    for(auto a = Helper::firstChild(cellA); a<=Helper::lastChild(cellA); ++a)
-        for(auto b = cellA == cellB ? a : Helper::firstChild(cellB); b<=Helper::lastChild(cellB); ++b){
+    for(auto a = CoordinateHelper::firstChild(cellA); a<=CoordinateHelper::lastChild(cellA); ++a)
+        for(auto b = cellA == cellB ? a : CoordinateHelper::firstChild(cellB); b<=CoordinateHelper::lastChild(cellB); ++b){
             if(level+1 == first_parallel_level)
-                parallel_calls[a-Helper::firstCellOfLevel(first_parallel_level)].push_back(b);
+                parallel_calls[a-CoordinateHelper::firstCellOfLevel(first_parallel_level)].push_back(b);
             else
                 visitCellPair_sequentialStart(a, b, level+1, first_parallel_level, parallel_calls);
         }
@@ -168,37 +158,46 @@ void SpatialTree<D, EdgeCallback>::sampleTypeI(
         unsigned int cellA, unsigned int cellB, unsigned int level,
         unsigned int i, unsigned int j)
 {
-    assert(partitioningBaseLevel(i, j) == level
-        || !m_helper.touching(cellA, cellB, level)); // in this case we were redirected from typeII with maxProb==1.0
-    const auto sizeV_i_A = m_weight_layers[i].pointsInCell(cellA, level);
-    const auto sizeV_j_B = m_weight_layers[j].pointsInCell(cellB, level);
-	if (sizeV_i_A == 0 || sizeV_j_B == 0)
-		return;
+    assert(partitioningBaseLevel(i, j) == level || !CoordinateHelper::touching(cellA, cellB, level)); // in this case we were redirected from typeII with maxProb==1.0
+
+    auto rangeA = m_weight_layers[i].cellIterators(cellA, level);
+    auto rangeB = m_weight_layers[j].cellIterators(cellB, level);
+
+    if (rangeA.first == rangeA.second || rangeB.first == rangeB.second)
+        return;
+
 
 #ifndef NDEBUG
-    #pragma omp atomic
-    m_type1_checks += (cellA == cellB && i == j)
-            ? sizeV_i_A * (sizeV_i_A-1)  // all pairs in AxA without {v,v}
-            : sizeV_i_A * sizeV_j_B * 2; // all pairs in AxB and BxA
+    {
+        const auto sizeV_i_A = std::distance(rangeA.first, rangeA.second);
+        const auto sizeV_j_B = std::distance(rangeB.first, rangeB.second);
+
+        #pragma omp atomic
+        m_type1_checks += (cellA == cellB && i == j) ? sizeV_i_A * (sizeV_i_A - 1)  // all pairs in AxA without {v,v}
+                                                     : sizeV_i_A * sizeV_j_B * 2; // all pairs in AxB and BxA
+    }
 #endif // NDEBUG
 
     std::uniform_real_distribution<> dist;
     const auto threadId = omp_get_thread_num();
-    const auto* firstA = m_weight_layers[i].firstPointPointer(cellA, level);
-    const auto* firstB = m_weight_layers[j].firstPointPointer(cellB, level);
+
     const auto inThresholdMode = m_alpha == std::numeric_limits<double>::infinity();
-    for(int kA=0; kA<sizeV_i_A; ++kA){
-        for (int kB =(cellA == cellB && i==j ? kA+1 : 0); kB<sizeV_j_B; ++kB) {
-            const Node<D>& nodeInA = firstA[kA];
-            const Node<D>& nodeInB = firstB[kB];
+
+    int kA = 0;
+    for(auto pointerA = rangeA.first; pointerA != rangeA.second; ++kA, ++pointerA) {
+        auto offset = (cellA == cellB && i==j) ? kA+1 : 0;
+        for (auto pointerB = rangeB.first + offset; pointerB != rangeB.second; ++pointerB) {
+
+            const auto& nodeInA = *pointerA;
+            const auto& nodeInB = *pointerB;
 
 			// pointer magic gives same results
 			assert(nodeInA.index == m_weight_layers[i].kthPoint(cellA, level, kA).index);
-			assert(nodeInB.index == m_weight_layers[j].kthPoint(cellB, level, kB).index);
+			assert(nodeInB.index == m_weight_layers[j].kthPoint(cellB, level, std::distance(rangeB.first, pointerB)).index);
 
             // points are in correct cells
-            assert(cellA - m_helper.firstCellOfLevel(level) == m_helper.cellForPoint({nodeInA.coord.begin(), nodeInA.coord.end()}, level));
-            assert(cellB - m_helper.firstCellOfLevel(level) == m_helper.cellForPoint({nodeInB.coord.begin(), nodeInB.coord.end()}, level));
+            assert(cellA - CoordinateHelper::firstCellOfLevel(level) == CoordinateHelper::cellForPoint(nodeInA.coord, level));
+            assert(cellB - CoordinateHelper::firstCellOfLevel(level) == CoordinateHelper::cellForPoint(nodeInB.coord, level));
 
             // points are in correct weight layer
             assert(i == static_cast<unsigned int>(std::log2(nodeInA.weight/m_w0)));
@@ -228,25 +227,30 @@ void SpatialTree<D, EdgeCallback>::sampleTypeII(
         unsigned int i, unsigned int j)
 {
     assert(partitioningBaseLevel(i, j) >= level);
-    const long long sizeV_i_A = m_weight_layers[i].pointsInCell(cellA, level);
-    const long long sizeV_j_B = m_weight_layers[j].pointsInCell(cellB, level);
-    if(sizeV_i_A == 0 || sizeV_j_B == 0)
+
+    auto rangeA = m_weight_layers[i].cellIterators(cellA, level);
+    auto rangeB = m_weight_layers[j].cellIterators(cellB, level);
+
+    if (rangeA.first == rangeA.second || rangeB.first == rangeB.second)
         return;
+
+    const auto sizeV_i_A = std::distance(rangeA.first, rangeA.second);
+    const auto sizeV_j_B = std::distance(rangeB.first, rangeB.second);
 
     // get upper bound for probability
     const auto w_upper_bound = m_w0*(1<<(i+1)) * m_w0*(1<<(j+1)) / m_W;
-    const auto cell_distance = m_helper.dist(cellA, cellB, level);
+    const auto cell_distance = CoordinateHelper::dist(cellA, cellB, level);
     const auto dist_lower_bound = pow_to_the<D>(cell_distance);
     const auto max_connection_prob = std::min(std::pow(w_upper_bound/dist_lower_bound, m_alpha), 1.0);
     assert(dist_lower_bound > w_upper_bound); // in threshold model we would not sample anything
     const auto num_pairs = sizeV_i_A * sizeV_j_B;
     const auto expected_samples = num_pairs * max_connection_prob;
 
-    // if we must sample all pairs we treat this as type 1 sampling
-    // also, 1.0 is no valid prob for a geometric dist (see c++ std)
-    if(max_connection_prob == 1.0){
-        sampleTypeI(cellA, cellB, level, i, j);
-        return;
+    // skipping over points is actually quite expensive as it messes up
+    // branch predictions and prefetching. Hence low expected skip distances
+    // it's cheapter to throw a coin each time!
+    if (max_connection_prob > 0.2) {
+        return sampleTypeI(cellA, cellB, level, i, j);
     }
 
 #ifndef NDEBUG
@@ -262,16 +266,20 @@ void SpatialTree<D, EdgeCallback>::sampleTypeII(
     auto& gen = m_gens[threadId];
     auto geo = std::geometric_distribution<unsigned long long>(max_connection_prob);
     auto dist = std::uniform_real_distribution<>(0, max_connection_prob);
-    const auto* firstA = m_weight_layers[i].firstPointPointer(cellA, level);
-    const auto* firstB = m_weight_layers[j].firstPointPointer(cellB, level);
+
     for (auto r = geo(gen); r < num_pairs; r += 1 + geo(gen)) {
         // determine the r-th pair
-        const Node<D>& nodeInA = firstA[r%sizeV_i_A];
-        const Node<D>& nodeInB = firstB[r/sizeV_i_A];
+        const Node<D>& nodeInA = rangeA.first[r%sizeV_i_A];
+        const Node<D>& nodeInB = rangeB.first[r/sizeV_i_A];
+
+        nodeInB.prefetch();
+        nodeInA.prefetch();
 
         // points are in correct weight layer
         assert(i == static_cast<unsigned int>(std::log2(nodeInA.weight/m_w0)));
         assert(j == static_cast<unsigned int>(std::log2(nodeInB.weight/m_w0)));
+
+        const auto rnd = dist(gen);
 
         // get actual connection probability
         const auto distance = nodeInA.distance(nodeInB);
@@ -281,7 +289,7 @@ void SpatialTree<D, EdgeCallback>::sampleTypeII(
         assert(w_term < w_upper_bound);
         assert(d_term >= dist_lower_bound);
 
-        if(dist(gen) < connection_prob) {
+        if(rnd < connection_prob) {
             m_EdgeCallback(nodeInA.index, nodeInB.index, threadId);
         }
     }
@@ -325,6 +333,144 @@ unsigned int SpatialTree<D, EdgeCallback>::partitioningBaseLevel(int layer1, int
     }
 #endif // NDEBUG
     return static_cast<unsigned int>(result);
+}
+
+template<unsigned int D, typename EdgeCallback>
+std::vector<WeightLayer<D>> SpatialTree<D, EdgeCallback>::buildPartition(const std::vector<double>& weights, const std::vector<std::vector<double>>& positions) {
+
+    const auto n = weights.size();
+    assert(positions.size() == n);
+
+    auto weight_to_layer = [=] (double weight) {
+        return std::log2(weight / m_w0);
+    };
+
+    const auto first_cell_of_layer = [&] {
+        std::vector<unsigned int> first_cell_of_layer(m_layers + 1);
+        unsigned int sum = 0;
+        for (auto l = 0; l < m_layers; ++l) {
+            first_cell_of_layer[l] = sum;
+            sum += CoordinateHelper::numCellsInLevel(weightLayerTargetLevel(l));
+        }
+        first_cell_of_layer.back() = sum;
+        return first_cell_of_layer;
+    }();
+    const auto max_cell_id = first_cell_of_layer.back();
+
+    std::shared_ptr<Node<D>[]> points(new Node<D>[n]);
+    // compute the cell a point belongs to
+    {
+        ScopedTimer timer("Classify points & precompute coordinates", m_profile);
+
+        #pragma omp parallel for
+        for (int i = 0; i < n; ++i) {
+            const auto layer = weight_to_layer(weights[i]);
+            const auto level = weightLayerTargetLevel(layer);
+            points[i] = Node<D>(positions[i], weights[i], i);
+            points[i].cell_id = first_cell_of_layer[layer] + CoordinateHelper::cellForPoint(points[i].coord, level);
+            assert(points[i].cell_id < max_cell_id);
+        }
+    }
+
+    // Sort points by cell-ids
+    {
+        ScopedTimer timer("Sort points", m_profile);
+
+        auto compare = [](const Node<D> &a, const Node<D> &b) { return a.cell_id < b.cell_id; };
+
+        intsort::intsort(points, n, [](const Node<D> &p) { return p.cell_id; }, max_cell_id);
+        //alternatively: std::sort(points.begin(), points.end(), compare);
+
+        assert(std::is_sorted(points.get(), points.get() + n, compare));
+    }
+
+
+    // compute pointers into points
+    constexpr auto gap_cell_indicator = std::numeric_limits<unsigned int>::max();
+    std::shared_ptr<unsigned int[]> first_point_in_cell{new unsigned int[max_cell_id + 1]};
+    std::fill_n(first_point_in_cell.get(), max_cell_id + 1, gap_cell_indicator);
+    {
+        ScopedTimer timer("Find first point in cell", m_profile);
+
+        first_point_in_cell.get()[max_cell_id] = n;
+
+        // First, we mark the begin of cells that actually contain points
+        // and repair the gaps (i.e., empty cells) later. In the mean time,
+        // the values of those gaps will remain at gap_cell_indicator.
+        first_point_in_cell.get()[points.get()->cell_id] = 0;
+        #pragma omp parallel for
+        for (int i = 1; i < n; ++i) {
+            if (points[i - 1].cell_id != points[i].cell_id) {
+                first_point_in_cell.get()[points[i].cell_id] = i;
+            }
+        }
+
+        // Now repair gaps: since first_point_in_cell shell contain
+        // a prefix sum, we simply replace any "gap_cell_indicator"
+        // with its nearest non-gap successor. In the main loop,
+        // this is always the direct successors since we're iterating
+        // from right to left.
+        #pragma omp parallel
+        {
+            const auto threads = omp_get_num_threads();
+            const auto rank = omp_get_thread_num();
+            const auto chunk_size = (max_cell_id + threads - 1) / threads; // = ceil(max_cell_id / threads)
+
+            // Fix right-most element (if gap) of each thread's elements by looking into chunk of next thread.
+            // We do not need an end of array check, since it's guaranteed that the last element is n.
+            // We're using on this very short code block to avoid UB even if we're only performing word-wise updates.
+            #pragma omp single
+            {
+                for (int r = 0; r < threads; r++) {
+                    const auto end = std::min(max_cell_id, chunk_size * (r + 1));
+                    int first_non_invalid = end - 1;
+                    while (first_point_in_cell.get()[first_non_invalid] == gap_cell_indicator)
+                        first_non_invalid++;
+                    first_point_in_cell.get()[end - 1] = first_point_in_cell.get()[first_non_invalid];
+                }
+            }
+
+            const auto begin = std::min(max_cell_id, chunk_size * rank);
+
+            auto i = std::min(max_cell_id, begin + chunk_size);
+            while (i-- > begin) {
+                first_point_in_cell.get()[i] = std::min(
+                    first_point_in_cell.get()[i],
+                    first_point_in_cell.get()[i + 1]);
+            }
+        }
+
+        #ifndef NDEBUG
+        {
+            assert(points.get()[n-1].cell_id < max_cell_id);
+
+            // assert that we have a prefix sum starting at 0 and ending in n
+            assert(first_point_in_cell.get()[0] == 0);
+            assert(first_point_in_cell.get()[max_cell_id] == n);
+            assert(std::is_sorted(first_point_in_cell.get(), first_point_in_cell.get() + max_cell_id + 1));
+
+            // check that each point is in its right cell (and that the cell boundaries are correct)
+            for (auto cid = 0u; cid != max_cell_id; ++cid) {
+                const auto begin = points.get() + first_point_in_cell.get()[cid];
+                const auto end = points.get() + first_point_in_cell.get()[cid + 1];
+                for (auto it = begin; it != end; ++it)
+                    assert(it->cell_id == cid);
+            }
+        }
+        #endif
+    }
+
+    // build spatial structure and find insertion level for each layer based on lower bound on radius for current and smallest layer
+    std::vector<WeightLayer<D>> radius_layers;
+    radius_layers.reserve(m_layers);
+    {
+        ScopedTimer timer("Build data structure", m_profile);
+        for (auto layer = 0u; layer < m_layers; ++layer) {
+            radius_layers.emplace_back(weightLayerTargetLevel(layer), points, first_point_in_cell, first_point_in_cell.get() + first_cell_of_layer[layer]);
+        }
+    }
+
+    return radius_layers;
 }
 
 
