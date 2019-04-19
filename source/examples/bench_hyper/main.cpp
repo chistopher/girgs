@@ -90,7 +90,7 @@ double benchmark(std::ostream& os, const std::string& host, unsigned int iter, u
 
     double time_total, time_points, time_preprocess, time_sample;
 
-    const auto R = getTargetRadius(n, avgDeg * n / 2.0, alpha, T);
+    const auto R = getTargetRadius(n, 0.5 * avgDeg * n, alpha, T);
     {
         ScopedTimer tot_timer("Total", time_total);
         //auto R = hypergirgs::calculateRadius(n, alpha, T, avgDeg);
