@@ -20,8 +20,7 @@ message(STATUS "Lib ${target}")
 string(MAKE_C_IDENTIFIER ${target} target_id)
 string(TOUPPER ${target_id} target_id)
 set(feature_file         "include/${target}/${target}_features.h")
-set(export_file          "include/${target}/${target}_export.h")
-set(template_export_file "include/${target}/${target}_api.h")
+set(export_file          "include/${target}/${target}_api.h")
 set(export_macro         "${target_id}_API")
 
 
@@ -91,10 +90,6 @@ write_compiler_detection_header(
 generate_export_header(${target}
     EXPORT_FILE_NAME  ${export_file}
     EXPORT_MACRO_NAME ${export_macro}
-)
-generate_template_export_header(${target}
-    ${target_id}
-    ${template_export_file}
 )
 
 

@@ -27,7 +27,6 @@ include(WriteCompilerDetectionHeader)
 
 
 # Include custom cmake modules
-include(cmake/GenerateTemplateExportHeader.cmake)
 include(cmake/GetGitRevisionDescription.cmake)
 include(cmake/DownloadProject.cmake)
 
