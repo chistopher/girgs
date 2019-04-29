@@ -60,7 +60,7 @@ TEST_F(Point_test, testHyperbolicDistance)
             auto dist1 = hyperbolicDistance(radii[i], angles[i], radii[j], angles[j]);
             auto dist2 = points[i].hyperbolicDistance(points[j]);
             auto diff = std::fabs(dist1 - dist2);
-            ASSERT_LE(diff, 0.000001);
+            ASSERT_LE(diff, 0.000005);
         }
     }
 }

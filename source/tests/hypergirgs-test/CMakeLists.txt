@@ -3,6 +3,9 @@
 # Executable name and options
 #
 
+find_package(Boost 1.46)
+
+
 # Target name
 set(target hypergirgs-test)
 message(STATUS "Test ${target}")
@@ -56,8 +59,11 @@ target_include_directories(${target}
 )
 
 if(Boost_FOUND)
+    message(STATUS "Found Boost. Including additional tests.")
     target_include_directories(${target} PRIVATE ${Boost_INCLUDE_DIRS})
     target_sources(${target} PRIVATE EdgeProbabilities_test.cpp)
+else()
+    message(STATUS "Boost not found. Skipping additional tests.")
 endif()
 
 #

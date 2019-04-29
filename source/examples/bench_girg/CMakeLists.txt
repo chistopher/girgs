@@ -11,7 +11,7 @@
 #
 
 # Target name
-set(target dev3)
+set(target bench_girg)
 
 # Exit here if required dependencies are not met
 message(STATUS "Example ${target}")
@@ -23,6 +23,7 @@ message(STATUS "Example ${target}")
 
 set(sources
     main.cpp
+    CounterPerThread.h
 )
 
 
@@ -69,7 +70,7 @@ target_include_directories(${target}
 target_link_libraries(${target}
     PRIVATE
     ${DEFAULT_LIBRARIES}
-    ${META_PROJECT_NAME}::hypergirgs
+    ${META_PROJECT_NAME}::girgs
 )
 
 

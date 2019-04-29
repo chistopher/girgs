@@ -60,7 +60,7 @@ TEST_F(Generator_test, testThresholdModel)
 
 TEST_F(Generator_test, testGeneralModel)
 {
-    const auto n = 500;
+    const auto n = 600;
     const auto alpha = 2.5;
     const auto ple = 2.5;
 

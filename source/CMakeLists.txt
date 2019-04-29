@@ -20,6 +20,10 @@ add_subdirectory(hypergirgs)
 set(IDE_FOLDER "Examples")
 add_subdirectory(examples)
 
+# Generator CLI's
+set(IDE_FOLDER "CLI")
+add_subdirectory(cli)
+
 # Tests
 if(OPTION_BUILD_TESTS AND NOT MINGW)
     set(IDE_FOLDER "Tests")

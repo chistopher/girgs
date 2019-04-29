@@ -49,7 +49,7 @@ set(META_PROJECT_DESCRIPTION "Generator for Geometric Inhomogeneous Random Graph
 set(META_AUTHOR_ORGANIZATION "Hasso Plattner Institute")
 set(META_AUTHOR_DOMAIN       "https://github.com/chistopher/girgs/")
 set(META_AUTHOR_MAINTAINER   "christopher.weyand@hpi.de")
-set(META_VERSION_MAJOR       "2")
+set(META_VERSION_MAJOR       "1")
 set(META_VERSION_MINOR       "0")
 set(META_VERSION_PATCH       "0")
 set(META_VERSION_REVISION    "${GIT_REV}")
@@ -70,10 +70,10 @@ option(BUILD_SHARED_LIBS      "Build shared instead of static libraries."       
 option(OPTION_SELF_CONTAINED  "Create a self-contained install with all dependencies." OFF)
 option(OPTION_BUILD_TESTS     "Build tests."                                           OFF)
 option(OPTION_BUILD_BENCHMARKS "Build benchmarks."                                     OFF)
-option(OPTION_BUILD_EXAMPLES  "Build examples."                                        ON)
+option(OPTION_BUILD_EXAMPLES  "Build examples."                                        OFF)
+option(OPTION_BUILD_CLI       "Build CLI's."                                           ON)
 option(OPTION_BUILD_DOCS      "Build documentation."                                   OFF)
 option(OPTION_USE_BMI2        "Use PDEP Instruction (requires bmi2 instruction set; SLOW ON AMD)" ON)
-option(OPTION_USE_BOOST       "Allow usage of boost"                                   OFF)
 
 #
 # Declare project
@@ -160,13 +160,6 @@ if(NOT SYSTEM_DIR_INSTALL)
         set(CMAKE_INSTALL_RPATH "$ORIGIN/${INSTALL_LIB}")
     endif()
 endif()
-
-if (OPTION_USE_BOOST)
-    find_package(Boost
-            1.46.0
-            REQUIRED)
-endif()
-
 
 
 #

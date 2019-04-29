@@ -5,10 +5,7 @@ if(NOT OPTION_BUILD_EXAMPLES)
 endif()
 
 # Example applications
-add_subdirectory(bench)
+add_subdirectory(bench_girg)
 add_subdirectory(bench_hyper)
-add_subdirectory(dev3)
-add_subdirectory(dev-girgs)
-add_subdirectory(girggen)
-add_subdirectory(hyper)
-add_subdirectory(hyper_range)
+add_subdirectory(inclusion_single)
+add_subdirectory(inclusion_range)

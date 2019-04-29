@@ -9,7 +9,7 @@
 #include <girgs/SpatialTree.h>
 #include <girgs/ScopedTimer.h>
 
-#include "../dev3/CounterPerThread.h"
+#include "CounterPerThread.h"
 
 
 using namespace std;

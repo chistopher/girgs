@@ -1,11 +1,20 @@
 
 #
+# External dependencies
+#
+
+# find_package(THIRDPARTY REQUIRED)
+
+
+#
 # Executable name and options
 #
 
 # Target name
-set(target hypergirgs-benchmark)
-message(STATUS "Test ${target}")
+set(target inclusion_range)
+
+# Exit here if required dependencies are not met
+message(STATUS "Example ${target}")
 
 
 #
@@ -23,6 +32,7 @@ set(sources
 
 # Build executable
 add_executable(${target}
+    MACOSX_BUNDLE
     ${sources}
 )
 
@@ -59,8 +69,8 @@ target_include_directories(${target}
 target_link_libraries(${target}
     PRIVATE
     ${DEFAULT_LIBRARIES}
+    ${META_PROJECT_NAME}::girgs
     ${META_PROJECT_NAME}::hypergirgs
-    benchmark
 )
 
 
@@ -91,4 +101,15 @@ target_compile_options(${target}
 target_link_libraries(${target}
     PRIVATE
     ${DEFAULT_LINKER_OPTIONS}
+)
+
+
+#
+# Deployment
+#
+
+# Executable
+install(TARGETS ${target}
+    RUNTIME DESTINATION ${INSTALL_BIN} COMPONENT examples
+    BUNDLE  DESTINATION ${INSTALL_BIN} COMPONENT examples
 )

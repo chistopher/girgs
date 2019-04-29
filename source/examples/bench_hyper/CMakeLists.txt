@@ -23,6 +23,7 @@ message(STATUS "Example ${target}")
 
 set(sources
     main.cpp
+    CounterPerThread.h
 )
 
 
