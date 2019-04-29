@@ -141,7 +141,7 @@ int main(int argc, char* argv[]) {
             clog << i << endl;
             measure(i, n, deg, alpha, ple, threads, ++seed, 3);
         }
-
+        /*
         clog << "strong scaling threshold" << endl;
         for(auto i : {1,2,3,4,5,6}) {
             clog << i << endl;
@@ -157,6 +157,7 @@ int main(int argc, char* argv[]) {
                 measure(d, n, deg, alpha_binomial, ple, i, ++seed, 5);
             }
         }
+        */
     }
 
     return 0;
