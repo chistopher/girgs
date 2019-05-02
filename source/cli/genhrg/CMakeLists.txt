@@ -70,7 +70,7 @@ target_include_directories(${target}
 target_link_libraries(${target}
     PRIVATE
     ${DEFAULT_LIBRARIES}
-    ${META_PROJECT_NAME}::girgs
+    ${META_PROJECT_NAME}::hypergirgs
 )
 
 

@@ -2,7 +2,8 @@
 #include <gmock/gmock.h>
 
 #include <hypergirgs/Point.h>
-#include <hypergirgs/Hyperbolic.h>
+#include <hypergirgs/Generator.h>
+#include <hypergirgs/AngleHelper.h>
 
 
 using namespace hypergirgs;

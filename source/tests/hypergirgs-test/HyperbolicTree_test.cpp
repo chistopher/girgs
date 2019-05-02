@@ -5,7 +5,7 @@
 #include <gmock/gmock.h>
 
 #include <hypergirgs/HyperbolicTree.h>
-#include <hypergirgs/Hyperbolic.h>
+#include <hypergirgs/Generator.h>
 
 
 using namespace std;

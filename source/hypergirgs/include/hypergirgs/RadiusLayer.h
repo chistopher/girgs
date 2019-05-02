@@ -4,12 +4,12 @@
 #include <cassert>
 #include <vector>
 #include <utility>
+#include <memory>
 
 #include <hypergirgs/AngleHelper.h>
 #include <hypergirgs/Point.h>
 
 #include <hypergirgs/hypergirgs_api.h>
-#include <memory>
 
 
 namespace hypergirgs {

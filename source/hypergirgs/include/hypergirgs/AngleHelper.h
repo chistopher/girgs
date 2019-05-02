@@ -4,11 +4,11 @@
 #include <utility>
 
 #include <hypergirgs/hypergirgs_api.h>
-#include <hypergirgs/Hyperbolic.h>
 
 
 namespace hypergirgs {
 
+constexpr double PI = 3.14159265358979323846;
 
 class HYPERGIRGS_API AngleHelper
 {

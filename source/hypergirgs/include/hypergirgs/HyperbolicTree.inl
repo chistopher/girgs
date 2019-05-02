@@ -1,13 +1,3 @@
-#include <atomic>
-#include <algorithm>
-#include <cassert>
-#include <condition_variable>
-#include <mutex>
-#include <omp.h>
-
-
-#include <hypergirgs/Hyperbolic.h>
-#include <hypergirgs/ScopedTimer.h>
 
 namespace hypergirgs {
 
@@ -355,7 +345,6 @@ void HyperbolicTree<EdgeCallback>::sampleTypeI(unsigned int cellA, unsigned int 
 template <typename EdgeCallback>
 void HyperbolicTree<EdgeCallback>::sampleTypeII(unsigned int cellA, unsigned int cellB, unsigned int level, unsigned int i, unsigned int j, default_random_engine& gen) const {
 
-    // TODO use cell iterators
     const auto sizeV_i_A = static_cast<long long>(m_radius_layers[i].pointsInCell(cellA, level));
     const auto sizeV_j_B = static_cast<long long>(m_radius_layers[j].pointsInCell(cellB, level));
 

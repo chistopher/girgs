@@ -1,6 +1,5 @@
 
-#include <hypergirgs/Hyperbolic.h>
-#include <hypergirgs/HyperbolicTree.h>
+#include <hypergirgs/Generator.h>
 
 #include <random>
 #include <fstream>
@@ -9,17 +8,75 @@
 
 #include <omp.h>
 
+#include <hypergirgs/HyperbolicTree.h>
+
 
 namespace hypergirgs {
 
 
-double calculateRadius(int n, double alpha, double T, int deg) {
+double calculateRadius(int n, double alpha, double T, double deg) {
     return 2 * log(n * 2 * alpha * alpha * (T == 0 ? 1 / PI : T / sin(PI * T)) /
                    (deg * (alpha - 0.5) * (alpha - 0.5)));
 }
 
-double hyperbolicDistance(double r1, double phi1, double r2, double phi2) {
-    return acosh(std::max(1., cosh(r1 - r2) + (1. - cos(phi1 - phi2)) * sinh(r1) * sinh(r2)));
+///////////////////////////////// COPIED FROM NETWORKIT ///////////////////////
+static double getExpectedDegree(double n, double alpha, double R) {
+    double gamma = 2*alpha+1;
+    double xi = (gamma-1)/(gamma-2);
+    double firstSumTerm = exp(-R/2);
+    double secondSumTerm = exp(-alpha*R)*(alpha*(R/2)*((M_PI/4)*pow((1/alpha),2)-(M_PI-1)*(1/alpha)+(M_PI-2))-1);
+    double expectedDegree = (2/M_PI)*xi*xi*n*(firstSumTerm + secondSumTerm);
+    return expectedDegree;
+}
+
+static double searchTargetRadiusForColdGraphs(double n, double k, double alpha, double epsilon) {
+    double gamma = 2*alpha+1;
+    double xiInv = ((gamma-2)/(gamma-1));
+    double v = k * (M_PI/2)*xiInv*xiInv;
+    double currentR = 2*log(n / v);
+    double lowerBound = currentR/2;
+    double upperBound = currentR*2;
+    assert(getExpectedDegree(n, alpha, lowerBound) > k);
+    assert(getExpectedDegree(n, alpha, upperBound) < k);
+    do {
+        currentR = (lowerBound + upperBound)/2;
+        double currentK = getExpectedDegree(n, alpha, currentR);
+        // std::cout << "n: " << n << " k: " << k << " alpha: " << alpha << " curK: " << currentK << " R: " << currentR << std::endl;
+        if (currentK < k) {
+            upperBound = currentR;
+        } else {
+            lowerBound = currentR;
+        }
+    } while (std::abs(getExpectedDegree(n, alpha, currentR) - k) > epsilon );
+    return currentR;
+}
+
+static double getTargetRadius(double n, double m, double alpha=1, double T=0, double epsilon = 0.01) {
+    double result;
+    double plexp = 2*alpha+1;
+    double targetAvgDegree = (m/n)*2;
+    double xiInv = ((plexp-2)/(plexp-1));
+    if (T == 0) {
+        double v = targetAvgDegree * (M_PI/2)*xiInv*xiInv;
+        result = 2*log(n / v);
+        result = searchTargetRadiusForColdGraphs(n, targetAvgDegree, alpha, epsilon);
+    } else {
+        double beta = 1/T;
+        if (T < 1){//cold regime
+            double Iinv = ((beta/M_PI)*sin(M_PI/beta));
+            double v = (targetAvgDegree*Iinv)*(M_PI/2)*xiInv*xiInv;
+            result = 2*log(n / v);
+        } else {//hot regime
+            double v = targetAvgDegree*(1-beta)*pow((M_PI/2), beta)*xiInv*xiInv;
+            result = 2*log(n/v)/beta;
+        }
+    }
+    return result;
+}
+////////////////////////////////// END NETWORKIT COPY ////////////////////
+
+double calculateRadiusLikeNetworKit(int n, double alpha, double T, double deg) {
+    return getTargetRadius(n, 0.5*deg*n, alpha, T);
 }
 
 template <bool Radii, bool Angles>

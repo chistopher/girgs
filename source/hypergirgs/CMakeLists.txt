@@ -34,7 +34,7 @@ set(source_path  "${CMAKE_CURRENT_SOURCE_DIR}/source")
 set(headers
     ${include_path}/AngleHelper.h
     ${include_path}/DistanceFilter.h
-    ${include_path}/Hyperbolic.h
+    ${include_path}/Generator.h
     ${include_path}/HyperbolicTree.h
     ${include_path}/HyperbolicTree.inl
     ${include_path}/IntSort.h
@@ -45,7 +45,7 @@ set(headers
 
 set(sources
     ${source_path}/AngleHelper.cpp
-    ${source_path}/Hyperbolic.cpp
+    ${source_path}/Generator.cpp
     ${source_path}/RadiusLayer.cpp
 )
 

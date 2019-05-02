@@ -10,7 +10,7 @@
 #include <girgs/Generator.h>
 #include <girgs/Hyperbolic.h>
 
-#include <hypergirgs/Hyperbolic.h>
+#include <hypergirgs/Generator.h>
 
 
 using namespace std;

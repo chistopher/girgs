@@ -102,7 +102,8 @@ GIRGS_API std::vector<std::pair<int,int>> generateEdges(const std::vector<double
  * @param file
  *  The name of the output file.
  */
-GIRGS_API void saveDot(const std::vector<double>& weights, const std::vector<std::vector<double>>& positions, std::vector<std::pair<int,int>> graph, std::string file);
+GIRGS_API void saveDot(const std::vector<double>& weights, const std::vector<std::vector<double>>& positions,
+        const std::vector<std::pair<int,int>> &graph, const std::string &file);
 
 
 

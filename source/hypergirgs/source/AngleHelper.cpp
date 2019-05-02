@@ -1,9 +1,9 @@
-#include <hypergirgs/Hyperbolic.h>
+
 #include <hypergirgs/AngleHelper.h>
 
-#include <cassert>
 #include <cmath>
 #include <algorithm>
+
 
 namespace hypergirgs {
 

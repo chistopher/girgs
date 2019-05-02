@@ -33,7 +33,7 @@ map<string, string> parseArgs(int argc, char** argv) {
 
 
 template<typename T>
-void logParam(T value, string name) {
+void logParam(T value, const string& name) {
     cout << "\t" << name << "\t=\t" << value << '\n';
 }
 
@@ -63,15 +63,16 @@ int main(int argc, char* argv[]) {
             << "\t\t[-pseed anInt]      // position seed                            default 130\n"
             << "\t\t[-sseed anInt]      // sampling seed                            default 1400\n"
             << "\t\t[-threads anInt]    // number of threads to use                 default 1\n"
-            << "\t\t[-file aString]     // file name for output graph               default \"graph\"\n"
+            << "\t\t[-file aString]     // file name for output (w/o ext)           default \"graph\"\n"
             << "\t\t[-dot 0|1]          // write result as dot (.dot)               default 0\n"
-            << "\t\t[-edge 0|1]         // write result as edgelist (.txt)          default 1\n";
+            << "\t\t[-edge 0|1]         // write result as edgelist (.txt)          default 0\n";
         return 0;
     }
 
     // write version
     if(argc > 1 && 0 == strcmp(argv[1], "--version")) {
-        cout << GIRGS_NAME_VERSION << '\n'
+        cout << "GIRGs command line interface.\n\n"
+             << GIRGS_NAME_VERSION << '\n'
              << GIRGS_PROJECT_DESCRIPTION << '\n'
              << GIRGS_AUTHOR_ORGANIZATION << '\n'
              << GIRGS_AUTHOR_DOMAIN << " (soon)\n"
@@ -92,7 +93,7 @@ int main(int argc, char* argv[]) {
     auto threads= !params["threads"].empty()? stoi(params["threads"]) : 1;
     auto file   = !params["file" ].empty()  ? params["file"] : "graph";
     auto dot    = params["dot" ] == "1";
-    auto edge   = params["edge"] != "0";
+    auto edge   = params["edge"] == "1";
 
     // log params and range checks
     cout << "using:\n";
@@ -109,13 +110,14 @@ int main(int argc, char* argv[]) {
     logParam(file, "file");
     logParam(dot, "dot");
     logParam(edge, "edge");
+    logParam(girgs::BitManipulation<1>::name(), "morton");
     cout << "\n";
 
     auto t1 = high_resolution_clock::now();
 
 
     cout << "generating weights ...\t\t" << flush;
-    auto weights = girgs::generateWeights(n, ple, wseed);
+    auto weights = girgs::generateWeights(n, ple, wseed, threads > 1);
     auto t2 = high_resolution_clock::now();
     cout << "done in " << duration_cast<milliseconds>(t2 - t1).count() << "ms" << endl;
 
@@ -131,8 +133,6 @@ int main(int argc, char* argv[]) {
     auto t4 = high_resolution_clock::now();
     cout << "done in " << duration_cast<milliseconds>(t4 - t3).count() << "ms\tscaling = " << scaling << endl;
 
-    cout << "bit: " << girgs::BitManipulation<1>::name() << "\n";
-
     cout << "sampling edges ...\t\t" << flush;
     auto edges = girgs::generateEdges(weights, positions, alpha, sseed);
     auto t5 = high_resolution_clock::now();
@@ -141,7 +141,7 @@ int main(int argc, char* argv[]) {
     if (dot) {
         cout << "writing .dot file ...\t\t" << flush;
         auto t6 = high_resolution_clock::now();
-        girgs::saveDot(weights, positions, edges, file);
+        girgs::saveDot(weights, positions, edges, file+".dot");
         auto t7 = high_resolution_clock::now();
         cout << "done in " << duration_cast<milliseconds>(t7 - t6).count() << "ms" << endl;
     }
@@ -149,8 +149,8 @@ int main(int argc, char* argv[]) {
     if (edge) {
         cout << "writing edge list (.txt) ...\t" << flush;
         auto t6 = high_resolution_clock::now();
-        auto f = ofstream(file);
-        f << n << ' ' << edges.size() << '\n';
+        auto f = ofstream(file+".txt");
+        f << n << ' ' << edges.size() << "\n\n";
         for(auto& each : edges)
             f << each.first << ' ' << each.second << '\n';
         auto t7 = high_resolution_clock::now();

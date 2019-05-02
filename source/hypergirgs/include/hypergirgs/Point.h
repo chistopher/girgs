@@ -3,13 +3,23 @@
 #include <cassert>
 #include <cmath>
 
-#include <hypergirgs/Hyperbolic.h>
-
 #ifndef NDEBUG
 #define POINT_WITH_ORIGINAL
 #endif
 
 namespace hypergirgs {
+
+/*** TODO docs
+ *
+ * @param r1
+ * @param phi1
+ * @param r2
+ * @param phi2
+ * @return
+ */
+static double hyperbolicDistance(double r1, double phi1, double r2, double phi2) {
+    return acosh(std::max(1., cosh(r1 - r2) + (1. - cos(phi1 - phi2)) * sinh(r1) * sinh(r2)));
+}
 
 struct Point {
     Point() {}; // prevent initialization of members
@@ -25,7 +35,7 @@ struct Point {
         , angle{angle}
 #endif // POINT_WITH_ORIGINAL
     {
-        assert(0 <= angle && angle < 2*PI);
+        assert(0 <= angle && angle < 2*3.14159265358979323846);
         assert(0 <= radius);
         assert(0 <= id);
     }

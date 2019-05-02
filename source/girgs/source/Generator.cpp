@@ -118,7 +118,7 @@ std::vector<std::pair<int, int>> generateEdges(const std::vector<double> &weight
 
 
 void saveDot(const std::vector<double> &weights, const std::vector<std::vector<double>> &positions,
-             std::vector<std::pair<int, int>> graph, std::string file) {
+             const std::vector<std::pair<int, int>> &graph, const std::string &file) {
 
     auto f = std::ofstream(file);
     f << "graph girg {\n\toverlap=scale;\n\n";

@@ -4,7 +4,8 @@
 #include <gmock/gmock.h>
 
 #include <hypergirgs/AngleHelper.h>
-#include <hypergirgs/Hyperbolic.h>
+#include <hypergirgs/Generator.h>
+#include <hypergirgs/Point.h>
 
 
 using namespace std;

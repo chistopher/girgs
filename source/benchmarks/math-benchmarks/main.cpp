@@ -3,7 +3,7 @@
 #include <random>
 
 #define POINT_WITH_ORIGINAL
-#include <hypergirgs/Hyperbolic.h>
+#include <hypergirgs/Generator.h>
 #include <hypergirgs/Point.h>
 
 constexpr double kIntToDbl = 1000.;

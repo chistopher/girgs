@@ -5,12 +5,12 @@
 #include <string>
 #include <cstring>
 #include <fstream>
+#include <iomanip>
 
 #include <omp.h>
 
 #include <girgs/girgs-version.h>
-#include <girgs/Generator.h>
-#include <girgs/BitManipulation.h>
+#include <hypergirgs/Generator.h>
 
 
 using namespace std;
@@ -33,7 +33,7 @@ map<string, string> parseArgs(int argc, char** argv) {
 
 
 template<typename T>
-void logParam(T value, string name) {
+void logParam(T value, const string& name) {
     cout << "\t" << name << "\t=\t" << value << '\n';
 }
 
@@ -55,23 +55,24 @@ int main(int argc, char* argv[]) {
     if (argc < 2 || 0 == strcmp(argv[1], "--help") || 0 == strcmp(argv[1], "-help")) {
         clog << "usage: ./girggen\n"
             << "\t\t[-n anInt]          // number of nodes                          default 10000\n"
-            << "\t\t[-d anInt]          // dimension of geometry    range [1,5]     default 1\n"
-            << "\t\t[-ple aFloat]       // power law exponent       range (2,3]     default 2.5\n"
-            << "\t\t[-alpha aFloat]     // model parameter          range (1,inf]   default infinity\n"
+            << "\t\t[-alpha aFloat]     // model parameter          range [0.5,1]   default 0.75\n"
+            << "\t\t[-t aFloat]         // temperature parameter    range [0,1)     default 0\n"
             << "\t\t[-deg aFloat]       // average degree           range [1,n)     default 10\n"
-            << "\t\t[-wseed anInt]      // weight seed                              default 12\n"
-            << "\t\t[-pseed anInt]      // position seed                            default 130\n"
+            << "\t\t[-rseed anInt]      // radii seed                               default 12\n"
+            << "\t\t[-aseed anInt]      // angle seed                               default 130\n"
             << "\t\t[-sseed anInt]      // sampling seed                            default 1400\n"
             << "\t\t[-threads anInt]    // number of threads to use                 default 1\n"
-            << "\t\t[-file aString]     // file name for output graph               default \"graph\"\n"
-            << "\t\t[-dot 0|1]          // write result as dot (.dot)               default 0\n"
-            << "\t\t[-edge 0|1]         // write result as edgelist (.txt)          default 1\n";
+            << "\t\t[-nkr 0|1]          // use NetworKit R estimation               default 0\n"
+            << "\t\t[-file aString]     // file name for output (w/o ext)           default \"graph\"\n"
+            << "\t\t[-edge 0|1]         // write result as edgelist (.txt)          default 0\n"
+            << "\t\t[-coord 0|1]        // write hyp. coordinates (.hyp)            default 0\n";
         return 0;
     }
 
     // write version
     if(argc > 1 && 0 == strcmp(argv[1], "--version")) {
-        cout << GIRGS_NAME_VERSION << '\n'
+        cout << "HyperGIRGs command line interface.\n\n"
+             << GIRGS_NAME_VERSION << '\n'
              << GIRGS_PROJECT_DESCRIPTION << '\n'
              << GIRGS_AUTHOR_ORGANIZATION << '\n'
              << GIRGS_AUTHOR_DOMAIN << " (soon)\n"
@@ -82,77 +83,75 @@ int main(int argc, char* argv[]) {
     // read params
     auto params = parseArgs(argc, argv);
     auto n      = !params["n"    ].empty()  ? stoi(params["n"    ]) : 10000;
-    auto d      = !params["d"    ].empty()  ? stoi(params["d"    ]) : 1;
-    auto ple    = !params["ple"  ].empty()  ? stod(params["ple"  ]) : 2.5;
-    auto alpha  = !params["alpha"].empty()  ? stod(params["alpha"]) : std::numeric_limits<double>::infinity();
+    auto alpha  = !params["alpha"].empty()  ? stod(params["alpha"]) : 0.75;
+    auto T      = !params["t"    ].empty()  ? stod(params["t"    ]) : 0;
     auto deg    = !params["deg"  ].empty()  ? stod(params["deg"  ]) : 10.0;
-    auto wseed  = !params["wseed"].empty()  ? stoi(params["wseed"]) : 12;
-    auto pseed  = !params["pseed"].empty()  ? stoi(params["pseed"]) : 130;
+    auto rseed  = !params["rseed"].empty()  ? stoi(params["rseed"]) : 12;
+    auto aseed  = !params["aseed"].empty()  ? stoi(params["aseed"]) : 130;
     auto sseed  = !params["sseed"].empty()  ? stoi(params["sseed"]) : 1400;
     auto threads= !params["threads"].empty()? stoi(params["threads"]) : 1;
+    auto nkr    = params["nkr"  ] == "1";
     auto file   = !params["file" ].empty()  ? params["file"] : "graph";
-    auto dot    = params["dot" ] == "1";
-    auto edge   = params["edge"] != "0";
+    auto edge   = params["edge" ] == "1";
+    auto coord  = params["coord"] == "1";
 
     // log params and range checks
     cout << "using:\n";
     logParam(n, "n");
-    rangeCheck(d, 1, 5, "d");
-    rangeCheck(ple, 2.0, 3.0, "ple", true, false);
-    rangeCheck(alpha, 1.0, std::numeric_limits<double>::infinity(), "alpha", true);
+    rangeCheck(alpha, 0.5, 1.0, "alpha");
+    rangeCheck(T, 0.0, 1.0, "t", false, true);
     rangeCheck(deg, 1.0, n-1.0, "deg");
-    logParam(wseed, "wseed");
-    logParam(pseed, "pseed");
+    logParam(rseed, "rseed");
+    logParam(aseed, "aseed");
     logParam(sseed, "sseed");
     rangeCheck(threads, 1, omp_get_max_threads(), "threads");
     omp_set_num_threads(threads);
+    logParam(nkr, "nkr");
     logParam(file, "file");
-    logParam(dot, "dot");
     logParam(edge, "edge");
+    logParam(coord, "coord");
     cout << "\n";
 
+    cout << "estimate R ...\t\t" << flush;
+    auto R = nkr ?
+            hypergirgs::calculateRadiusLikeNetworKit(n, alpha, T, deg) :
+            hypergirgs::calculateRadius(n, alpha, T, deg);
+    cout << "R = " << R << endl;
+
     auto t1 = high_resolution_clock::now();
-
-
-    cout << "generating weights ...\t\t" << flush;
-    auto weights = girgs::generateWeights(n, ple, wseed);
+    cout << "generating radii ...\t" << flush;
+    auto radii = hypergirgs::sampleRadii(n, alpha, R, rseed, threads > 1);
     auto t2 = high_resolution_clock::now();
     cout << "done in " << duration_cast<milliseconds>(t2 - t1).count() << "ms" << endl;
 
-
-    cout << "generating positions ...\t" << flush;
-    auto positions = girgs::generatePositions(n, d, pseed);
+    cout << "generating angles ...\t" << flush;
+    auto angles = hypergirgs::sampleAngles(n, aseed, threads > 1);
     auto t3 = high_resolution_clock::now();
     cout << "done in " << duration_cast<milliseconds>(t3 - t2).count() << "ms" << endl;
 
-
-    cout << "find weight scaling ...\t\t" << flush;
-    auto scaling = girgs::scaleWeights(weights, deg, d, alpha);
-    auto t4 = high_resolution_clock::now();
-    cout << "done in " << duration_cast<milliseconds>(t4 - t3).count() << "ms\tscaling = " << scaling << endl;
-
-    cout << "bit: " << girgs::BitManipulation<1>::name() << "\n";
-
-    cout << "sampling edges ...\t\t" << flush;
-    auto edges = girgs::generateEdges(weights, positions, alpha, sseed);
+    cout << "sampling edges ...\t" << flush;
+    auto edges = hypergirgs::generateEdges(radii, angles, T, R, sseed);
     auto t5 = high_resolution_clock::now();
-    cout << "done in " << duration_cast<milliseconds>(t5 - t4).count() << "ms\tavg deg = " << edges.size()*2.0/n << endl;
-
-    if (dot) {
-        cout << "writing .dot file ...\t\t" << flush;
-        auto t6 = high_resolution_clock::now();
-        girgs::saveDot(weights, positions, edges, file);
-        auto t7 = high_resolution_clock::now();
-        cout << "done in " << duration_cast<milliseconds>(t7 - t6).count() << "ms" << endl;
-    }
+    cout << "done in " << duration_cast<milliseconds>(t5 - t3).count() << "ms\tavg deg = " << edges.size()*2.0/n << endl;
 
     if (edge) {
         cout << "writing edge list (.txt) ...\t" << flush;
         auto t6 = high_resolution_clock::now();
-        auto f = ofstream(file);
-        f << n << ' ' << edges.size() << '\n';
+        auto f = ofstream(file+".txt");
+        f << n << ' ' << edges.size() << "\n\n";
         for(auto& each : edges)
             f << each.first << ' ' << each.second << '\n';
+        auto t7 = high_resolution_clock::now();
+        cout << "done in " << duration_cast<milliseconds>(t7 - t6).count() << "ms" << endl;
+    }
+
+    if (coord) {
+        cout << "writing coordinates (.hyp) ...\t" << flush;
+        auto t6 = high_resolution_clock::now();
+        auto f = ofstream(file+".hyp");
+        f << std::fixed << std::setprecision(6);
+        for(auto i{0u}; i<n; ++i)
+            f << radii[i]  << ' ' << angles[i] << '\n';
         auto t7 = high_resolution_clock::now();
         cout << "done in " << duration_cast<milliseconds>(t7 - t6).count() << "ms" << endl;
     }

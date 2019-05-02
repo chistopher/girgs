@@ -10,45 +10,11 @@
 #include <girgs/Generator.h>
 #include <girgs/Hyperbolic.h>
 
-#include <hypergirgs/Hyperbolic.h>
+#include <hypergirgs/Generator.h>
 
 
 using namespace std;
 using Graph = vector<pair<int,int>>;
-
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// copied from NetworKit
-static double getExpectedDegree(double n, double alpha, double R) {
-    double gamma = 2*alpha+1;
-    double xi = (gamma-1)/(gamma-2);
-    double firstSumTerm = exp(-R/2);
-    double secondSumTerm = exp(-alpha*R)*(alpha*(R/2)*((M_PI/4)*pow((1/alpha),2)-(M_PI-1)*(1/alpha)+(M_PI-2))-1);
-    double expectedDegree = (2/M_PI)*xi*xi*n*(firstSumTerm + secondSumTerm);
-    return expectedDegree;
-}
-
-static double searchTargetRadiusForColdGraphs(double n, double k, double alpha, double epsilon) {
-    double gamma = 2*alpha+1;
-    double xiInv = ((gamma-2)/(gamma-1));
-    double v = k * (M_PI/2)*xiInv*xiInv;
-    double currentR = 2*log(n / v);
-    double lowerBound = currentR/2;
-    double upperBound = currentR*2;
-    assert(getExpectedDegree(n, alpha, lowerBound) > k);
-    assert(getExpectedDegree(n, alpha, upperBound) < k);
-    do {
-        currentR = (lowerBound + upperBound)/2;
-        double currentK = getExpectedDegree(n, alpha, currentR);
-        if (currentK < k) {
-            upperBound = currentR;
-        } else {
-            lowerBound = currentR;
-        }
-    } while (abs(getExpectedDegree(n, alpha, currentR) - k) > epsilon );
-    return currentR;
-}
-///////////////////////////////////////////////////////////////////////////////////////
 
 
 void unifyEdges(Graph& g) {
@@ -165,7 +131,7 @@ int main(int argc, char* argv[]) {
 
         // returns required girg deg bounds to be super/sup graph of HRG
         auto deg_low_high = [&](int n) {
-            auto R = searchTargetRadiusForColdGraphs(n, deg, alpha, 0.01); // use NetworKit estimator
+            auto R = hypergirgs::calculateRadiusLikeNetworKit(n, alpha, T, deg); // use NetworKit estimator
             // auto R = hypergirgs::calculateRadius(n, hrg_alpha, T, deg);
             auto radii = hypergirgs::sampleRadii(n, alpha, R, rseed+rep+n, false); // this is still done sequential
             auto angles = hypergirgs::sampleAngles(n, aseed+rep+n, false); // this is still done sequential

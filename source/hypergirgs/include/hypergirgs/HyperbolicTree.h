@@ -3,11 +3,21 @@
 #include <vector>
 #include <utility>
 #include <random>
+#include <atomic>
+#include <algorithm>
+#include <cassert>
+#include <condition_variable>
+#include <mutex>
 
+#include <omp.h>
+
+#include <hypergirgs/ScopedTimer.h>
 #include <hypergirgs/AngleHelper.h>
 #include <hypergirgs/RadiusLayer.h>
 #include <hypergirgs/Point.h>
 #include <hypergirgs/DistanceFilter.h>
+#include <hypergirgs/Generator.h>
+
 
 namespace hypergirgs {
 
