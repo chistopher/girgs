@@ -72,7 +72,7 @@ option(OPTION_BUILD_BENCHMARKS "Build benchmarks."                              
 option(OPTION_BUILD_EXAMPLES  "Build examples."                                        OFF)
 option(OPTION_BUILD_CLI       "Build CLI's."                                           ON)
 option(OPTION_BUILD_DOCS      "Build documentation."                                   OFF)
-option(OPTION_USE_BMI2        "Use PDEP Instruction (requires bmi2 instruction set; SLOW ON AMD)" ON)
+option(OPTION_USE_BMI2        "Use PDEP Instruction (requires bmi2 instruction set; SLOW ON AMD)" OFF)
 
 #
 # Declare project

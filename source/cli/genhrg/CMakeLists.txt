@@ -112,6 +112,6 @@ target_link_libraries(${target}
 
 # Executable
 install(TARGETS ${target}
-    RUNTIME DESTINATION ${INSTALL_BIN} COMPONENT Cli
+    RUNTIME DESTINATION ${INSTALL_BIN} COMPONENT cli
     BUNDLE  DESTINATION ${INSTALL_BIN} COMPONENT cli
 )

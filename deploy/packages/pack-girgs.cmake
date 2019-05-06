@@ -20,8 +20,8 @@ if("${CMAKE_SYSTEM_NAME}" MATCHES "Windows")
 elseif(UNIX AND SYSTEM_DIR_INSTALL)
     # System installation packages for unix systems
     if("${CMAKE_SYSTEM_NAME}" MATCHES "Linux")
-        set(OPTION_PACK_GENERATOR "TGZ;DEB;RPM" CACHE STRING "Package targets")
-        set(PACK_COMPONENT_INSTALL ON)
+        set(OPTION_PACK_GENERATOR "TGZ;DEB" CACHE STRING "Package targets")
+        set(PACK_COMPONENT_INSTALL OFF)
         set(PACK_INCLUDE_TOPDIR OFF)
     else()
         set(OPTION_PACK_GENERATOR "TGZ" CACHE STRING "Package targets")
@@ -55,6 +55,14 @@ set(CPACK_COMPONENT_DEV_DESCRIPTION "Development files for ${META_PROJECT_NAME} 
 set(CPACK_COMPONENT_DEV_DEPENDS runtime)
 
 set(CPACK_COMPONENTS_ALL runtime dev)
+
+if (OPTION_BUILD_CLI)
+    set(CPACK_COMPONENT_EXAMPLES_DISPLAY_NAME "CLI applications")
+    set(CPACK_COMPONENT_EXAMPLES_DESCRIPTION "Command Line Clinets for ${META_PROJECT_NAME} library")
+    set(CPACK_COMPONENT_EXAMPLES_DEPENDS runtime)
+
+    set(CPACK_COMPONENTS_ALL ${CPACK_COMPONENTS_ALL} cli)
+endif()
 
 if (OPTION_BUILD_EXAMPLES)
     set(CPACK_COMPONENT_EXAMPLES_DISPLAY_NAME "Example applications")
