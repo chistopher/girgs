@@ -1,19 +1,22 @@
-language: sh
+language: cpp
 
 env:
   global:
     - CMAKE_OPTIONS="-DOPTION_BUILD_EXAMPLES=ON -DOPTION_BUILD_TESTS=ON"
+    - OMP_NUM_THREADS=4
 
 matrix:
   include:
 
-    - os: osx
-      osx_image: xcode9.1
-      env: CMAKE_CONFIGURATION=release BUILD_DIR=build
+# xcode 9.1 has no proper openMP support
+#    - os: osx
+#      osx_image: xcode9.1
+#      env: CMAKE_CONFIGURATION=debug BUILD_DIR=build-debug
 
-    - os: osx
-      osx_image: xcode9.1
-      env: CMAKE_CONFIGURATION=debug BUILD_DIR=build-debug
+# ubuntu 14.04 ships with too old gcc; updating is ugly
+#    - os: linux
+#      compiler: gcc
+#      env: CMAKE_CONFIGURATION=release BUILD_DIR=build
 
     - os: linux
       compiler: clang

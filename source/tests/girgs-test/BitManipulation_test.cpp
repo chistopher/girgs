@@ -3,6 +3,18 @@
 #include <random>
 #include <sstream>
 
+// must be here to make ADL work on clang
+template<typename T, size_t D>
+std::ostream &operator<<(std::ostream &o, const std::array<T, D> &c) {
+    std::stringstream ss;
+    ss << "[" << c[0];
+    for (int d = 1; d < D; d++)
+        ss << ", " << c[d];
+    ss << "]";
+    o << ss.str();
+    return o;
+}
+
 #include <gtest/gtest.h>
 #include <girgs/BitManipulation.h>
 
@@ -13,7 +25,7 @@ public:
 };
 
 using Implementations = ::testing::Types<
-#ifdef USE_B
+#ifdef USE_BMI2
     girgs::BitManipulationDetails::BMI2::Implementation<1>,
     girgs::BitManipulationDetails::BMI2::Implementation<2>,
     girgs::BitManipulationDetails::BMI2::Implementation<3>,
@@ -27,7 +39,7 @@ using Implementations = ::testing::Types<
     girgs::BitManipulationDetails::Generic::Implementation<5>
 >;
 
-TYPED_TEST_SUITE(BitManipulationTest, Implementations);
+TYPED_TEST_SUITE(BitManipulationTest, Implementations,);
 
 #define COMMON_DEFS \
     using Impl = typename TestFixture::Implementation; \
@@ -63,16 +75,6 @@ static std::array<uint32_t, D> ReferenceExtract(uint32_t x) {
     return res;
 }
 
-template<typename T, size_t D>
-std::ostream &operator<<(std::ostream &o, const std::array<T, D> &c) {
-    std::stringstream ss;
-    ss << "[" << c[0];
-    for (int d = 1; d < D; d++)
-        ss << ", " << c[d];
-    ss << "]";
-    o << ss.str();
-    return o;
-}
 
 
 TYPED_TEST(BitManipulationTest, DepositeSingle) {

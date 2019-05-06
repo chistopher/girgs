@@ -30,7 +30,7 @@ private:
     }
 
 public:
-    static constexpr uint32_t kPattern32 = compile_pattern();
+    static constexpr uint32_t kPattern32 = compile_pattern(0,Bits);
     static constexpr uint64_t kPattern64 = (static_cast<uint64_t>(kPattern32) << 32) | kPattern32;
 
     template<typename T>
