@@ -197,8 +197,10 @@ private:
 
     unsigned int m_layers; ///< number of layers
     unsigned int m_levels; ///< number of levels
-
-    std::vector<WeightLayer<D>> m_weight_layers;    ///< stores all nodes of one weight layer and provides the data structure described in paper
+    
+    std::vector<Node<D>>        m_nodes;            ///< nodes ordered by layer first and morton code second
+    std::vector<unsigned int>   m_first_in_cell;    ///< prefix sums into nodes array
+    std::vector<WeightLayer<D>> m_weight_layers;    ///< provides access to the nodes as described in paper
     std::vector<std::vector<std::pair<unsigned int, unsigned int>>> m_layer_pairs; ///< which pairs of weight layers to check in each level
 
 

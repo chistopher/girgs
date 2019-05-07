@@ -14,8 +14,8 @@ HyperbolicTree<EdgeCallback>::HyperbolicTree(const std::vector<double> &radii, c
 {
     const auto layer_height = 1.0;
 
-    // compute partition and transfer into own object
-    m_radius_layers = RadiusLayer::buildPartition(radii, angles, R, layer_height, enable_profiling);
+    // compute partition; hold ownership of radius_layers, points and prefix sums
+    m_radius_layers = RadiusLayer::buildPartition(radii, angles, R, layer_height, m_points, m_first_in_cell, enable_profiling);
     m_layers = m_radius_layers.size();
     m_levels = m_radius_layers[0].m_target_level + 1;
 
