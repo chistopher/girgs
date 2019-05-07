@@ -123,9 +123,10 @@ void saveDot(const std::vector<double> &weights, const std::vector<std::vector<d
 
     std::ofstream f{file};
     f << "graph girg {\n\toverlap=scale;\n\n";
+    f << std::fixed;
     for (int i = 0; i < weights.size(); ++i) {
         f << '\t' << i << " [label=\""
-          << std::setprecision(2) << std::fixed << weights[i] << std::defaultfloat << std::setprecision(6)
+          << std::setprecision(2) << weights[i] << std::setprecision(6)
           << "\", pos=\"";
         for (auto d = 0u; d < positions[i].size(); ++d)
             f << (d == 0 ? "" : ",") << positions[i][d];

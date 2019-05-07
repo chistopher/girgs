@@ -1,6 +1,6 @@
 
 #include <gmock/gmock.h>
-
+#include <cmath>
 
 double distance(const std::vector<double>& a, const std::vector<double>& b) {
     assert(a.size() == b.size());
