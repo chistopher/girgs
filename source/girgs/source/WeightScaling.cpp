@@ -90,7 +90,9 @@ double estimateWeightScalingThreshold(const std::vector<double> &weights, double
     auto max_weight = 0.0;
     auto W = 0.0, sq_W = 0.0;
     {
+#ifndef _MSC_VER
         #pragma omp parallel for reduction(+:W, sq_W), reduction(max: max_weight)
+#endif
         for (int i = 0; i < n; ++i) {
             const auto each = weights[i];
             sweights[i] = each; // copy to sweights
@@ -103,19 +105,22 @@ double estimateWeightScalingThreshold(const std::vector<double> &weights, double
 
     // my function to do the exponential search on
     auto f = [=, &sweights, &lazy_sorter](double c) {
-        // compute rich club
-        const auto richclub_end = lazy_sorter.sort_downto(W / std::pow(2.0 * c, dimension) / max_weight);
-        assert(richclub_end <= sweights.end());
-
+        
         // compute overestimation
-        const auto pow2c = pow(2 * c, dimension);
+        const auto pow2c = std::pow(2.0 * c, dimension);
+		const auto overestimation = pow2c * (W - sq_W / W);
+
+		// compute rich club
+		const auto richclub_end = lazy_sorter.sort_downto(W / pow2c / max_weight);
+		assert(richclub_end <= sweights.end());
 
         // subtract error
         auto error = 0.0;
 
         auto w2sum = 0.0;
         auto w2 = sweights.cbegin();
-        for(auto w1 = richclub_end; w1-- > sweights.begin(); ) {
+        for(auto w1 = richclub_end; w1 > sweights.begin(); ) {
+			--w1; // msvc throws when decrementing beyond begin iterator
             const auto fac = *w1 / W;
             const auto my_thres = 1.0 / fac / pow2c;
 
@@ -136,10 +141,7 @@ double estimateWeightScalingThreshold(const std::vector<double> &weights, double
             }
         }
 
-        const auto overestimation = pow2c * (W - sq_W / W);
-        const auto res = (overestimation - error) / n;
-
-        return res;
+        return (overestimation - error) / n;
     };
 
     // do exponential search on expected average degree function
@@ -179,7 +181,9 @@ double estimateWeightScaling(const std::vector<double> &weights, double desiredA
     std::vector<double> sweights(n);
     LazySorter lazy_sorter(sweights);
     {
+#ifndef _MSC_VER
         #pragma omp parallel for reduction(+:sum_sq_w, sum_w_a, sum_sq_w_a, sum_wwW_a), reduction(max:max_w)
+#endif
         for (int i = 0; i < n; ++i) {
             const auto each = weights[i];
             sweights[i] = each; // copy in parallel

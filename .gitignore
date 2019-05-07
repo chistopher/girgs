@@ -27,6 +27,8 @@ cmake-build-*
 *.sublime-project
 *.sublime-workspace
 .idea
+.vs/
+CMakeSettings.json
 
 # Local config windows
 _configure.bat

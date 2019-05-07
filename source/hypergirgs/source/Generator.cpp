@@ -24,15 +24,15 @@ static double getExpectedDegree(double n, double alpha, double R) {
     double gamma = 2*alpha+1;
     double xi = (gamma-1)/(gamma-2);
     double firstSumTerm = exp(-R/2);
-    double secondSumTerm = exp(-alpha*R)*(alpha*(R/2)*((M_PI/4)*pow((1/alpha),2)-(M_PI-1)*(1/alpha)+(M_PI-2))-1);
-    double expectedDegree = (2/M_PI)*xi*xi*n*(firstSumTerm + secondSumTerm);
+    double secondSumTerm = exp(-alpha*R)*(alpha*(R/2)*((PI/4)*pow((1/alpha),2)-(PI-1)*(1/alpha)+(PI-2))-1);
+    double expectedDegree = (2/PI)*xi*xi*n*(firstSumTerm + secondSumTerm);
     return expectedDegree;
 }
 
 static double searchTargetRadiusForColdGraphs(double n, double k, double alpha, double epsilon) {
     double gamma = 2*alpha+1;
     double xiInv = ((gamma-2)/(gamma-1));
-    double v = k * (M_PI/2)*xiInv*xiInv;
+    double v = k * (PI/2)*xiInv*xiInv;
     double currentR = 2*log(n / v);
     double lowerBound = currentR/2;
     double upperBound = currentR*2;
@@ -57,17 +57,17 @@ static double getTargetRadius(double n, double m, double alpha=1, double T=0, do
     double targetAvgDegree = (m/n)*2;
     double xiInv = ((plexp-2)/(plexp-1));
     if (T == 0) {
-        double v = targetAvgDegree * (M_PI/2)*xiInv*xiInv;
+        double v = targetAvgDegree * (PI/2)*xiInv*xiInv;
         result = 2*log(n / v);
         result = searchTargetRadiusForColdGraphs(n, targetAvgDegree, alpha, epsilon);
     } else {
         double beta = 1/T;
         if (T < 1){//cold regime
-            double Iinv = ((beta/M_PI)*sin(M_PI/beta));
-            double v = (targetAvgDegree*Iinv)*(M_PI/2)*xiInv*xiInv;
+            double Iinv = ((beta/PI)*sin(PI/beta));
+            double v = (targetAvgDegree*Iinv)*(PI/2)*xiInv*xiInv;
             result = 2*log(n / v);
         } else {//hot regime
-            double v = targetAvgDegree*(1-beta)*pow((M_PI/2), beta)*xiInv*xiInv;
+            double v = targetAvgDegree*(1-beta)*pow((PI/2), beta)*xiInv*xiInv;
             result = 2*log(n/v)/beta;
         }
     }
@@ -95,7 +95,7 @@ static std::pair<std::vector<double>, std::vector<double>> sampleRadiiAndAnglesH
     #pragma omp parallel num_threads(threads)
     {
         auto gen = hypergirgs::default_random_engine(seed >= 0 ? seed + omp_get_thread_num() : std::random_device()());
-        auto adist = std::uniform_real_distribution<>(0, 2*M_PI);
+        auto adist = std::uniform_real_distribution<>(0, 2*PI);
         auto rdist = std::uniform_real_distribution<>(std::nextafter(1.0, 2.0), std::cosh(alpha * R));
 
         // warm-up generator

@@ -4,6 +4,7 @@
 #include <random>
 #include <functional>
 #include <mutex>
+#include <ios>
 
 #include <omp.h>
 
@@ -120,7 +121,7 @@ std::vector<std::pair<int, int>> generateEdges(const std::vector<double> &weight
 void saveDot(const std::vector<double> &weights, const std::vector<std::vector<double>> &positions,
              const std::vector<std::pair<int, int>> &graph, const std::string &file) {
 
-    auto f = std::ofstream(file);
+    std::ofstream f{file};
     f << "graph girg {\n\toverlap=scale;\n\n";
     for (int i = 0; i < weights.size(); ++i) {
         f << '\t' << i << " [label=\""
