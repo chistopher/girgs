@@ -137,7 +137,7 @@ int main(int argc, char* argv[]) {
     if (edge) {
         cout << "writing edge list (.txt) ...\t" << flush;
         auto t6 = high_resolution_clock::now();
-        auto f = ofstream(file+".txt");
+        ofstream f{file+".txt"};
         f << n << ' ' << edges.size() << "\n\n";
         for(auto& each : edges)
             f << each.first << ' ' << each.second << '\n';
@@ -148,7 +148,7 @@ int main(int argc, char* argv[]) {
     if (coord) {
         cout << "writing coordinates (.hyp) ...\t" << flush;
         auto t6 = high_resolution_clock::now();
-        auto f = ofstream(file+".hyp");
+        ofstream f{file+".hyp"};
         f << std::fixed << std::setprecision(6);
         for(auto i{0u}; i<n; ++i)
             f << radii[i]  << ' ' << angles[i] << '\n';

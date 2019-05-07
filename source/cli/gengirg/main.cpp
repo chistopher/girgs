@@ -149,7 +149,7 @@ int main(int argc, char* argv[]) {
     if (edge) {
         cout << "writing edge list (.txt) ...\t" << flush;
         auto t6 = high_resolution_clock::now();
-        auto f = ofstream(file+".txt");
+        ofstream f{file+".txt"};
         f << n << ' ' << edges.size() << "\n\n";
         for(auto& each : edges)
             f << each.first << ' ' << each.second << '\n';
