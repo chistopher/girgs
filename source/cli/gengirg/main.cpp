@@ -11,6 +11,7 @@
 #include <girgs/girgs-version.h>
 #include <girgs/Generator.h>
 #include <girgs/BitManipulation.h>
+#include <algorithm>
 
 
 using namespace std;
@@ -119,7 +120,8 @@ int main(int argc, char* argv[]) {
     cout << "generating weights ...\t\t" << flush;
     auto weights = girgs::generateWeights(n, ple, wseed, threads > 1);
     auto t2 = high_resolution_clock::now();
-    cout << "done in " << duration_cast<milliseconds>(t2 - t1).count() << "ms" << endl;
+    cout << "done in " << duration_cast<milliseconds>(t2 - t1).count() << "ms\tlargest = ";
+    cout << *max_element(weights.begin(), weights.end()) << endl;
 
 
     cout << "generating positions ...\t" << flush;
