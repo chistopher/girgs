@@ -122,6 +122,8 @@ void saveDot(const std::vector<double> &weights, const std::vector<std::vector<d
              const std::vector<std::pair<int, int>> &graph, const std::string &file) {
 
     std::ofstream f{file};
+    if(!f.is_open())
+        throw std::runtime_error{"Error: failed to open file \"" + file + '\"'};
     f << "graph girg {\n\toverlap=scale;\n\n";
     f << std::fixed;
     for (int i = 0; i < weights.size(); ++i) {

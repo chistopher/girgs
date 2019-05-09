@@ -5,13 +5,13 @@
 #include <string>
 #include <cstring>
 #include <fstream>
+#include <algorithm>
 
 #include <omp.h>
 
 #include <girgs/girgs-version.h>
 #include <girgs/Generator.h>
 #include <girgs/BitManipulation.h>
-#include <algorithm>
 
 
 using namespace std;
@@ -152,6 +152,7 @@ int main(int argc, char* argv[]) {
         cout << "writing edge list (.txt) ...\t" << flush;
         auto t6 = high_resolution_clock::now();
         ofstream f{file+".txt"};
+        if(!f.is_open()) throw std::runtime_error{"Error: failed to open file \"" + file + ".txt\""};
         f << n << ' ' << edges.size() << "\n\n";
         for(auto& each : edges)
             f << each.first << ' ' << each.second << '\n';
