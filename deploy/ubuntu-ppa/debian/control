@@ -1,46 +1,36 @@
-Source: cmake-init
+Source: girgs
 Section: misc
 Priority: optional
-Maintainer: Willy Scheibel <willy.scheibel@cginternals.com>
-Build-Depends: build-essential, cmake, qtbase5-dev, doxygen, graphviz
+Maintainer: Christopher Weyand <christopher.weyand@hpi.de>
+Build-Depends: build-essential, cmake 
 Standards-Version: 3.8.0
 
-Package: libcmake-init
+Package: libgirgs
 Architecture: any
 Depends: 
-Homepage: https://github.com/cginternals/cmake-init
-Description: Template for reliable, cross-platform C++ project setup using cmake.
+Homepage: https://github.com/chistopher/girgs
+Description: C++ libraries for expected linear-time generation of geometric inhomogeneous and hyperbolic random graphs (girgs, hypergirgs).
 
-Package: libcmake-init-dev
+Package: libgirgs-dev
 Architecture: any
-Depends: libcmake-init
-Homepage: https://github.com/cginternals/cmake-init
-Description: Template for reliable, cross-platform C++ project setup using cmake.
+Depends: libgirgs
+Homepage: https://github.com/chistopher/girgs
+Description: Header and cmake files for the girgs and hypergirgs C++ libraries.
 
-Package: libcmake-init-examples-data
+Package: libgirgs-dbg
 Architecture: any
-Homepage: https://github.com/cginternals/cmake-init
-Description: Template for reliable, cross-platform C++ project setup using cmake.
+Depends: libgirgs, libgirgs-dev
+Homepage: https://github.com/chistopher/girgs
+Description: Debug runtime for the girgs and hypergirgs C++ libraries.
 
-Package: libcmake-init-examples
+Package: libgirgs-cli
 Architecture: any
-Depends: libcmake-init, libcmake-init-examples-data, libqt5core5a
-Homepage: https://github.com/cginternals/cmake-init
-Description: Template for reliable, cross-platform C++ project setup using cmake.
+Depends: libgirgs
+Homepage: https://github.com/chistopher/girgs
+Description: Command line clients to generate geometric inhomogeneous random graphs (gengirg) and hyperbolic random graphs (genhrg).
 
-Package: libcmake-init-docs
+Package: libgirgs-all
 Architecture: any
-Homepage: https://github.com/cginternals/cmake-init
-Description: Template for reliable, cross-platform C++ project setup using cmake.
-
-Package: libcmake-init-dbg
-Architecture: any
-Depends: libcmake-init, libcmake-init-dev
-Homepage: https://github.com/cginternals/cmake-init
-Description: Template for reliable, cross-platform C++ project setup using cmake.
-
-Package: libcmake-init-all
-Architecture: any
-Depends: libcmake-init, libcmake-init-dev, libcmake-init-docs, libcmake-init-examples
-Homepage: https://github.com/cginternals/cmake-init
-Description: Template for reliable, cross-platform C++ project setup using cmake.
+Depends: libgirgs, libgirgs-dev, libgirgs-dbg, libgirgs-cli
+Homepage: https://github.com/chistopher/girgs
+Description: Command line client, release and debug runtime, C++ header, and cmake export files for a linear-time sampling algorithm for geometric inhomogeneous random graphs with a special case implementation for hyperbolic random graphs.
