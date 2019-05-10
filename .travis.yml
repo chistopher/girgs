@@ -3,7 +3,7 @@ language: cpp
 env:
   global:
     - CMAKE_OPTIONS="-DOPTION_BUILD_EXAMPLES=ON -DOPTION_BUILD_TESTS=ON"
-    - OMP_NUM_THREADS=4
+    - OMP_NUM_THREADS=2
 
 matrix:
   include:
@@ -13,20 +13,26 @@ matrix:
 #      osx_image: xcode9.1
 #      env: CMAKE_CONFIGURATION=debug BUILD_DIR=build-debug
 
+
+# clang needs a little hint to find its own omp library
     - os: linux
       compiler: clang
-      env: CMAKE_CONFIGURATION=release BUILD_DIR=build
+      env:
+        - CMAKE_CONFIGURATION=release BUILD_DIR=build
+        - LD_LIBRARY_PATH=/usr/local/clang/lib
 
     - os: linux
       compiler: clang
-      env: CMAKE_CONFIGURATION=debug BUILD_DIR=build-debug
+      env:
+        - CMAKE_CONFIGURATION=debug BUILD_DIR=build-debug
+        - LD_LIBRARY_PATH=/usr/local/clang/lib
 
 # ubuntu 14.04 (travis default) ships with too old gcc; updating is ugly
     - os: linux
       compiler: gcc
       env:
         - CMAKE_CONFIGURATION=release BUILD_DIR=build
-        - MATRIX_EVAL="CC=gcc-5 && CXX=g++-5"
+        - MATRIX_EVAL="CC=gcc-5 CXX=g++-5"
       addons:
         apt:
           sources:
@@ -37,15 +43,13 @@ matrix:
 
     - os: windows
       env:
+        - CMAKE_CONFIGURATION=release BUILD_DIR=build
         - CMAKE_GENERATOR_OVERRIDE="Visual Studio 15 2017 Win64"
-        - BUILD_DIR=build
-        - CMAKE_CONFIGURATION=release
 
     - os: windows
       env:
+        - CMAKE_CONFIGURATION=debug BUILD_DIR=build-debug
         - CMAKE_GENERATOR_OVERRIDE="Visual Studio 15 2017 Win64"
-        - BUILD_DIR=build-debug
-        - CMAKE_CONFIGURATION=debug
 
 before_script:
   - eval "${MATRIX_EVAL}"

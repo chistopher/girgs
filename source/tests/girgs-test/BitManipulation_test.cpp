@@ -80,10 +80,14 @@ static std::array<uint32_t, D> ReferenceExtract(uint32_t x) {
 TYPED_TEST(BitManipulationTest, DepositeSingle) {
     COMMON_DEFS
 
+    const auto bits = 32 / D;
+    // use 64 bit (at 1ull) to prevent shifts larger or equal to size of type
+    const auto max_coord = static_cast<uint32_t>((1ull << bits) - 1);
+    std::uniform_int_distribution<unsigned> distr(0, max_coord);
+
     for(int d = 0; d < D; d++) {
-        const auto bits = 32 / D + (d < 32 % D);
+
         const auto allowedBits = girgs::BitPattern<D>::kEveryDthBit << d;
-        std::uniform_int_distribution<unsigned> distr(0, (1u << bits) - 1);
 
         for(int i=0; i < 1000; i++) {
             coord[d] = distr(prng);
@@ -94,18 +98,21 @@ TYPED_TEST(BitManipulationTest, DepositeSingle) {
             ASSERT_EQ(tested, ref) << coord;
         }
 
-        coord[d] = 0;
+        coord[d] = 0; // reset coord to all 0's again
     }
 }
 
 TYPED_TEST(BitManipulationTest, DepositeAll) {
     COMMON_DEFS
 
+    const auto bits = 32 / D;
+    // use 64 bit (at 1ull) to prevent shifts larger or equal to size of type
+    const auto max_coord = static_cast<uint32_t>((1ull << bits) - 1);
+    std::uniform_int_distribution<unsigned> distr(0, max_coord);
+
     std::uniform_int_distribution<unsigned> dim_distr(0, D - 1);
     for(int i=0; i < 10000; i++) {
         const auto d = dim_distr(prng);
-        const auto bits = 32 / D + (d < 32 % D);
-        std::uniform_int_distribution<unsigned> distr(0, (1u << bits) - 1);
 
         coord[d] = distr(prng);
         const auto tested = Impl::deposit(coord);
@@ -157,7 +164,10 @@ TYPED_TEST(BitManipulationTest, ExtractAll) {
 TYPED_TEST(BitManipulationTest, XRef) {
     COMMON_DEFS
 
-    std::uniform_int_distribution<unsigned> distr;
+    auto max_bits = (32/D)*D;
+    // use 64 bit (at 1ull) to prevent shifts larger or equal to size of type
+    auto max_cell = static_cast<uint32_t>((1ull << max_bits) - 1);
+    std::uniform_int_distribution<uint32_t> distr(0, max_cell);
     for(int i=0; i < 10000; i++) {
         const auto cell = distr(prng);
 

@@ -116,7 +116,9 @@ struct Deposit {
         unsigned int result = 0u;
         unsigned int bit = 0;
 
-        for(auto l = 0u; l*D < 32 + D; l++) {
+        // stop if next level would be (partly) unrepresentable
+        // thus we encode the same number of bits for each coordinate
+        for(auto l = 0u; (l+1)*D <= 32; l++) {
             for(auto d = 0u; d != D; d++) {
                 result |= ((coords[d] >> l) & 1) << bit++;
             }
