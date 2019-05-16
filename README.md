@@ -1,38 +1,130 @@
 
-picture!
+This project contains an implementation of a linear-time sampling algorithm 
+for geometric inhomogeneous random graphs (GIRG)
+with a special case implementation for hyperbolic random graphs (HRG).
+Details on the algorithms as well as the models can be found in our corresponding paper: TODO
 
-documentation 
+We provide a C++ library and a command line client for each of the two generators.
 
-model definition
+# Installation
 
-# setup 
+## Ubuntu
 
-requirements
+TODO ubuntu ppa coming at [https://launchpad.net/girgs]
+
+## Windows
+
+An installer can be found on the release page.
+TODO link
+
+## MacOS
+
+A build or installation on MacOS is currently not supported.
+Feel free to open a pull request.
+
+## NetworKit
+
+An integration into the [NetworKit](https://networkit.github.io) framework is planned.
+
+## Build from Source
+
+To build the project from source you need
+- CMake 3.2
 - C++11
 - OpenMP
 - OPTIONAL: CPU with BMI2 instruction set
 
-## build from source
+The optional development components use
+- [Google Test](https://github.com/google/googletest)
+- [Google Benchmark](https://github.com/google/benchmark)
+- [Doxygen](https://github.com/google/benchmark)
+- [Boost](https://www.boost.org/)
 
-## install from source
+The simplest way to build the project is
+```
+mkdir build
+cd build
+cmake ..
+make
+```
 
-``make install`` istalls into /usr/local by default
-if shared lib not found run
-ldconfig /usr/local/lib
+Otherwise, our `configure` script provides reasonable defaults
+for release, debug, and packaging builds.
+For example, to install the project from source use
+```
+./configure
+./configure pack
+cmake --build ./build/
+cmake --build ./build/ --target install
+```
+Specifying pack instead of install in the last command generates a debian package that can be installed via aptitude or dpkg.
+ 
+# CLI
 
-## ubuntu ppa
-TODO
+The project contains two CLI's: `gengirg` and `genhrg`.
+You can use `--version` to determine the version of your respective generator.
 
-## windows installer
-TODO
+The GIRG generator features the following input parameters.
+```
+./gengirg --help
+usage: ./girggen
+		[-n anInt]          // number of nodes                          default 10000 [-d anInt]          // dimension of geometry    range [1,5]     default 1
+		[-ple aFloat]       // power law exponent       range (2,3]     default 2.5
+		[-alpha aFloat]     // model parameter          range (1,inf]   default infinity
+		[-deg aFloat]       // average degree           range [1,n)     default 10
+		[-wseed anInt]      // weight seed                              default 12
+		[-pseed anInt]      // position seed                            default 130
+		[-sseed anInt]      // sampling seed                            default 1400
+		[-threads anInt]    // number of threads to use                 default 1
+		[-file aString]     // file name for output (w/o ext)           default "graph"
+		[-dot 0|1]          // write result as dot (.dot)               default 0
+		[-edge 0|1]         // write result as edgelist (.txt)          default 0
+```
 
-# Usage
+The HRG generator features the following input parameters.
+```
+./genhrg --help
+usage: ./girggen
+		[-n anInt]          // number of nodes                          default 10000
+		[-alpha aFloat]     // model parameter          range [0.5,1]   default 0.75
+		[-t aFloat]         // temperature parameter    range [0,1)     default 0
+		[-deg aFloat]       // average degree           range [1,n)     default 10
+		[-rseed anInt]      // radii seed                               default 12
+		[-aseed anInt]      // angle seed                               default 130
+		[-sseed anInt]      // sampling seed                            default 1400
+		[-threads anInt]    // number of threads to use                 default 1
+		[-nkr 0|1]          // use NetworKit R estimation               default 0
+		[-file aString]     // file name for output (w/o ext)           default "graph"
+		[-edge 0|1]         // write result as edgelist (.txt)          default 0
+		[-coord 0|1]        // write hyp. coordinates (.hyp)            default 0
+```
 
-## CLI
+# C++ Library
 
-gengirg
+The library is based in the [cmake-init](https://github.com/cginternals/cmake-init) project template.
+Detailed information on the build system design can be found there.
 
-genhrg
 
-## C++ Library
+For the standard use case, we provide a buffered edge list generation supporting parallel execution in the headers `hypergirgs/Generator.h` and `girgs/Generator.h`.
+```cpp
+#include <hypergirgs/Generator.h>
+
+auto R = hypergirgs::calculateRadius(n, alpha, T, deg);
+auto radii = hypergirgs::sampleRadii(n, alpha, R, rseed);
+auto angles = hypergirgs::sampleAngles(n, aseed);
+// generates edge list as vector<pair<int,int>>
+auto hrg_edges = hypergirgs::generateEdges(radii, angles, T, R, sseed);
+```
+
+Internally, the algorithm is templated with a callback that is called for each emitted edge.
+Using lambdas, a custom callback can be used as follows.
+```cpp
+#include <hypergirgs/HyperbolicTree.h>
+
+auto callback = [] (int a, int b, int tid) { ... }; // tid is thread id
+auto generator = hypergirgs::makeHyperbolicTree(radii, angles, T, R, callback);
+generator.generate(seed);
+```
+
+For details we refer to our example applications in `source/examples/` or the CLI's in `source/cli/`.
 
