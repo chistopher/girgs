@@ -96,7 +96,7 @@ The GIRG generator features the following input parameters.
 ./gengirg --help
 usage: ./gengirg
 		[-n anInt]          // number of nodes                          default 10000 
-        [-d anInt]          // dimension of geometry    range [1,5]     default 1
+        	[-d anInt]          // dimension of geometry    range [1,5]     default 1
 		[-ple aFloat]       // power law exponent       range (2,3]     default 2.5
 		[-alpha aFloat]     // model parameter          range (1,inf]   default infinity
 		[-deg aFloat]       // average degree           range [1,n)     default 10
