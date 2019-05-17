@@ -1,21 +1,48 @@
 
+[![Build Status](https://travis-ci.org/chistopher/girgs.svg?branch=hyper)](https://travis-ci.org/chistopher/girgs)
+
 This project contains an implementation of a linear-time sampling algorithm 
 for geometric inhomogeneous random graphs (GIRG)
 with a special case implementation for hyperbolic random graphs (HRG).
-Details on the algorithms as well as the models can be found in our corresponding paper: TODO
+Details on the algorithms as well as the models can be found in our corresponding paper: 
+[Efficiently Generating Geometric Inhomogeneous and Hyperbolic Random Graphs](https://arxiv.org/abs/1905.06706).
 
 We provide a C++ library and a command line client for each of the two generators.
 
 # Installation
 
-## Ubuntu
+## Ubuntu 
 
-TODO ubuntu ppa coming at [https://launchpad.net/girgs]
+The most recent version of the generators can be installed from our personal package archive ([PPA link](https://launchpad.net/~chistopher/+archive/ubuntu/ppa)).
+```
+sudo add-apt-repository ppa:chistopher/ppa
+sudo apt-get update
+sudo apt-get install libgirgs-all 
+```
 
+The `libgirgs-all` package depends on all sub-packages: 
+- the runtime `libgirgs`
+- the cli's `libgirgs-cli`
+- the headers and cmake files `libgirgs-dev`
+- and the debug runtime `libgirgs-dbg`
+
+If you installed `libgirgs-cli` you can verify the install by running `genhrg --version`.
+The result should look something like this.
+```
+HyperGIRGs command line interface.
+
+girgs v1.0.0 (2dd23aad456e)
+Generator for Geometric Inhomogeneous Random Graphs
+Hasso Plattner Institute
+https://github.com/chistopher/girgs/
+christopher.weyand@hpi.de
+```
+ 
 ## Windows
 
-An installer can be found on the release page.
-TODO link
+A Win64 installer for each release can be downloaded from the release page.
+It features similar components as the ubuntu PPA.
+If a more recent version is desired, the project can be build and installed from source. 
 
 ## MacOS
 
@@ -37,7 +64,7 @@ To build the project from source you need
 The optional development components use
 - [Google Test](https://github.com/google/googletest)
 - [Google Benchmark](https://github.com/google/benchmark)
-- [Doxygen](https://github.com/google/benchmark)
+- [Doxygen](https://github.com/google/benchmark), which uses [Graphviz](https://www.graphviz.org/) and latex
 - [Boost](https://www.boost.org/)
 
 The simplest way to build the project is
@@ -57,7 +84,7 @@ For example, to install the project from source use
 cmake --build ./build/
 cmake --build ./build/ --target install
 ```
-Specifying pack instead of install in the last command generates a debian package that can be installed via aptitude or dpkg.
+Specifying the `pack` target instead of `install` generates a debian package that can be installed via aptitude or dpkg.
  
 # CLI
 
@@ -67,8 +94,9 @@ You can use `--version` to determine the version of your respective generator.
 The GIRG generator features the following input parameters.
 ```
 ./gengirg --help
-usage: ./girggen
-		[-n anInt]          // number of nodes                          default 10000 [-d anInt]          // dimension of geometry    range [1,5]     default 1
+usage: ./gengirg
+		[-n anInt]          // number of nodes                          default 10000 
+        [-d anInt]          // dimension of geometry    range [1,5]     default 1
 		[-ple aFloat]       // power law exponent       range (2,3]     default 2.5
 		[-alpha aFloat]     // model parameter          range (1,inf]   default infinity
 		[-deg aFloat]       // average degree           range [1,n)     default 10
@@ -84,7 +112,7 @@ usage: ./girggen
 The HRG generator features the following input parameters.
 ```
 ./genhrg --help
-usage: ./girggen
+usage: ./genhrg
 		[-n anInt]          // number of nodes                          default 10000
 		[-alpha aFloat]     // model parameter          range [0.5,1]   default 0.75
 		[-t aFloat]         // temperature parameter    range [0,1)     default 0

@@ -54,7 +54,7 @@ int main(int argc, char* argv[]) {
 
     // write help
     if (argc < 2 || 0 == strcmp(argv[1], "--help") || 0 == strcmp(argv[1], "-help")) {
-        clog << "usage: ./girggen\n"
+        clog << "usage: ./gengirg\n"
             << "\t\t[-n anInt]          // number of nodes                          default 10000\n"
             << "\t\t[-d anInt]          // dimension of geometry    range [1,5]     default 1\n"
             << "\t\t[-ple aFloat]       // power law exponent       range (2,3]     default 2.5\n"
@@ -76,7 +76,7 @@ int main(int argc, char* argv[]) {
              << GIRGS_NAME_VERSION << '\n'
              << GIRGS_PROJECT_DESCRIPTION << '\n'
              << GIRGS_AUTHOR_ORGANIZATION << '\n'
-             << GIRGS_AUTHOR_DOMAIN << " (soon)\n"
+             << GIRGS_AUTHOR_DOMAIN << '\n'
              << GIRGS_AUTHOR_MAINTAINER << '\n';
         return 0;
     }

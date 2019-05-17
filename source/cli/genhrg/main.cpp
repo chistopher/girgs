@@ -53,7 +53,7 @@ int main(int argc, char* argv[]) {
 
     // write help
     if (argc < 2 || 0 == strcmp(argv[1], "--help") || 0 == strcmp(argv[1], "-help")) {
-        clog << "usage: ./girggen\n"
+        clog << "usage: ./genhrg\n"
             << "\t\t[-n anInt]          // number of nodes                          default 10000\n"
             << "\t\t[-alpha aFloat]     // model parameter          range [0.5,1]   default 0.75\n"
             << "\t\t[-t aFloat]         // temperature parameter    range [0,1)     default 0\n"
@@ -75,7 +75,7 @@ int main(int argc, char* argv[]) {
              << GIRGS_NAME_VERSION << '\n'
              << GIRGS_PROJECT_DESCRIPTION << '\n'
              << GIRGS_AUTHOR_ORGANIZATION << '\n'
-             << GIRGS_AUTHOR_DOMAIN << " (soon)\n"
+             << GIRGS_AUTHOR_DOMAIN << '\n'
              << GIRGS_AUTHOR_MAINTAINER << '\n';
         return 0;
     }
