@@ -23,11 +23,13 @@ std::vector<double> generateWeights(int n, double ple, int weightSeed, bool para
     {
         const auto tid = omp_get_thread_num();
         auto gen = default_random_engine{weightSeed >= 0 ? (weightSeed+tid) : std::random_device()()};
-        auto dist = std::uniform_real_distribution<>{};
+        auto dist = std::uniform_real_distribution<>{1.0, std::pow(0.5*n, -ple + 1)};
+
+        const auto ex =  1.0 / (-ple + 1.0);
 
         #pragma omp for schedule(static)
         for (int i = 0; i < n; ++i) {
-            result[i] = std::pow((std::pow(0.5*n, -ple + 1) - 1) * dist(gen) + 1, 1 / (-ple + 1));
+            result[i] = std::pow(dist(gen), ex);
         }
     }
 
