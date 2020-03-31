@@ -4,8 +4,8 @@
 This project contains an implementation of a linear-time sampling algorithm 
 for geometric inhomogeneous random graphs (GIRG)
 with a special case implementation for hyperbolic random graphs (HRG).
-Details on the algorithms as well as the models can be found in our corresponding paper: 
-[Efficiently Generating Geometric Inhomogeneous and Hyperbolic Random Graphs](https://arxiv.org/abs/1905.06706).
+Details on the algorithms as well as the models can be found in our corresponding paper:
+Efficiently Generating Geometric Inhomogeneous and Hyperbolic Random Graphs ([conference version](http://dx.doi.org/10.4230/LIPIcs.ESA.2019.21), [full version](https://arxiv.org/abs/1905.06706)).
 
 We provide a C++ library and a command line client for each of the two generators.
 
