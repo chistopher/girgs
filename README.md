@@ -46,8 +46,22 @@ If a more recent version is desired, the project can be build and installed from
 
 ## macOS
 
-On macOS it is recommended to build the project from source, with the additional
-requirement that [Xcode](https://developer.apple.com/xcode/) is installed.
+Install [Xcode](https://developer.apple.com/xcode/) and OpenMP via
+[brew](https://brew.sh/) using the
+[libomp](https://formulae.brew.sh/formula/libomp#default) formula. Afterwards,
+follow the instructions below for building the project from source, with one exception:
+
+The command `cmake ..` needs to be replaced by the following command, in order to tell CMake where to find OpenMP.
+```
+cmake .. -DCMAKE_CXX_FLAGS="-I/usr/local/Cellar/libomp/X.Y.Z/include/" -DCMAKE_C_FLAGS="-I/usr/local/Cellar/libomp/X.Y.Z/include"  -DCMAKE_SHARED_LINKER_FLAGS="/usr/local/Cellar/libomp/X.Y.Z/lib/libomp.dylib" -DCMAKE_EXE_LINKER_FLAGS="/usr/local/Cellar/libomp/X.Y.Z/lib/libomp.dylib"
+```
+where `X.Y.Z` is the version of OpenMP installed via brew.
+
+If successful, two executables will be available at
+```
+build/gengirg.app/Contents/MacOS/gengirg
+build/genhrg.app/Contents/MacOS/genhrg
+```
 
 ## NetworKit
 
@@ -58,7 +72,7 @@ An integration into the [NetworKit](https://networkit.github.io) framework is pl
 To build the project from source you need
 - CMake 3.2
 - C++11
-- OpenMP (on macOS this can be installed via [brew](https://brew.sh/) using the [libomp](https://formulae.brew.sh/formula/libomp#default) formula.)
+- OpenMP 
 - OPTIONAL: CPU with BMI2 instruction set
 
 The optional development components use
@@ -74,12 +88,6 @@ cd build
 cmake ..
 make
 ```
-
-For macOS the process is the same, except that the command `cmake ..` needs to be replaced by the following command, in order to tell CMake where to find OpenMP.
-```
-cmake .. -DCMAKE_CXX_FLAGS="-I/usr/local/Cellar/libomp/X.Y.Z/include/" -DCMAKE_C_FLAGS="-I/usr/local/Cellar/libomp/X.Y.Z/include"  -DCMAKE_SHARED_LINKER_FLAGS="/usr/local/Cellar/libomp/X.Y.Z/lib/libomp.dylib" -DCMAKE_EXE_LINKER_FLAGS="/usr/local/Cellar/libomp/X.Y.Z/lib/libomp.dylib"
-```
-where `X.Y.Z` is the current OpenMP version distributed via brew.
 
 Otherwise, our `configure` script provides reasonable defaults
 for release, debug, and packaging builds.
