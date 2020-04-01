@@ -44,10 +44,9 @@ A Win64 installer for each release can be downloaded from the release page.
 It features similar components as the ubuntu PPA.
 If a more recent version is desired, the project can be build and installed from source. 
 
-## MacOS
+## macOS
 
-A build or installation on MacOS is currently not supported.
-Feel free to open a pull request.
+On macOS it is recommended to build the project from source.
 
 ## NetworKit
 
@@ -58,7 +57,7 @@ An integration into the [NetworKit](https://networkit.github.io) framework is pl
 To build the project from source you need
 - CMake 3.2
 - C++11
-- OpenMP
+- OpenMP (on macOS this can be installed via [brew](https://brew.sh/) using the [libomp](https://formulae.brew.sh/formula/libomp#default) formula.)
 - OPTIONAL: CPU with BMI2 instruction set
 
 The optional development components use
@@ -74,6 +73,12 @@ cd build
 cmake ..
 make
 ```
+
+For macOS the process is the same, except that the command `cmake ..` needs to be replaced by the following command, in order to tell CMake where to find OpenMP.
+```
+cmake .. -DCMAKE_CXX_FLAGS="-I/usr/local/Cellar/libomp/X.Y.Z/include/" -DCMAKE_C_FLAGS="-I/usr/local/Cellar/libomp/X.Y.Z/include"  -DCMAKE_SHARED_LINKER_FLAGS="/usr/local/Cellar/libomp/X.Y.Z/lib/libomp.dylib" -DCMAKE_EXE_LINKER_FLAGS="/usr/local/Cellar/libomp/X.Y.Z/lib/libomp.dylib"
+```
+where `X.Y.Z` is the current OpenMP version distributed via brew.
 
 Otherwise, our `configure` script provides reasonable defaults
 for release, debug, and packaging builds.
