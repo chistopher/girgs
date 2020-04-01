@@ -46,7 +46,8 @@ If a more recent version is desired, the project can be build and installed from
 
 ## macOS
 
-On macOS it is recommended to build the project from source.
+On macOS it is recommended to build the project from source, with the additional
+requirement that [Xcode](https://developer.apple.com/xcode/) is installed.
 
 ## NetworKit
 
