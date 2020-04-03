@@ -1,5 +1,5 @@
 
-[![Build Status](https://travis-ci.org/chistopher/girgs.svg?branch=hyper)](https://travis-ci.org/chistopher/girgs)
+[![Build Status](https://travis-ci.org/chistopher/girgs.svg)](https://travis-ci.org/chistopher/girgs)
 
 This project contains an implementation of a linear-time sampling algorithm 
 for geometric inhomogeneous random graphs (GIRG)
