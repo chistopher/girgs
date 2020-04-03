@@ -1,59 +1,37 @@
 language: cpp
 
+# we test these 3 operating systems
+os: 
+- linux
+# uncomment as soon as travis has cmake >= 3.12 for osx
+# - osx
+- windows
+
 env:
+  # and do debug/release builds for each
+  jobs:
+    - CMAKE_CONFIGURATION=release BUILD_DIR=build
+    - CMAKE_CONFIGURATION=debug BUILD_DIR=build-debug
   global:
     - CMAKE_OPTIONS="-DOPTION_BUILD_EXAMPLES=ON -DOPTION_BUILD_TESTS=ON"
     - OMP_NUM_THREADS=2
 
-matrix:
-  include:
-
-# xcode 9.1 has no proper openMP support
-#    - os: osx
-#      osx_image: xcode9.1
-#      env: CMAKE_CONFIGURATION=debug BUILD_DIR=build-debug
-
-
-# clang needs a little hint to find its own omp library
-    - os: linux
-      compiler: clang
-      env:
-        - CMAKE_CONFIGURATION=release BUILD_DIR=build
-        - LD_LIBRARY_PATH=/usr/local/clang/lib
-
-    - os: linux
-      compiler: clang
-      env:
-        - CMAKE_CONFIGURATION=debug BUILD_DIR=build-debug
-        - LD_LIBRARY_PATH=/usr/local/clang/lib
-
-# ubuntu 14.04 (travis default) ships with too old gcc; updating is ugly
-    - os: linux
-      compiler: gcc
-      env:
-        - CMAKE_CONFIGURATION=release BUILD_DIR=build
-        - MATRIX_EVAL="CC=gcc-5 CXX=g++-5"
-      addons:
-        apt:
-          sources:
-          - ubuntu-toolchain-r-test
-          packages:
-          - cmake
-          - g++-5
-
-    - os: windows
-      env:
-        - CMAKE_CONFIGURATION=release BUILD_DIR=build
-        - CMAKE_GENERATOR_OVERRIDE="Visual Studio 15 2017 Win64"
-
-    - os: windows
-      env:
-        - CMAKE_CONFIGURATION=debug BUILD_DIR=build-debug
-        - CMAKE_GENERATOR_OVERRIDE="Visual Studio 15 2017 Win64"
+# also build clang on linux, this depends on linux being the first in os list
+# clang needs some help to find omp, thus the LD_LIBRARY_PATH
+jobs:
+    include:
+        - compiler: clang
+          env:
+            - CMAKE_CONFIGURATION=release BUILD_DIR=build
+            - LD_LIBRARY_PATH=/usr/local/clang/lib
+        - compiler: clang
+          env:
+            - CMAKE_CONFIGURATION=debug BUILD_DIR=build-debug
+            - LD_LIBRARY_PATH=/usr/local/clang/lib
 
 before_script:
-  - eval "${MATRIX_EVAL}"
   - if [[ "$TRAVIS_OS_NAME" == "windows" ]]; then export PATH="$PATH:/c/Program Files/CMake/bin"; fi
+  - if [[ "$TRAVIS_OS_NAME" == "windows" ]]; then export CMAKE_GENERATOR_OVERRIDE="Visual Studio 15 2017 Win64"; fi
   - chmod +x ./configure
   - ./configure
   - ./configure $CMAKE_CONFIGURATION

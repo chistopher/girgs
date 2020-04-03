@@ -16,12 +16,12 @@ using namespace std;
 double distance(const std::vector<double>& a, const std::vector<double>& b);
 
 // multiple functions follow to compute the expected number of edges
-double tryOften(const std::vector<double>& w, double c, int dim, double a) {
+double tryOften(const std::vector<double>& w, double c, int dim, double a, int seed) {
 
     auto n = w.size();
 
     auto W = std::accumulate(w.begin(), w.end(), 0.0);
-    auto gen = std::mt19937(random_device()());
+    auto gen = std::mt19937(seed);
     std::uniform_real_distribution<> dist; // [0..1)
 
     int runs = 20;
@@ -236,7 +236,7 @@ TEST(DegreeEstimation_test, testEstimationFormula)
 
     auto weights = girgs::generateWeights(n, ple, seed);
 
-    auto experimental_number_of_edges = tryOften(weights, c, d, a);
+    auto experimental_number_of_edges = tryOften(weights, c, d, a, seed);
 
     auto short_edges = shortEdgesTrivial(weights,c,d,a);
     auto long_edges = longEdgesTrivial(weights,c,d,a);

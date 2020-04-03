@@ -5,7 +5,6 @@
 #include <gtest/gtest.h>
 #include <boost/math/distributions/binomial.hpp>
 
-#include <hypergirgs/Hyperbolic.h>
 #include <hypergirgs/HyperbolicTree.h>
 
 

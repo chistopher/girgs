@@ -32,6 +32,7 @@ foreach(target gtest gtest_main gmock gmock_main)
         LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}
         ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}
         PDB_OUTPUT_DIRECTORY     ${PROJECT_BINARY_DIR}
+        CXX_STANDARD 11 # somehow needed in ubuntu 16.04
     )
 endforeach()
 

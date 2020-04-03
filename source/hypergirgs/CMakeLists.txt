@@ -135,6 +135,7 @@ target_link_libraries(${target}
 
     PUBLIC
     ${DEFAULT_LIBRARIES}
+    OpenMP::OpenMP_CXX
 
     INTERFACE
 )
@@ -164,7 +165,6 @@ target_compile_options(${target}
 
     PUBLIC
     ${DEFAULT_COMPILE_OPTIONS}
-    ${OpenMP_CXX_FLAGS}
 
     INTERFACE
 )
@@ -179,7 +179,6 @@ target_link_libraries(${target}
 
     PUBLIC
     ${DEFAULT_LINKER_OPTIONS}
-    $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:${OpenMP_CXX_FLAGS}>
 
     INTERFACE
 )

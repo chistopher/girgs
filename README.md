@@ -56,7 +56,7 @@ An integration into the [NetworKit](https://networkit.github.io) framework is pl
 ## Build from Source
 
 To build the project from source you need
-- CMake 3.2
+- CMake 3.9
 - C++11
 - OpenMP
 - OPTIONAL: CPU with BMI2 instruction set
