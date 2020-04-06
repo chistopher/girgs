@@ -44,10 +44,11 @@ A Win64 installer for each release can be downloaded from the release page.
 It features similar components as the ubuntu PPA.
 If a more recent version is desired, the project can be build and installed from source. 
 
-## MacOS
+## macOS
 
-A build or installation on MacOS is currently not supported.
-Feel free to open a pull request.
+A packaged build is not available. Feel free to open a pull request.
+However, building from source should work just as detailed below.
+We will add osx to the travis builds as soon as their images have CMake >=3.12.
 
 ## NetworKit
 
