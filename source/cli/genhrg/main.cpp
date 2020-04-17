@@ -151,7 +151,7 @@ int main(int argc, char* argv[]) {
         auto t6 = high_resolution_clock::now();
         ofstream f{file+".hyp"};
         if(!f.is_open()) throw std::runtime_error{"Error: failed to open file \"" + file + ".hyp\""};
-        f << std::fixed << std::setprecision(6);
+        f << std::fixed << std::setprecision(std::numeric_limits<double>::max_digits10);
         for(auto i{0u}; i<n; ++i)
             f << radii[i]  << ' ' << angles[i] << '\n';
         auto t7 = high_resolution_clock::now();
