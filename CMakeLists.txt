@@ -23,7 +23,7 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 # Include modules provided by cmake
 include(GenerateExportHeader)
-include(WriteCompilerDetectionHeader)
+#include(WriteCompilerDetectionHeader)
 
 
 # Include custom cmake modules
