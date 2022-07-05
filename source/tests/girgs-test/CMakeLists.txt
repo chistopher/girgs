@@ -98,3 +98,5 @@ target_link_libraries(${target}
     PRIVATE
     ${DEFAULT_LINKER_OPTIONS}
 )
+
+gtest_discover_tests(${target})

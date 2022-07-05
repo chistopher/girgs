@@ -16,7 +16,7 @@ namespace girgs {
  * @param n
  *  The size of the graph. Should match with size of positions.
  * @param ple
- *  The power law exponent to sample the new weights. Should be 2.0 to h3.0.
+ *  The power law exponent to sample the new weights. Should be 2.0 to 3.0.
  * @param weightSeed
  *  A seed for weight sampling. Should not be equal to the position seed.
  *

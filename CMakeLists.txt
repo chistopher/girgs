@@ -4,7 +4,7 @@
 #
 
 # CMake version
-cmake_minimum_required(VERSION 3.9 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.10 FATAL_ERROR)
 
 #
 # Configure CMake environment
@@ -23,7 +23,8 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 # Include modules provided by cmake
 include(GenerateExportHeader)
-#include(WriteCompilerDetectionHeader)
+include(GoogleTest)
+enable_testing()
 
 
 # Include custom cmake modules
@@ -45,12 +46,12 @@ endif()
 # Meta information about the project
 set(META_PROJECT_NAME        "girgs")
 set(META_PROJECT_DESCRIPTION "Generator for Geometric Inhomogeneous Random Graphs")
-set(META_AUTHOR_ORGANIZATION "Hasso Plattner Institute")
+set(META_AUTHOR_ORGANIZATION "Karlsruhe Institute of Technology")
 set(META_AUTHOR_DOMAIN       "https://github.com/chistopher/girgs/")
-set(META_AUTHOR_MAINTAINER   "christopher.weyand@hpi.de")
+set(META_AUTHOR_MAINTAINER   "christopher.weyand@kit.edu")
 set(META_VERSION_MAJOR       "1")
 set(META_VERSION_MINOR       "0")
-set(META_VERSION_PATCH       "1")
+set(META_VERSION_PATCH       "2")
 set(META_VERSION_REVISION    "${GIT_REV}")
 set(META_VERSION             "${META_VERSION_MAJOR}.${META_VERSION_MINOR}.${META_VERSION_PATCH}")
 set(META_NAME_VERSION        "${META_PROJECT_NAME} v${META_VERSION} (${META_VERSION_REVISION})")
@@ -66,7 +67,6 @@ string(TOUPPER ${META_PROJECT_ID} META_PROJECT_ID)
 
 # Project options
 option(BUILD_SHARED_LIBS      "Build shared instead of static libraries."              ON)
-option(OPTION_SELF_CONTAINED  "Create a self-contained install with all dependencies." OFF)
 option(OPTION_BUILD_TESTS     "Build tests."                                           OFF)
 option(OPTION_BUILD_BENCHMARKS "Build benchmarks."                                     OFF)
 option(OPTION_BUILD_EXAMPLES  "Build examples."                                        OFF)

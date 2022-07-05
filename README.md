@@ -157,4 +157,6 @@ generator.generate(seed);
 ```
 
 For details we refer to our example applications in `source/examples/` or the CLI's in `source/cli/`.
+Also, a deployed version of the documentation is available at [weyand.dev/girgs](https://weyand.dev/girgs/).
+I suggest to look at the `girgs` namespace.
 
