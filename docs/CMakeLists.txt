@@ -13,62 +13,36 @@ if(NOT DOXYGEN_FOUND)
     return()
 endif()
 
-
-#
-# Target name
-#
-
-set(target docs)
 message(STATUS "Doc ${target}")
 
 
 #
-# Input file
+# Customize Doxygen
 #
 
-set(doxyfile_in doxyfile.in)
-
+set(DOXYGEN_QUIET                   YES)
+set(DOXYGEN_USE_MDFILE_AS_MAINPAGE  ${PROJECT_SOURCE_DIR}/README.md)
+set(DOXYGEN_PROJECT_LOGO            ${PROJECT_SOURCE_DIR}/girgs-logo.png)
+set(DOXYGEN_USE_MATHJAX             YES)
+set(DOXYGEN_EXTRACT_ALL             YES)
 
 #
-# Create documentation
+# Create target
 #
 
-# Set project variables
-set(doxyfile            "${CMAKE_CURRENT_BINARY_DIR}/doxyfile")
-set(doxyfile_directory  "${CMAKE_CURRENT_BINARY_DIR}/html")
-set(doxyfile_html       "${doxyfile_directory}/index.html")
-
-# Get filename and path of doxyfile
-get_filename_component(name ${doxyfile_in} NAME)
-get_filename_component(path ${doxyfile_in} PATH)
-if(NOT path)
-    set(path ${CMAKE_CURRENT_SOURCE_DIR})
-endif()
-
-# Configure doxyfile (if it is a real doxyfile already, it should simply copy the file)
-set(DOXYGEN_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-configure_file(${doxyfile_in} ${doxyfile})
-
-# Invoke doxygen
-add_custom_command(
-    OUTPUT              ${doxyfile_html}
-    DEPENDS             ${doxyfile} ${META_PROJECT_NAME}::girgs
-    WORKING_DIRECTORY   ${path}
-    COMMAND             ${CMAKE_COMMAND} -E copy_directory ${path} ${doxyfile_directory} # ToDO, configure doxygen to use source as is
-    COMMAND             ${DOXYGEN} \"${doxyfile}\"
-    COMMENT             "Creating doxygen documentation."
+doxygen_add_docs(docs
+    ${PROJECT_SOURCE_DIR}/README.md
+    ${PROJECT_SOURCE_DIR}/source/girgs/include/girgs/Generator.h
+    ${PROJECT_SOURCE_DIR}/source/hypergirgs/include/hypergirgs/Generator.h
+    WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/source
 )
-
-# Declare target
-add_custom_target(${target} ALL DEPENDS ${doxyfile_html})
-
 
 #
 # Deployment
 #
 
 install(
-    DIRECTORY ${doxyfile_directory}
+    DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/html
     DESTINATION ${INSTALL_DOC}
     COMPONENT docs
 )
