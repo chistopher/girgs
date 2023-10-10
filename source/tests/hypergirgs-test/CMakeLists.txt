@@ -16,7 +16,7 @@ message(STATUS "Test ${target}")
 #
 
 set(sources
-    main.cpp
+    # main.cpp
     AngleHelper_test.cpp
     HyperbolicTree_test.cpp
     Point_test.cpp
@@ -74,8 +74,7 @@ target_link_libraries(${target}
     PRIVATE
     ${DEFAULT_LIBRARIES}
     ${META_PROJECT_NAME}::hypergirgs
-    gmock
-    gtest
+    GTest::gmock_main
 )
 
 

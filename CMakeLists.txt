@@ -29,7 +29,6 @@ enable_testing()
 
 # Include custom cmake modules
 include(cmake/GetGitRevisionDescription.cmake)
-include(cmake/DownloadProject.cmake)
 
 
 #
