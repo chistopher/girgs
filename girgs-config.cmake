@@ -7,11 +7,13 @@
 
 # Find depencencies
 include(CMakeFindDependencyMacro)
+find_dependency(OpenMP)
 
 
 # List of modules
 set(MODULE_NAMES
     girgs
+    hypergirgs
 )
 
 

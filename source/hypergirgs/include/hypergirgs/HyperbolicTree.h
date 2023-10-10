@@ -16,7 +16,6 @@
 #include <hypergirgs/RadiusLayer.h>
 #include <hypergirgs/Point.h>
 #include <hypergirgs/DistanceFilter.h>
-#include <hypergirgs/Generator.h>
 
 
 namespace hypergirgs {

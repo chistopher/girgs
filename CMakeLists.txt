@@ -4,7 +4,7 @@
 #
 
 # CMake version
-cmake_minimum_required(VERSION 3.10 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.12 FATAL_ERROR)
 
 #
 # Configure CMake environment
@@ -83,7 +83,7 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 set(IDE_FOLDER "")
 
 # Declare project
-project(${META_PROJECT_NAME} C CXX)
+project(${META_PROJECT_NAME} VERSION ${META_VERSION} DESCRIPTION ${META_PROJECT_DESCRIPTION} LANGUAGES C CXX)
 
 # Set output directories
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR})
