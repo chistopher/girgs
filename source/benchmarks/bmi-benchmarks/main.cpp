@@ -16,7 +16,7 @@ static void BM_deposit(benchmark::State& state) {
 
     for(auto _ : state) {
         for(const auto& c: values) {
-            const auto x = Impl::deposit(c);
+            auto x = Impl::deposit(c);
             benchmark::DoNotOptimize(x);
         }
     }

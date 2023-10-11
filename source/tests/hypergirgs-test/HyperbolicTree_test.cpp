@@ -2,7 +2,7 @@
 #include <cmath>
 #include <numeric>
 
-#include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
 #include <hypergirgs/HyperbolicTree.h>
 #include <hypergirgs/Generator.h>

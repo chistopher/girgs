@@ -1,5 +1,5 @@
 
-#include <gmock/gmock.h>
+#include <gtest/gtest.h>
 #include <cmath>
 
 double distance(const std::vector<double>& a, const std::vector<double>& b) {
@@ -16,6 +16,6 @@ double distance(const std::vector<double>& a, const std::vector<double>& b) {
 
 int main(int argc, char* argv[])
 {
-    ::testing::InitGoogleMock(&argc, argv);
+    ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

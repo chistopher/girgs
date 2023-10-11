@@ -3,7 +3,7 @@
 #include <cmath>
 #include <numeric>
 
-#include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
 #include <girgs/Generator.h>
 

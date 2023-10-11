@@ -1,5 +1,5 @@
 
-#include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
 #include <hypergirgs/Point.h>
 #include <hypergirgs/Generator.h>

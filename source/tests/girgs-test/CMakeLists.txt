@@ -65,7 +65,7 @@ target_link_libraries(${target}
     PRIVATE
     ${DEFAULT_LIBRARIES}
     ${META_PROJECT_NAME}::girgs
-    GTest::gmock
+    GTest::gtest
 )
 
 

@@ -21,7 +21,7 @@ double pow1000(double x) { return pow(1000.0, x);}
       const T step = 1e10;                         \
       for(auto _ : state) {                        \
         benchmark::DoNotOptimize(x);               \
-        const auto tmp = X(x);                     \
+        auto tmp = X(x);                     \
         benchmark::DoNotOptimize(tmp);             \
       }                                            \
     }                                              \
@@ -64,9 +64,6 @@ struct EdgeProbBase {
     EdgeProbBase(double T, double R, double maxProb) : m_T(T), m_R(R), m_maxProb(maxProb) {}
 
     bool operator() (const Point& a, const Point& b, double uni_rnd) const noexcept {
-        benchmark::DoNotOptimize(a);
-        benchmark::DoNotOptimize(b);
-        benchmark::DoNotOptimize(uni_rnd);
         return false;
     }
 
@@ -120,7 +117,7 @@ static void BM_edge_prob(benchmark::State& state) {
     for(auto _ : state) {
         i = i < n - 2 ? i + 2 : 0;
 
-        const auto is_edge = base(points[i], points[i+1], dist_prob(prng));
+        auto is_edge = base(points[i], points[i+1], dist_prob(prng));
         benchmark::DoNotOptimize(is_edge);
     }
 }
