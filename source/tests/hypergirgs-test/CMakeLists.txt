@@ -74,7 +74,7 @@ target_link_libraries(${target}
     PRIVATE
     ${DEFAULT_LIBRARIES}
     ${META_PROJECT_NAME}::hypergirgs
-    GTest::gmock_main
+    GTest::gtest_main
 )
 
 
