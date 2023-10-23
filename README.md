@@ -1,12 +1,8 @@
-
-[![Build Status](https://travis-ci.org/chistopher/girgs.svg)](https://travis-ci.org/chistopher/girgs)
-
 This project contains an implementation of a linear-time sampling algorithm 
 for geometric inhomogeneous random graphs (GIRG)
 with a special case implementation for hyperbolic random graphs (HRG).
 Details on the algorithms as well as the models can be found in our corresponding paper:
-Efficiently Generating Geometric Inhomogeneous and Hyperbolic Random Graphs ([conference version](http://dx.doi.org/10.4230/LIPIcs.ESA.2019.21), [full version](https://arxiv.org/abs/1905.06706)).
-To cite this work, please use the bibtex entry for our conference version.
+Efficiently Generating Geometric Inhomogeneous and Hyperbolic Random Graphs ([conference version](http://dx.doi.org/10.4230/LIPIcs.ESA.2019.21), [journal version](https://doi.org/10.1017/nws.2022.32)).
 
 We provide a C++ library and a command line client for each of the two generators.
 
@@ -32,11 +28,11 @@ The result should look something like this.
 ```
 HyperGIRGs command line interface.
 
-girgs v1.0.0 (2dd23aad456e)
+girgs v1.0.2 (8a6647cd7ec2)
 Generator for Geometric Inhomogeneous Random Graphs
-Hasso Plattner Institute
+Karlsruhe Institute of Technology
 https://github.com/chistopher/girgs/
-christopher.weyand@hpi.de
+christopher.weyand@kit.edu
 ```
  
 ## Windows
@@ -58,7 +54,7 @@ An integration into the [NetworKit](https://networkit.github.io) framework is pl
 ## Build from Source
 
 To build the project from source you need
-- CMake 3.9
+- CMake 3.12+
 - C++11
 - OpenMP
 - OPTIONAL: CPU with BMI2 instruction set
@@ -66,27 +62,22 @@ To build the project from source you need
 The optional development components use
 - [Google Test](https://github.com/google/googletest)
 - [Google Benchmark](https://github.com/google/benchmark)
-- [Doxygen](https://github.com/google/benchmark), which uses [Graphviz](https://www.graphviz.org/) and latex
+- [Doxygen](https://github.com/google/benchmark), which uses [Graphviz](https://www.graphviz.org/)
 - [Boost](https://www.boost.org/)
 
 The simplest way to build the project is
 ```
-mkdir build
-cd build
-cmake ..
-make
+cmake -DCMAKE_BUILD_TYPE=Release -B build
+cmake --build build
+```
+or for a debug build
+```
+cmake -DOPTION_BUILD_TESTS=ON -B build-debug
+cmake --build build-debug
 ```
 
-Otherwise, our `configure` script provides reasonable defaults
-for release, debug, and packaging builds.
-For example, to install the project from source use
-```
-./configure
-./configure pack
-cmake --build ./build/
-cmake --build ./build/ --target install
-```
-Specifying the `pack` target instead of `install` generates a debian package that can be installed via aptitude or dpkg.
+The project can be installed globally with the `install` target.
+Alternatively, there is the `pack` target which generates a  debian package that can be installed via aptitude or dpkg.
  
 # CLI
 
@@ -158,5 +149,19 @@ generator.generate(seed);
 
 For details we refer to our example applications in `source/examples/` or the CLI's in `source/cli/`.
 Also, a deployed version of the documentation is available at [weyand.dev/girgs](https://weyand.dev/girgs/).
-I suggest to look at the `girgs` namespace.
 
+
+# Usage in a CMake Project
+
+To include girgs into your CMake project, it's as simple as this.
+```cmake
+cmake_minimum_required(VERSION 3.12)
+project(ineedgirgs CXX)
+find_package(girgs REQUIRED)
+add_executable(main main.cpp)
+target_link_libraries(main PRIVATE girgs::girgs)
+```
+
+If you have girgs installed globally (e.g. via the Debian package), they are found automatically. 
+If you want to link against a source build, then add the girgs repo to your `CMAKE_PREFIX_PATH` or specify it directly when configuring the build.
+That is, in your repo do `cmake -Dgirgs_DIR=~/repos/girgs/ -B build-debug`.
