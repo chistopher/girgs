@@ -4,7 +4,28 @@
 #
 
 # find_package(THIRDPARTY REQUIRED)
-find_package(OpenMP REQUIRED)
+find_package(OpenMP)
+
+# FindOpenMP.cmake does not reliably find a user installed openmp library for clang/llvm on
+# both Linux- and macOS-systems (even for CMake Version >= 3.12). The following section
+# manually sets the required fields for clang-like compiler.
+if(NOT OpenMP_FOUND)
+	if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "AppleClang")
+		# This will find default libomp-installations for homebrew/MacPorts
+		find_library(LIBOMP_PATH NAMES omp PATHS "/usr/local/opt/libomp/lib" "/opt/local/lib/libomp" "/opt/homebrew/opt/libomp/lib")
+		find_path(LIBOMP_INCLUDE NAMES omp.h PATHS "/usr/local/opt/libomp/include" "/opt/local/include/libomp" "/opt/homebrew/opt/libomp/include")
+		if(LIBOMP_PATH AND LIBOMP_INCLUDE)
+			set(OpenMP_CXX_FLAGS "-Xpreprocessor -fopenmp -I${LIBOMP_INCLUDE}" CACHE STRING "Manually set" FORCE)
+            set(OpenMP_CXX_LIB_NAMES "omp" CACHE STRING "Manually set" FORCE)
+            set(OpenMP_omp_LIBRARY "${LIBOMP_PATH}" CACHE STRING "Manually set" FORCE)
+		endif()
+	endif()
+
+	# After setting basic OpenMP-folders, run find_package again to set everything. Also acts as a final sanity check.
+	find_package(OpenMP REQUIRED)
+    message(STATUS "OMP lib found manually after CMake module failed")
+endif()
+
 
 #
 # Library name and options

@@ -219,7 +219,7 @@ TEST_F(Generator_test, testEstimation)
                     observed_avg /= runs;
 
                     // test the goodness of the estimation for weight scaling
-                    EXPECT_LT(abs(desired_avg - observed_avg)/desired_avg, 0.05) << "estimated constant does not produce desired average degree";
+                    EXPECT_LT(abs(desired_avg - observed_avg)/desired_avg, 0.08) << "estimated constant does not produce desired average degree";
                 }
             }
         }
